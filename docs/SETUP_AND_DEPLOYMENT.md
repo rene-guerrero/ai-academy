@@ -75,8 +75,8 @@ Free tier, passwordless email sign-in, Postgres with row-level security, and a b
 2. In the SQL editor, run `supabase/schema.sql`. It creates `public.learning_items` and the four row-level security policies that limit every operation to `auth.uid() = user_id`, and revokes the `anon` role.
 3. Authentication, URL configuration: set Site URL to `https://rene-guerrero.github.io/ai-academy/` and add `https://rene-guerrero.github.io/ai-academy/**` to the redirect allow list. For local testing add `http://localhost:4173/**`.
 4. Authentication, Providers, Email: keep "Enable email provider" on. Magic links are used by default (`signInWithOtp`). You can turn off "Confirm email" if you prefer a single click.
-5. In the GitHub repository, Settings, Secrets and variables, Actions, Variables: add `SUPABASE_URL` and `SUPABASE_ANON_KEY` (repository variables, not secrets; the values are public client configuration and are written into `dist/config.js`). Optionally `SITE_URL`.
-6. Push to `master` or re-run the workflow. The build log ends with "sync configured" when the variables are present.
+5. Put the Project URL and the anon or publishable key in `site-src/public-config.json` (already done for project `crdjdcciopzxfcvcgpoq`). These are public client values; RLS is what protects the data. Repository variables `SUPABASE_URL` and `SUPABASE_ANON_KEY` override the file if set. The build refuses to run if the key looks like a service-role or secret key.
+6. Push to `master` or re-run the workflow. The build log ends with "sync configured".
 
 For a local build, copy `.env.example` to `.env` and fill the same values. `.env` is ignored by git.
 

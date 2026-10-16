@@ -376,7 +376,10 @@ mkdirSync(join(out, "vendor"), { recursive: true });
 copyFileSync(join(root, "node_modules/mermaid/dist/mermaid.min.js"), join(out, "vendor/mermaid.min.js"));
 files.push("vendor/mermaid.min.js");
 
-const config = { supabaseUrl: env.SUPABASE_URL || "", supabaseAnonKey: env.SUPABASE_ANON_KEY || "", supabaseTable: env.SUPABASE_TABLE || "learning_items" };
+const publicConfigFile = join(src, "public-config.json");
+const publicConfig = existsSync(publicConfigFile) ? JSON.parse(readFileSync(publicConfigFile, "utf8")) : {};
+const config = { supabaseUrl: env.SUPABASE_URL || publicConfig.supabaseUrl || "", supabaseAnonKey: env.SUPABASE_ANON_KEY || publicConfig.supabaseAnonKey || "", supabaseTable: env.SUPABASE_TABLE || publicConfig.supabaseTable || "learning_items" };
+if (/service_role|sb_secret_/.test(config.supabaseAnonKey)) throw new Error("Refusing to build: the Supabase key looks like a secret key. Use the anon or publishable key.");
 emit("config.js", `window.__CONFIG=${JSON.stringify(config)};\n`);
 
 const sitemapUrls = files.filter((f) => f.endsWith(".html")).map((f) => `<url><loc>${SITE_URL + f.replace(/(^|\/)index\.html$/, "$1")}</loc></url>`).join("\n");
