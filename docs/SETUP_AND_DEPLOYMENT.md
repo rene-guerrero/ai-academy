@@ -14,17 +14,19 @@ The smoke test uses a Playwright-controlled Chromium. Set `CHROMIUM_PATH` if the
 
 ## 2. Content authoring
 
-Lessons live in `lessons-md/NN-slug.md`, Spanish versions in `lessons-md/es/NN-slug.md`, concept notes in `notes-md/` and `notes-md/es/`.
+Content is grouped into courses under `courses/<course-id>/`. Inside a course: lessons in `lessons-md/NN-slug.md`, Spanish versions in `lessons-md/es/NN-slug.md`, concept notes in `notes-md/` and `notes-md/es/`, exercise scripts in `exercises/`, and `course.json` with the bilingual title, summary, tracks and planned lessons.
+
+To add a course: create the folder, write `course.json` with `id` equal to the folder name, an `order` number, `title`, `summary`, `tracks` and `planned`, and add lessons. It appears on the home page automatically. URLs are `<course-id>/<lesson-slug>.html` and `es/<course-id>/<lesson-slug>.html`. Progress keys are scoped by course (`done:<course-id>/<slug>`), so slugs only need to be unique within a course.
 
 English front matter:
 
     ---
     title: Attention
     summary: One line for the catalog and the page lede.
-    area: A                     # track key from site-src/curriculum.json
+    area: A                     # track key from the course's course.json
     n: 3                        # lesson number, drives ordering and navigation
     minutes: 30
-    exercise: lessons/lesson_03_attention.py
+    exercise: exercises/lesson_03_attention.py   # relative to the course folder
     level: foundations          # foundations | core | advanced
     prereqs: 01-tokenization, 02-embeddings
     note: rag                   # optional related concept note (notes-md/rag.md)
@@ -49,7 +51,7 @@ Body conventions:
 - A `## References` section is ordinary Markdown.
 - Code blocks must be byte-identical between the English and Spanish versions; `npm run check` enforces this.
 
-Planned lessons (not yet written) are declared in `site-src/curriculum.json` under `planned`, with bilingual title and summary, track and prerequisites. They render as non-clickable "Planned" rows.
+Planned lessons (not yet written) are declared in the course's `course.json` under `planned`, with bilingual title and summary, track and prerequisites. They render as non-clickable "Planned" rows.
 
 UI strings live in `site-src/i18n/en.json` and `es.json`. `npm run check` fails if a key is missing in one language or placeholders differ.
 
@@ -98,4 +100,8 @@ For a local build, copy `.env.example` to `.env` and fill the same values. `.env
 
 ## 5. Daily lesson automation
 
-The scheduled task that writes a new lesson needs: a Markdown file in `lessons-md/`, optionally its Spanish twin in `lessons-md/es/`, the exercise in `lessons/`, and a push to `master`. The build and deploy are automatic. The scheduled session must have GitHub push access to this repository; that is configured in the scheduled task's connectors, not in this site.
+A new lesson for the AI Engineering course needs: `courses/ai-engineering/lessons-md/NN-slug.md`, optionally its Spanish twin in `courses/ai-engineering/lessons-md/es/`, the exercise in `courses/ai-engineering/exercises/`, removal of the matching `planned` entry in `course.json`, `npm run build && npm run check`, and a push to `master`. The deploy is automatic. The session that does this must have the repository attached with push access; scheduled tasks created from a chat cannot attach a repository by themselves, so attach it in the scheduled task's settings.
+
+## 6. Migration notes
+
+Until October 2026 lessons lived at the site root (`/03-attention.html`) and progress keys had no course prefix (`done:03-attention`). Old URLs now redirect, keeping the `#hash`, to `/ai-engineering/...`. On first load the client rewrites old keys to `done:ai-engineering/03-attention` and writes a null tombstone for each old key, so synced devices converge; incoming old-format keys from the cloud, imports or devices still running the old version are normalized the same way.

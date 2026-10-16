@@ -16,16 +16,6 @@ for (const k of Object.keys(en)) {
   if (a !== b) problems.push(`placeholder mismatch in ${k}`);
 }
 
-const curriculum = JSON.parse(readFileSync(join(root, "site-src/curriculum.json"), "utf8"));
-const tracks = new Set(curriculum.tracks.map((t) => t.key));
-const lessonSlugs = readdirSync(join(root, "lessons-md")).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, ""));
-const known = new Set([...lessonSlugs, ...curriculum.planned.map((p) => p.slug)]);
-for (const p of curriculum.planned) {
-  if (!tracks.has(p.track)) problems.push(`planned ${p.slug}: unknown track ${p.track}`);
-  for (const q of p.prereqs || []) if (!known.has(q)) problems.push(`planned ${p.slug}: unknown prereq ${q}`);
-  for (const lang of ["en", "es"]) if (!p.title[lang] || !p.summary[lang]) problems.push(`planned ${p.slug}: missing ${lang} text`);
-}
-
 function codeBlocks(text) {
   const blocks = [];
   let current = null;
@@ -44,24 +34,49 @@ function front(file) {
   for (const line of m[1].split(/\r?\n/)) { const i = line.indexOf(":"); if (i > 0) d[line.slice(0, i).trim()] = line.slice(i + 1).trim(); }
   return d;
 }
+const courseIds = readdirSync(join(root, "courses")).filter((d) => existsSync(join(root, "courses", d, "course.json")));
+if (!courseIds.length) problems.push("no courses found under courses/");
+for (const cid of courseIds) {
+  const cdir = join(root, "courses", cid);
+  const course = JSON.parse(readFileSync(join(cdir, "course.json"), "utf8"));
+  if (course.id !== cid) problems.push(`${cid}: course.json id is ${course.id}`);
+  for (const lang of ["en", "es"]) {
+    if (!course.title || !course.title[lang]) problems.push(`${cid}: missing ${lang} title`);
+    if (!course.summary || !course.summary[lang]) problems.push(`${cid}: missing ${lang} summary`);
+  }
+  const tracks = new Set((course.tracks || []).map((t) => t.key));
+  const ldir = join(cdir, "lessons-md");
+  const lessonSlugs = existsSync(ldir) ? readdirSync(ldir).filter((f) => f.endsWith(".md")).map((f) => f.replace(/\.md$/, "")) : [];
+  const known = new Set([...lessonSlugs, ...(course.planned || []).map((p) => p.slug)]);
+  for (const p of course.planned || []) {
+    if (!tracks.has(p.track)) problems.push(`${cid} planned ${p.slug}: unknown track ${p.track}`);
+    for (const q of p.prereqs || []) if (!known.has(q)) problems.push(`${cid} planned ${p.slug}: unknown prereq ${q}`);
+    for (const lang of ["en", "es"]) if (!p.title[lang] || !p.summary[lang]) problems.push(`${cid} planned ${p.slug}: missing ${lang} text`);
+    if (lessonSlugs.includes(p.slug)) problems.push(`${cid} planned ${p.slug}: already published, remove it from planned`);
+  }
+  const numbers = new Set();
 for (const slug of lessonSlugs) {
-  const d = front(join(root, "lessons-md", `${slug}.md`));
-  if (!d) { problems.push(`${slug}: missing front matter`); continue; }
-  for (const k of ["title", "summary", "area", "n", "minutes", "exercise"]) if (!d[k]) problems.push(`${slug}: missing ${k}`);
-  if (d.area && !tracks.has(d.area)) problems.push(`${slug}: unknown area ${d.area}`);
-  if (d.exercise && !existsSync(join(root, d.exercise))) problems.push(`${slug}: exercise file ${d.exercise} not found`);
-  if (d.level && !["foundations", "core", "advanced"].includes(d.level)) problems.push(`${slug}: bad level ${d.level}`);
-  for (const q of (d.prereqs || "").split(",").map((s) => s.trim()).filter(Boolean)) if (!lessonSlugs.includes(q)) problems.push(`${slug}: unknown prereq ${q}`);
-  const esFile = join(root, "lessons-md/es", `${slug}.md`);
-  if (!existsSync(esFile)) problems.push(`warning: ${slug} has no Spanish translation`);
+  const d = front(join(ldir, `${slug}.md`));
+  if (!d) { problems.push(`${cid}/${slug}: missing front matter`); continue; }
+  if (numbers.has(d.n)) problems.push(`${cid}/${slug}: duplicate lesson number ${d.n}`);
+  numbers.add(d.n);
+  for (const k of ["title", "summary", "area", "n", "minutes", "exercise"]) if (!d[k]) problems.push(`${cid}/${slug}: missing ${k}`);
+  if (d.area && !tracks.has(d.area)) problems.push(`${cid}/${slug}: unknown area ${d.area}`);
+  if (d.exercise && !existsSync(join(cdir, d.exercise))) problems.push(`${cid}/${slug}: exercise file ${d.exercise} not found`);
+  if (d.level && !["foundations", "core", "advanced"].includes(d.level)) problems.push(`${cid}/${slug}: bad level ${d.level}`);
+  for (const q of (d.prereqs || "").split(",").map((s) => s.trim()).filter(Boolean)) if (!lessonSlugs.includes(q)) problems.push(`${cid}/${slug}: unknown prereq ${q}`);
+  const esFile = join(ldir, "es", `${slug}.md`);
+  if (!existsSync(esFile)) problems.push(`warning: ${cid}/${slug} has no Spanish translation`);
   else {
     const e = front(esFile);
-    if (!e || !e.title || !e.summary) problems.push(`${slug}: Spanish file needs title and summary`);
-    const enCode = codeBlocks(readFileSync(join(root, "lessons-md", `${slug}.md`), "utf8"));
+    if (!e || !e.title || !e.summary) problems.push(`${cid}/${slug}: Spanish file needs title and summary`);
+    const enCode = codeBlocks(readFileSync(join(ldir, `${slug}.md`), "utf8"));
     const esCode = codeBlocks(readFileSync(esFile, "utf8"));
-    if (enCode.length !== esCode.length) problems.push(`${slug}: Spanish file has ${esCode.length} code blocks, English has ${enCode.length}`);
-    else enCode.forEach((c, i) => { if (c !== esCode[i]) problems.push(`${slug}: code block ${i + 1} differs between languages`); });
+    if (enCode.length !== esCode.length) problems.push(`${cid}/${slug}: Spanish file has ${esCode.length} code blocks, English has ${enCode.length}`);
+    else enCode.forEach((c, i) => { if (c !== esCode[i]) problems.push(`${cid}/${slug}: code block ${i + 1} differs between languages`); });
   }
+}
+
 }
 
 function walk(dir) {

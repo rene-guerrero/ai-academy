@@ -3,6 +3,7 @@
   var T = window.__T || {};
   var CFG = window.__CONFIG || {};
   var STATE_KEY = "aia:state";
+  var LEGACY_COURSE = "ai-engineering";
   var SUPABASE_CDN = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js";
 
   function t(key, vars) {
@@ -49,7 +50,52 @@
     if (!s || s.v !== 2) s = { v: 2, items: {}, meta: { account: null, dirty: {}, lastSync: 0 } };
     if (!s.meta.dirty) s.meta.dirty = {};
     migrateV1(s);
+    migrateKeys(s);
     return s;
+  }
+  function normalizeKey(k) {
+    var m = k.match(/^(done|pred|bm|pos):([^/]+)$/);
+    if (m) return m[1] + ":" + LEGACY_COURSE + "/" + m[2];
+    m = k.match(/^quiz:([^/:]+):(\d+)$/);
+    if (m) return "quiz:" + LEGACY_COURSE + "/" + m[1] + ":" + m[2];
+    return k;
+  }
+  function normalizeValue(k, v) {
+    if (k === "last" && v && typeof v === "object") {
+      var key = v.key || v.slug;
+      if (key && key.indexOf("/") < 0) key = LEGACY_COURSE + "/" + key;
+      return { key: key, n: v.n, title: v.title, url: v.url || key + ".html" };
+    }
+    return v;
+  }
+  function normalizeItems(items) {
+    var outItems = {}, now = Date.now();
+    Object.keys(items || {}).forEach(function (k) {
+      var it = items[k];
+      if (!it) return;
+      var nk = normalizeKey(k);
+      var value = { v: normalizeValue(nk, it.v), t: it.t };
+      if (!outItems[nk] || outItems[nk].t < value.t) outItems[nk] = value;
+      if (nk !== k && it.v !== null) outItems[k] = { v: null, t: Math.max(it.t + 1, now) };
+    });
+    return outItems;
+  }
+  function migrateKeys(s) {
+    var changed = false;
+    Object.keys(s.items).forEach(function (k) {
+      var it = s.items[k];
+      var nk = normalizeKey(k);
+      var nv = normalizeValue(nk, it.v);
+      if (nk === k && nv === it.v) return;
+      if (nk === k) { s.items[k] = { v: nv, t: it.t }; changed = true; return; }
+      if (it.v === null) return;
+      var cur = s.items[nk];
+      if (!cur || cur.t < it.t) { s.items[nk] = { v: nv, t: it.t }; s.meta.dirty[nk] = 1; }
+      s.items[k] = { v: null, t: Date.now() };
+      s.meta.dirty[k] = 1;
+      changed = true;
+    });
+    if (changed) { s.v = 2; s.meta.migrated = 3; ls("set", STATE_KEY, JSON.stringify(s)); }
   }
   function migrateV1(s) {
     var keys = [];
@@ -90,6 +136,7 @@
   }
   function mergeItems(incoming, conflictAll) {
     var applied = 0;
+    incoming = normalizeItems(incoming);
     Object.keys(incoming).forEach(function (key) {
       var r = incoming[key];
       if (!r || typeof r.t !== "number") return;
@@ -122,7 +169,7 @@
   function applyTheme(choice) {
     if (choice === "light" || choice === "dark") document.documentElement.setAttribute("data-theme", choice);
     else document.documentElement.removeAttribute("data-theme");
-    $$("[data-theme-choice]").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-theme-choice") === choice ? "true" : "false"); });
+    $$("[data-theme-choice]").forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-theme-choice") === choice ? "true" : "false"); });
     renderMermaid();
   }
   function initTheme() {
@@ -139,6 +186,7 @@
       });
     });
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { renderMermaid(); });
+    window.matchMedia("(max-width: 40rem)").addEventListener("change", function () { renderMermaid(); });
     document.addEventListener("click", function (e) {
       var m = $("#theme-menu");
       if (m && m.hasAttribute("open") && !m.contains(e.target)) m.removeAttribute("open");
@@ -271,7 +319,7 @@
       });
     });
 
-    set("last", { slug: slug, n: P.n, title: P.title });
+    set("last", { key: slug, n: P.n, title: P.title, url: P.name });
     var posTimer, lastSavedPos = get("pos:" + slug) || 0;
     window.addEventListener("scroll", function () {
       clearTimeout(posTimer);
@@ -285,79 +333,144 @@
     else if (location.hash === "#resume" && get("pos:" + slug)) restoreScroll(get("pos:" + slug));
   }
 
-  function initHome() {
-    if (P.kind !== "home") return;
+  function courseLessons(courseId) {
+    return (P.lessons || []).filter(function (l) { return !courseId || (l.key.indexOf(courseId + "/") === 0); });
+  }
+  function paintRings(lessons) {
+    $$("[data-ring]").forEach(function (r) {
+      var id = r.getAttribute("data-ring");
+      var list = lessons.filter(function (l) { return l.key.indexOf(id + "/") === 0; });
+      var done = list.filter(function (l) { return lessonStatus(l.key, l.quiz) === "done"; }).length;
+      var fill = $(".ring-fill", r);
+      var c = parseFloat(fill.getAttribute("data-c"));
+      var ratio = list.length ? done / list.length : 0;
+      fill.style.strokeDashoffset = String(c * (1 - ratio));
+      r.classList.toggle("is-done", list.length > 0 && done === list.length);
+    });
+  }
+  function continueBlock(body, lessons, prefix) {
+    body.innerHTML = "";
+    body.className = "continue-body";
+    var last = get("last");
+    var lastKey = last && (last.key || last.slug);
+    var lastLesson = lastKey && lessons.filter(function (l) { return l.key === lastKey; })[0];
+    var scope = lastLesson ? lessons.filter(function (l) { return l.key.split("/")[0] === lastLesson.key.split("/")[0]; }) : lessons;
+    var nextLesson = scope.filter(function (l) { return lessonStatus(l.key, l.quiz) !== "done"; })[0] || lessons.filter(function (l) { return lessonStatus(l.key, l.quiz) !== "done"; })[0];
+    var anyProgress = lessons.some(function (l) { return lessonStatus(l.key, l.quiz) !== "new"; });
+    if (!anyProgress && !lastLesson) {
+      body.appendChild(el("p", { class: "hint", text: t("home.continue.start.hint") }));
+      if (lessons[0]) body.appendChild(el("a", { class: "btn primary", href: prefix + lessons[0].url, text: t("home.continue.start") }));
+      return;
+    }
+    var courseName = function (l) {
+      var c = (P.courses || []).filter(function (x) { return l.key.indexOf(x.id + "/") === 0; })[0];
+      return c && P.kind === "home" ? " · " + t("home.continue.in", { course: c.title }) : "";
+    };
+    if (lastLesson && lessonStatus(lastLesson.key, lastLesson.quiz) !== "done") {
+      body.appendChild(el("div", { class: "continue-lesson" }, [
+        el("span", { class: "big" }, [el("small", { text: t("home.continue.resume") + courseName(lastLesson) }), lastLesson.n + ". " + lastLesson.title]),
+        el("a", { class: "btn primary", href: prefix + lastLesson.url + "#resume", text: t("home.continue.resume") })
+      ]));
+    }
+    if (nextLesson && (!lastLesson || nextLesson.key !== lastLesson.key || lessonStatus(lastLesson.key, lastLesson.quiz) === "done")) {
+      body.appendChild(el("div", { class: "continue-lesson" }, [
+        el("span", { class: "big" }, [el("small", { text: t("home.continue.next") + courseName(nextLesson) }), nextLesson.n + ". " + nextLesson.title]),
+        el("a", { class: "btn" + (body.children.length ? "" : " primary"), href: prefix + nextLesson.url, text: t("home.continue.next") })
+      ]));
+    }
+    if (!nextLesson) body.appendChild(el("p", { class: "hint", text: t("home.continue.allDone") }));
+  }
+  function reviewBlock(lessons, prefix) {
+    var review = $("#review"), list = $("#review-list");
+    if (!review || !list) return;
+    list.innerHTML = "";
+    lessons.forEach(function (l) {
+      var reviewCount = 0;
+      for (var i = 0; i < l.quiz; i++) if (get("quiz:" + l.key + ":" + i) === "review") reviewCount++;
+      var bm = Boolean(get("bm:" + l.key));
+      if (!reviewCount && !bm) return;
+      var labels = [];
+      if (bm) labels.push(t("home.review.bookmarked"));
+      if (reviewCount) labels.push(t("home.review.questions", { n: reviewCount }));
+      list.appendChild(el("li", {}, [el("a", { class: "row", href: prefix + l.url + (reviewCount ? "#knowledge-check" : "") }, [
+        el("span", { class: "num", "aria-hidden": "true", text: String(l.n) }),
+        el("span", { class: "txt" }, [el("span", { class: "row-title", text: l.title }), el("span", { class: "row-sum", text: labels.join(" · ") })])
+      ])]));
+    });
+    review.hidden = !list.children.length;
+  }
+  function initSearch(scope, prefix, indexUrl, onQuery) {
+    var input = $("#search-input"), results = $("#search-results"), hits = $("#search-hits");
+    if (!input) return;
+    var index = null, st;
+    function loadIndex() {
+      if (index) return Promise.resolve(index);
+      return fetch(indexUrl).then(function (r) { return r.json(); }).then(function (j) { index = j.filter(function (d) { return !scope || d.course === scope; }); return index; }).catch(function () { return []; });
+    }
+    function run(query) {
+      if (onQuery) onQuery(query);
+      if (query.length < 2) { results.hidden = true; return; }
+      loadIndex().then(function (idx) {
+        hits.innerHTML = "";
+        var found = 0;
+        idx.forEach(function (doc) {
+          var label = (doc.n ? doc.n + ". " : "") + doc.title + (scope ? "" : " · " + doc.courseTitle);
+          if (!scope && found < 20 && fold(doc.title + " " + doc.summary).indexOf(query) >= 0) {
+            found++;
+            hits.appendChild(el("li", {}, [el("a", { href: prefix + doc.url, text: doc.title }), el("small", { text: label })]));
+          }
+          doc.headings.forEach(function (h) {
+            if (found >= 20) return;
+            if (fold(h.text).indexOf(query) >= 0) {
+              found++;
+              hits.appendChild(el("li", {}, [el("a", { href: prefix + doc.url + "#" + h.id, text: h.text }), el("small", { text: label })]));
+            }
+          });
+        });
+        if (!found) hits.appendChild(el("li", { class: "muted", text: t("home.search.none") }));
+        results.hidden = false;
+      });
+    }
+    input.addEventListener("input", function () {
+      clearTimeout(st);
+      st = setTimeout(function () { run(fold(input.value.trim())); }, 150);
+    });
+    if (location.hash === "#search") setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function initCourse() {
+    if (P.kind !== "course") return;
     var lessons = P.lessons || [];
     var total = lessons.length;
     var totalMinutes = lessons.reduce(function (s, l) { return s + l.minutes; }, 0);
+    var filter = "all", query = "";
     function paint() {
       var done = 0, left = 0;
       lessons.forEach(function (l) {
-        var st = lessonStatus(l.slug, l.quiz);
+        var st = lessonStatus(l.key, l.quiz);
         if (st === "done") done++; else left += l.minutes;
-        var row = $('.row[data-slug="' + l.slug + '"]');
+        var row = $('.row[data-key="' + l.key + '"]');
         if (row) {
           var badge = $(".state", row);
           badge.setAttribute("data-state", st);
           badge.textContent = t("status." + st);
           row.setAttribute("data-status", st);
-          row.setAttribute("data-saved", get("bm:" + l.slug) ? "1" : "0");
+          row.setAttribute("data-saved", get("bm:" + l.key) ? "1" : "0");
         }
       });
       $("#progress-text").textContent = t("home.progress", { done: done, total: total });
       $("#progress-fill").style.width = total ? Math.round(done / total * 100) + "%" : "0%";
       $("#progress-time").textContent = t("home.progress.time", { minutes: left || totalMinutes });
       $("#progress-time").hidden = done === total;
-
-      var body = $("#continue-body");
-      body.innerHTML = "";
-      body.className = "continue-body";
-      var last = get("last");
-      var lastLesson = last && lessons.filter(function (l) { return l.slug === last.slug; })[0];
-      var nextLesson = lessons.filter(function (l) { return lessonStatus(l.slug, l.quiz) !== "done"; })[0];
-      if (!learningKeys().length || (!lastLesson && !nextLesson && done === 0)) {
-        body.appendChild(el("p", { class: "hint", text: t("home.continue.start.hint") }));
-        if (lessons[0]) body.appendChild(el("a", { class: "btn primary", href: lessons[0].slug + ".html", text: t("home.continue.start") }));
-      } else {
-        if (lastLesson && lessonStatus(lastLesson.slug, lastLesson.quiz) !== "done") {
-          body.appendChild(el("div", { class: "continue-lesson" }, [
-            el("span", { class: "big" }, [el("small", { text: t("home.continue.resume") }), lastLesson.n + ". " + lastLesson.title]),
-            el("a", { class: "btn primary", href: lastLesson.slug + ".html#resume", text: t("home.continue.resume") })
-          ]));
-        }
-        if (nextLesson && (!lastLesson || nextLesson.slug !== lastLesson.slug || lessonStatus(lastLesson.slug, lastLesson.quiz) === "done")) {
-          body.appendChild(el("div", { class: "continue-lesson" }, [
-            el("span", { class: "big" }, [el("small", { text: t("home.continue.next") }), nextLesson.n + ". " + nextLesson.title]),
-            el("a", { class: "btn" + (body.children.length ? "" : " primary"), href: nextLesson.slug + ".html", text: t("home.continue.next") })
-          ]));
-        }
-        if (!nextLesson) body.appendChild(el("p", { class: "hint", text: t("home.continue.allDone") }));
-      }
-
-      var review = $("#review"), list = $("#review-list");
-      list.innerHTML = "";
-      lessons.forEach(function (l) {
-        var reviewCount = 0;
-        for (var i = 0; i < l.quiz; i++) if (get("quiz:" + l.slug + ":" + i) === "review") reviewCount++;
-        var bm = Boolean(get("bm:" + l.slug));
-        if (!reviewCount && !bm) return;
-        var labels = [];
-        if (bm) labels.push(t("home.review.bookmarked"));
-        if (reviewCount) labels.push(t("home.review.questions", { n: reviewCount }));
-        list.appendChild(el("li", {}, [el("a", { class: "row", href: l.slug + ".html" + (reviewCount ? "#knowledge-check" : "") }, [
-          el("span", { class: "num", "aria-hidden": "true", text: String(l.n) }),
-          el("span", { class: "txt" }, [el("span", { class: "row-title", text: l.title }), el("span", { class: "row-sum", text: labels.join(" · ") })])
-        ])]));
-      });
-      review.hidden = !list.children.length;
+      paintRings(lessons);
+      continueBlock($("#continue-body"), lessons, "");
       applyFilter();
     }
-    var filter = "all", query = "";
     function applyFilter() {
       var any = false;
       $$(".track").forEach(function (track) {
         var visible = 0;
-        $$("a.row[data-slug]", track).forEach(function (row) {
+        $$("a.row[data-key]", track).forEach(function (row) {
           var st = row.getAttribute("data-status") || "new";
           var ok = filter === "all" || (filter === "saved" ? row.getAttribute("data-saved") === "1" : filter === "todo" ? st === "new" : st === filter);
           if (ok && query) ok = fold(row.getAttribute("data-title") + " " + $(".row-sum", row).textContent).indexOf(query) >= 0;
@@ -369,7 +482,7 @@
         track.hidden = (filter !== "all" || query) && !visible;
         if (visible) any = true;
       });
-      $("#filter-empty").hidden = any || !$$("a.row[data-slug]").length;
+      $("#filter-empty").hidden = any || !$$("a.row[data-key]").length;
     }
     $$("[data-filter]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -378,34 +491,27 @@
         applyFilter();
       });
     });
-    var index = null, input = $("#search-input"), results = $("#search-results"), hits = $("#search-hits"), st;
-    function loadIndex() {
-      if (index) return Promise.resolve(index);
-      return fetch("search.json").then(function (r) { return r.json(); }).then(function (j) { index = j; return j; }).catch(function () { return []; });
-    }
-    function searchHeadings() {
-      if (query.length < 2) { results.hidden = true; return; }
-      loadIndex().then(function (idx) {
-        hits.innerHTML = "";
-        var found = 0;
-        idx.forEach(function (doc) {
-          doc.headings.forEach(function (h) {
-            if (found >= 12) return;
-            if (fold(h.text).indexOf(query) >= 0) {
-              found++;
-              hits.appendChild(el("li", {}, [el("a", { href: doc.url + "#" + h.id, text: h.text }), el("small", { text: (doc.n ? doc.n + ". " : "") + doc.title })]));
-            }
-          });
-        });
-        if (!found) hits.appendChild(el("li", { class: "muted", text: t("home.search.none") }));
-        results.hidden = false;
+    initSearch(P.course, "../", "../search.json", function (q) { query = q; applyFilter(); });
+    paint();
+    onChange(function () { paint(); });
+  }
+
+  function initHome() {
+    if (P.kind !== "home") return;
+    var lessons = P.lessons || [];
+    function paint() {
+      paintRings(lessons);
+      (P.courses || []).forEach(function (c) {
+        var meta = $('[data-course-progress="' + c.id + '"]');
+        var list = lessons.filter(function (l) { return l.key.indexOf(c.id + "/") === 0; });
+        var done = list.filter(function (l) { return lessonStatus(l.key, l.quiz) === "done"; }).length;
+        var started = list.some(function (l) { return lessonStatus(l.key, l.quiz) !== "new"; });
+        if (meta) meta.textContent = !started ? t("course.lessons", { n: list.length }) + " · " + t("course.notStarted") : done === list.length ? t("course.lessons", { n: list.length }) + " · " + t("course.complete") : t("course.progress", { done: done, total: list.length });
       });
+      continueBlock($("#continue-body"), lessons, "");
+      reviewBlock(lessons, "");
     }
-    input.addEventListener("input", function () {
-      clearTimeout(st);
-      st = setTimeout(function () { query = fold(input.value.trim()); applyFilter(); searchHeadings(); }, 150);
-    });
-    if (location.hash === "#search") setTimeout(function () { input.focus(); }, 50);
+    initSearch("", "", "search.json");
     paint();
     onChange(function () { paint(); });
 
@@ -414,7 +520,7 @@
     $$("[data-action]").forEach(function (b) {
       b.addEventListener("click", function () {
         var a = b.getAttribute("data-action");
-        if (a === "export") download("ai-academy-data.json", JSON.stringify({ app: "ai-academy", version: 2, exportedAt: new Date().toISOString(), items: state.items }, null, 2), "application/json");
+        if (a === "export") download("ai-academy-data.json", JSON.stringify({ app: "ai-academy", version: 3, exportedAt: new Date().toISOString(), items: state.items }, null, 2), "application/json");
         if (a === "export-md") download("ai-academy-notes.md", notesMarkdown(lessons), "text/markdown");
       });
     });
@@ -437,10 +543,13 @@
   }
   function notesMarkdown(lessons) {
     var lines = ["# AI Academy notes", "", new Date().toISOString().slice(0, 10), ""];
-    lessons.forEach(function (l) {
-      var n = get("pred:" + l.slug);
-      if (typeof n !== "string" || !n.trim()) return;
-      lines.push("## " + l.n + ". " + l.title, "", (get("done:" + l.slug) ? "Status: done" : "Status: in progress"), "", n.trim(), "");
+    (P.courses || []).forEach(function (c) {
+      var list = lessons.filter(function (l) { return l.key.indexOf(c.id + "/") === 0 && typeof get("pred:" + l.key) === "string" && get("pred:" + l.key).trim(); });
+      if (!list.length) return;
+      lines.push("## " + c.title, "");
+      list.forEach(function (l) {
+        lines.push("### " + l.n + ". " + l.title, "", (get("done:" + l.key) ? "Status: done" : "Status: in progress"), "", get("pred:" + l.key).trim(), "");
+      });
     });
     return lines.join("\n");
   }
@@ -452,9 +561,10 @@
   }
 
   function initToc() {
-    var d = $("#toc-details");
-    if (d && window.matchMedia("(max-width: 63.99rem)").matches) d.removeAttribute("open");
-    var links = $$(".toc a");
+    var links = $$(".side .toc a");
+    $$(".toc-inline a").forEach(function (a) {
+      a.addEventListener("click", function () { var d = a.closest("details"); if (d) d.removeAttribute("open"); });
+    });
     if (!links.length || !("IntersectionObserver" in window)) return;
     var map = {};
     links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
@@ -467,9 +577,6 @@
       });
     }, { rootMargin: "-10% 0px -80% 0px" });
     Object.keys(map).forEach(function (id) { var e = document.getElementById(id); if (e) io.observe(e); });
-    links.forEach(function (a) {
-      a.addEventListener("click", function () { if (d && window.matchMedia("(max-width: 63.99rem)").matches) d.removeAttribute("open"); });
-    });
   }
 
   var mermaidNodes = null;
@@ -479,7 +586,13 @@
     if (!mermaidNodes.length) return;
     var dark = resolvedTheme() === "dark";
     window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "base", fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", flowchart: { useMaxWidth: true, htmlLabels: true }, sequence: { useMaxWidth: true }, themeVariables: dark ? { background: "#1b2129", primaryColor: "#232b35", primaryTextColor: "#e8e6e1", primaryBorderColor: "#3b4654", lineColor: "#9b998f", secondaryColor: "#163038", tertiaryColor: "#1b2129", textColor: "#e8e6e1", fontSize: "14px" } : { background: "#fffdf9", primaryColor: "#efece5", primaryTextColor: "#1f1d1a", primaryBorderColor: "#cfcabf", lineColor: "#6c685f", secondaryColor: "#e0f0f2", tertiaryColor: "#fffdf9", textColor: "#1f1d1a", fontSize: "14px" } });
-    mermaidNodes.forEach(function (n) { n.removeAttribute("data-processed"); n.textContent = n.getAttribute("data-src"); });
+    var narrow = window.matchMedia("(max-width: 40rem)").matches;
+    mermaidNodes.forEach(function (n) {
+      var src = n.getAttribute("data-src");
+      if (narrow) src = src.replace(/^(\s*(?:flowchart|graph))\s+(LR|RL)\b/m, "$1 TD");
+      n.removeAttribute("data-processed");
+      n.textContent = src;
+    });
     window.mermaid.run({ nodes: mermaidNodes }).catch(function () {});
   }
   function initMermaid() {
@@ -704,6 +817,6 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initLang(); initCopy(); initLesson(); initHome(); initToc(); initMermaid(); initOffline(); initSync();
+    initTheme(); initLang(); initCopy(); initLesson(); initCourse(); initHome(); initToc(); initMermaid(); initOffline(); initSync();
   });
 })();

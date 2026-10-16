@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync, existsSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join, dirname } from "node:path";
+import { join, dirname, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 import hljs from "highlight.js";
@@ -15,9 +15,9 @@ const REPO = env.REPO_URL || "https://github.com/rene-guerrero/ai-academy";
 const BRANCH = env.REPO_BRANCH || "master";
 const LANGS = ["en", "es"];
 const DEFAULT_LANG = "en";
+const LEGACY_COURSE = "ai-engineering";
 
 const dict = Object.fromEntries(LANGS.map((l) => [l, JSON.parse(readFileSync(join(src, "i18n", `${l}.json`), "utf8"))]));
-const curriculum = JSON.parse(readFileSync(join(src, "curriculum.json"), "utf8"));
 const shell = readFileSync(join(src, "shell.html"), "utf8");
 
 function loadEnv() {
@@ -38,7 +38,7 @@ const attr = esc;
 function t(lang, key, vars = {}) {
   let s = dict[lang][key];
   if (s === undefined) {
-    if (lang !== DEFAULT_LANG && dict[DEFAULT_LANG][key] !== undefined) s = dict[DEFAULT_LANG][key];
+    if (dict[DEFAULT_LANG][key] !== undefined) s = dict[DEFAULT_LANG][key];
     else throw new Error(`Missing translation ${lang}:${key}`);
   }
   return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : `{${k}}`));
@@ -92,10 +92,6 @@ function extractQuiz(body) {
   return { stripped, questions };
 }
 
-function inlineMd(s) {
-  return marked.parseInline(s.trim(), { gfm: true });
-}
-
 function render(body, L) {
   const toc = [];
   const used = new Set();
@@ -121,10 +117,9 @@ function render(body, L) {
 }
 
 function readDir(dir) {
-  const full = join(root, dir);
-  if (!existsSync(full)) return [];
-  return readdirSync(full).filter((f) => f.endsWith(".md")).sort().map((f) => {
-    const { data, body } = parseFront(readFileSync(join(full, f), "utf8"), join(dir, f));
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith(".md")).sort().map((f) => {
+    const { data, body } = parseFront(readFileSync(join(dir, f), "utf8"), join(dir, f));
     return { file: f, slug: f.replace(/\.md$/, ""), data, body };
   });
 }
@@ -142,30 +137,22 @@ function loadContent(dir, kind) {
   return [...bySlug.values()].map((v) => ({ kind, slug: v.en.slug, versions: v }));
 }
 
-const lessons = loadContent("lessons-md", "lesson")
-  .map((l) => ({ ...l, n: Number(l.versions.en.data.n), track: l.versions.en.data.area }))
-  .sort((a, b) => a.n - b.n);
-const notes = loadContent("notes-md", "note");
-const lessonBySlug = new Map(lessons.map((l) => [l.slug, l]));
-const noteBySlug = new Map(notes.map((n) => [n.slug, n]));
+const pick = (entry, lang) => entry.versions[lang] || entry.versions[DEFAULT_LANG];
+const isTranslated = (entry, lang) => lang === DEFAULT_LANG || Boolean(entry.versions[lang]);
 
-function pagePath(lang, name) {
-  return lang === DEFAULT_LANG ? name : `${lang}/${name}`;
-}
-function relPrefix(lang) {
-  return lang === DEFAULT_LANG ? "" : "../";
-}
-function altPath(lang, name) {
-  const other = LANGS.find((l) => l !== lang);
-  return relPrefix(lang) + pagePath(other, name);
-}
-
-function pick(entry, lang) {
-  return entry.versions[lang] || entry.versions[DEFAULT_LANG];
-}
-function isTranslated(entry, lang) {
-  return lang === DEFAULT_LANG || Boolean(entry.versions[lang]);
-}
+const courses = readdirSync(join(root, "courses"))
+  .filter((d) => statSync(join(root, "courses", d)).isDirectory() && existsSync(join(root, "courses", d, "course.json")))
+  .map((id) => {
+    const dir = join(root, "courses", id);
+    const meta = JSON.parse(readFileSync(join(dir, "course.json"), "utf8"));
+    if (meta.id !== id) throw new Error(`courses/${id}/course.json id must be "${id}"`);
+    const lessons = loadContent(join(dir, "lessons-md"), "lesson")
+      .map((l) => ({ ...l, n: Number(l.versions.en.data.n), track: l.versions.en.data.area, key: `${id}/${l.slug}` }))
+      .sort((a, b) => a.n - b.n);
+    const notes = loadContent(join(dir, "notes-md"), "note").map((n) => ({ ...n, key: `${id}/note-${n.slug}` }));
+    return { id, dir, meta, lessons, notes, tracks: new Map(meta.tracks.map((x) => [x.key, x])) };
+  })
+  .sort((a, b) => (a.meta.order || 99) - (b.meta.order || 99));
 
 const files = [];
 function emit(name, content) {
@@ -175,42 +162,65 @@ function emit(name, content) {
   files.push(name);
 }
 
-function page({ lang, name, title, desc, body, kind, slug = "", hasMermaid = false, extra = {}, ogType = "article" }) {
-  const rel = relPrefix(lang);
-  const alt = altPath(lang, name);
-  const pageData = { lang, kind, slug, name, rel, alt, siteUrl: SITE_URL, ...extra };
+const langPrefix = (lang) => (lang === DEFAULT_LANG ? "" : `${lang}/`);
+const outPath = (lang, name) => langPrefix(lang) + name;
+function relPrefix(lang, name) {
+  const depth = outPath(lang, name).split("/").length - 1;
+  return "../".repeat(depth);
+}
+
+const ICON = {
+  search: '<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  cloud: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18.5h10a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.1 11.2 3.7 3.7 0 0 0 7 18.5z"/></svg>',
+  bookmark: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.4-6 4.4z"/></svg>',
+  chevron: '<svg aria-hidden="true" viewBox="0 0 24 24" class="chev"><path d="m9 6 6 6-6 6"/></svg>',
+  back: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+};
+
+function ring(key, size = 44) {
+  const r = (size - 6) / 2;
+  const c = 2 * Math.PI * r;
+  return `<span class="ring" data-ring="${attr(key)}" style="--size:${size}px" aria-hidden="true"><svg viewBox="0 0 ${size} ${size}"><circle class="ring-track" cx="${size / 2}" cy="${size / 2}" r="${r}"/><circle class="ring-fill" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${c.toFixed(2)}" data-c="${c.toFixed(2)}"/></svg></span>`;
+}
+
+function page({ lang, name, title, desc, body, kind, slug = "", course = "", hasMermaid = false, extra = {}, ogType = "article" }) {
+  const rel = relPrefix(lang, name);
   const other = LANGS.find((l) => l !== lang);
+  const alt = rel + outPath(other, name);
   const L = lang;
-  const tools = `<nav class="tools" aria-label="${attr(t(L, "nav.account"))}">
-<a class="tool" href="${rel}index.html#search" aria-label="${attr(t(L, "nav.search"))}"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="tool-label">${t(L, "nav.search")}</span></a>
+  const pageData = { lang, kind, slug, course, name, rel, alt, ...extra };
+  const tools = `<nav class="tools" aria-label="${attr(t(L, "nav.settings"))}">
+<a class="tool" href="${rel}${langPrefix(lang)}index.html#search" aria-label="${attr(t(L, "nav.search"))}">${ICON.search}</a>
 <a class="tool lang" href="${alt}" hreflang="${other}" lang="${other}" data-set-lang="${other}" title="${attr(t(L, "lang.switch"))}" aria-label="${attr(t(L, "lang.switch"))}"><span class="lang-code">${other.toUpperCase()}</span></a>
-<details class="menu" id="theme-menu"><summary class="tool" aria-label="${attr(t(L, "nav.theme"))}" title="${attr(t(L, "nav.theme"))}"><svg aria-hidden="true" viewBox="0 0 24 24" class="icon-theme"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg></summary><div class="menu-panel" role="group" aria-label="${attr(t(L, "nav.theme"))}">
-<button type="button" data-theme-choice="light" aria-pressed="false">${t(L, "theme.light")}</button>
-<button type="button" data-theme-choice="dark" aria-pressed="false">${t(L, "theme.dark")}</button>
-<button type="button" data-theme-choice="system" aria-pressed="true">${t(L, "theme.system")}</button>
-</div></details>
-<button type="button" class="tool account" id="account-btn" aria-haspopup="dialog" aria-label="${attr(t(L, "nav.account"))}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18.5h10a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.1 11.2 3.7 3.7 0 0 0 7 18.5z"/></svg><span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="tool-label" id="sync-label">${t(L, "sync.local")}</span></button>
+<button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" aria-label="${attr(t(L, "nav.settings"))}">${ICON.cloud}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sync-label" id="sync-label">${t(L, "sync.local")}</span></button>
 </nav>`;
-  const dialogs = `<dialog id="account-dialog" class="dialog" aria-labelledby="account-title">
-<form method="dialog" class="dialog-head"><h2 id="account-title">${t(L, "account.title")}</h2><button type="submit" class="dialog-close" aria-label="Close">&times;</button></form>
-<div class="dialog-body" id="account-body"></div>
+  const themeButtons = ["system", "light", "dark"].map((c) => `<button type="button" role="radio" data-theme-choice="${c}" aria-checked="${c === "system" ? "true" : "false"}">${t(L, `theme.${c}`)}</button>`).join("");
+  const dialogs = `<dialog id="account-dialog" class="sheet" aria-labelledby="account-title">
+<div class="sheet-grabber" aria-hidden="true"></div>
+<form method="dialog" class="sheet-head"><h2 id="account-title">${t(L, "account.title")}</h2><button type="submit" class="sheet-done">${t(L, "sheet.done")}</button></form>
+<div class="sheet-body">
+<section class="group" aria-labelledby="appearance-h"><h3 id="appearance-h">${t(L, "settings.appearance")}</h3><div class="segmented" role="radiogroup" aria-labelledby="appearance-h">${themeButtons}</div><p class="hint">${t(L, "settings.appearance.hint")}</p></section>
+<section class="group" aria-labelledby="language-h"><h3 id="language-h">${t(L, "settings.language")}</h3><div class="segmented" role="radiogroup" aria-labelledby="language-h">${LANGS.map((l) => l === lang ? `<span role="radio" aria-checked="true" class="seg-on">${dict[l]["lang.name"]}</span>` : `<a role="radio" aria-checked="false" href="${rel + outPath(l, name)}" data-set-lang="${l}" lang="${l}">${dict[l]["lang.name"]}</a>`).join("")}</div></section>
+<section class="group" aria-labelledby="sync-h"><h3 id="sync-h">${t(L, "settings.sync")}</h3><div id="account-body"></div></section>
+</div>
 </dialog>
-<dialog id="merge-dialog" class="dialog" aria-labelledby="merge-title">
-<div class="dialog-head"><h2 id="merge-title">${t(L, "merge.title")}</h2></div>
-<div class="dialog-body"><p>${t(L, "merge.body")}</p>
+<dialog id="merge-dialog" class="sheet" aria-labelledby="merge-title">
+<div class="sheet-head"><h2 id="merge-title">${t(L, "merge.title")}</h2></div>
+<div class="sheet-body"><p>${t(L, "merge.body")}</p>
 <div class="choice-list">
 <button type="button" class="choice" data-merge="merge"><strong>${t(L, "merge.merge")}</strong><span>${t(L, "merge.merge.hint")}</span></button>
 <button type="button" class="choice" data-merge="cloud"><strong>${t(L, "merge.cloud")}</strong><span>${t(L, "merge.cloud.hint")}</span></button>
 <button type="button" class="choice" data-merge="local"><strong>${t(L, "merge.local")}</strong></button>
 </div></div></dialog>`;
-  const canonical = SITE_URL + pagePath(lang, name);
-  const altLinks = LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL + pagePath(l, name)}">`).join("\n") + `\n<link rel="alternate" hreflang="x-default" href="${SITE_URL + pagePath(DEFAULT_LANG, name)}">`;
+  const canonical = SITE_URL + outPath(lang, name);
+  const altLinks = LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL + outPath(l, name)}">`).join("\n") + `\n<link rel="alternate" hreflang="x-default" href="${SITE_URL + outPath(DEFAULT_LANG, name)}">`;
   return shell
     .replace(/{{LANG}}/g, lang)
     .replace(/{{TITLE}}/g, esc(title))
     .replace(/{{SITE}}/g, esc(t(L, "site.name")))
     .replace(/{{DESC}}/g, esc(desc))
     .replace(/{{REL}}/g, rel)
+    .replace(/{{HOME}}/g, rel + langPrefix(lang) + "index.html")
     .replace(/{{CANONICAL}}/g, canonical)
     .replace("{{ALTLINKS}}", altLinks)
     .replace("{{OGTYPE}}", ogType)
@@ -227,73 +237,85 @@ function page({ lang, name, title, desc, body, kind, slug = "", hasMermaid = fal
     .replace("{{BODY}}", body);
 }
 
-function tocHtml(toc, L) {
+function tocHtml(toc, L, inline = false) {
   if (!toc.length) return "";
   const items = toc.map((x) => `<li class="l${x.level}"><a href="#${x.id}">${esc(x.text)}</a></li>`).join("");
-  return `<nav class="toc" aria-label="${attr(t(L, "lesson.toc"))}"><details id="toc-details" open><summary>${t(L, "lesson.toc")}</summary><ol>${items}</ol></details></nav>`;
+  return inline
+    ? `<nav class="toc toc-inline" aria-label="${attr(t(L, "lesson.toc"))}"><details><summary>${t(L, "lesson.toc")}</summary><ol>${items}</ol></details></nav>`
+    : `<nav class="toc" aria-label="${attr(t(L, "lesson.toc"))}"><details open><summary>${t(L, "lesson.toc")}</summary><ol>${items}</ol></details></nav>`;
 }
 
-function lessonLink(lang, slug) {
-  const l = lessonBySlug.get(slug);
-  if (!l) throw new Error(`Unknown lesson reference ${slug}`);
-  return `<a href="${slug}.html">${l.n}. ${esc(pick(l, lang).data.title)}</a>`;
-}
-
-const trackByKey = new Map(curriculum.tracks.map((x) => [x.key, x]));
 const searchIndex = Object.fromEntries(LANGS.map((l) => [l, []]));
+const allLessonMeta = Object.fromEntries(LANGS.map((l) => [l, []]));
 
-for (const lang of LANGS) {
-  const L = lang;
-  lessons.forEach((lesson, i) => {
-    const v = pick(lesson, lang);
-    const d = v.data;
-    const { stripped, questions } = extractQuiz(v.body);
-    const { html, toc } = render(stripped, L);
-    const prev = lessons[i - 1];
-    const next = lessons[i + 1];
-    const track = trackByKey.get(lesson.track);
-    const level = d.level || "core";
-    const prereqs = d.prereqs ? String(d.prereqs).split(",").map((s) => s.trim()).filter(Boolean) : [];
-    const noteSlug = d.note && noteBySlug.has(d.note) ? d.note : null;
-    const notices = [];
-    if (d.regenerated) notices.push(`<aside class="notice" role="note">${t(L, "lesson.regenerated")}</aside>`);
-    if (!isTranslated(lesson, lang)) notices.push(`<aside class="notice" role="note" lang="${lang}">${t(L, "lesson.untranslated")}</aside>`);
+for (const course of courses) {
+  const C = course.id;
+  const lessonBySlug = new Map(course.lessons.map((l) => [l.slug, l]));
+  const noteBySlug = new Map(course.notes.map((n) => [n.slug, n]));
+  for (const lang of LANGS) {
+    const L = lang;
+    const courseTitle = course.meta.title[lang] || course.meta.title.en;
+    const lessonLink = (slug) => {
+      const l = lessonBySlug.get(slug);
+      if (!l) throw new Error(`${C}: unknown lesson reference ${slug}`);
+      return `<a href="${slug}.html">${l.n}. ${esc(pick(l, lang).data.title)}</a>`;
+    };
+    const crumb = `<a class="crumb" href="index.html">${ICON.back}<span>${esc(courseTitle)}</span></a>`;
 
-    let quiz = "";
-    if (questions.length) {
-      toc.push({ level: 2, id: "knowledge-check", text: t(L, "lesson.quiz") });
-      quiz = `<section class="quiz" id="knowledge-check" aria-labelledby="quiz-h"><h2 id="quiz-h">${t(L, "lesson.quiz")}</h2><p class="hint">${t(L, "lesson.quiz.hint")}</p><ol class="quiz-list">${questions.map((q, qi) => `<li class="quiz-item" data-q="${qi}"><div class="quiz-q">${inlineMd(q.q)}</div><details class="quiz-a"><summary>${t(L, "lesson.quiz.show")}</summary><div class="quiz-answer">${marked.parse(q.a, { gfm: true })}</div><div class="quiz-grade" role="group"><button type="button" class="chip" data-grade="ok" aria-pressed="false">${t(L, "lesson.quiz.ok")}</button><button type="button" class="chip" data-grade="review" aria-pressed="false">${t(L, "lesson.quiz.review")}</button><span class="quiz-state" aria-live="polite"></span></div></details></li>`).join("")}</ol></section>`;
-    }
+    course.lessons.forEach((lesson, i) => {
+      const v = pick(lesson, lang);
+      const d = v.data;
+      const { stripped, questions } = extractQuiz(v.body);
+      const { html, toc } = render(stripped, L);
+      const prev = course.lessons[i - 1];
+      const next = course.lessons[i + 1];
+      const track = course.tracks.get(lesson.track);
+      if (!track) throw new Error(`${C}/${lesson.slug}: unknown area ${lesson.track}`);
+      const level = d.level || "core";
+      const prereqs = d.prereqs ? String(d.prereqs).split(",").map((s) => s.trim()).filter(Boolean) : [];
+      const noteSlug = d.note && noteBySlug.has(d.note) ? d.note : null;
+      const notices = [];
+      if (d.regenerated) notices.push(`<aside class="notice" role="note">${t(L, "lesson.regenerated")}</aside>`);
+      if (!isTranslated(lesson, lang)) notices.push(`<aside class="notice" role="note">${t(L, "lesson.untranslated")}</aside>`);
 
-    let exercise = "";
-    if (d.exercise) {
-      const path = String(d.exercise);
-      const code = readFileSync(join(root, path), "utf8");
-      const lines = code.split("\n").length - (code.endsWith("\n") ? 1 : 0);
-      toc.push({ level: 2, id: "exercise", text: t(L, "lesson.exercise") });
-      exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
-<p>${t(L, "lesson.exercise.run")}</p>${codeBlock(`.\\.venv\\Scripts\\python.exe ${path.replace(/\//g, "\\")}`, "powershell", "PowerShell", L)}${codeBlock(`.venv/bin/python ${path}`, "bash", "bash", L)}
-<p><a class="btn" href="${REPO}/blob/${BRANCH}/${path}" rel="noopener">${t(L, "lesson.exercise.open")}</a></p>
-<details class="source"><summary>${t(L, "lesson.exercise.show", { n: lines })}</summary>${codeBlock(code, "python", path, L)}</details></section>`;
-    }
-    toc.push({ level: 2, id: "my-notes", text: t(L, "lesson.notes") });
+      let quiz = "";
+      if (questions.length) {
+        toc.push({ level: 2, id: "knowledge-check", text: t(L, "lesson.quiz") });
+        quiz = `<section class="quiz" id="knowledge-check" aria-labelledby="quiz-h"><h2 id="quiz-h">${t(L, "lesson.quiz")}</h2><p class="hint">${t(L, "lesson.quiz.hint")}</p><ol class="quiz-list">${questions.map((q, qi) => `<li class="quiz-item" data-q="${qi}"><div class="quiz-q">${marked.parseInline(q.q.trim(), { gfm: true })}</div><details class="quiz-a"><summary>${t(L, "lesson.quiz.show")}</summary><div class="quiz-answer">${marked.parse(q.a, { gfm: true })}</div><div class="quiz-grade" role="group"><button type="button" class="chip" data-grade="ok" aria-pressed="false">${t(L, "lesson.quiz.ok")}</button><button type="button" class="chip" data-grade="review" aria-pressed="false">${t(L, "lesson.quiz.review")}</button><span class="quiz-state" aria-live="polite"></span></div></details></li>`).join("")}</ol></section>`;
+      }
 
-    const nextSteps = [];
-    if (next) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.lesson")}</span> ${lessonLink(lang, next.slug)}</li>`);
-    if (noteSlug) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.note")}</span> <a href="note-${noteSlug}.html">${esc(pick(noteBySlug.get(noteSlug), lang).data.title)}</a></li>`);
+      let exercise = "";
+      if (d.exercise) {
+        const rel = String(d.exercise);
+        const repoPath = posix.join("courses", C, rel);
+        const code = readFileSync(join(course.dir, rel), "utf8");
+        const lines = code.split("\n").length - (code.endsWith("\n") ? 1 : 0);
+        toc.push({ level: 2, id: "exercise", text: t(L, "lesson.exercise") });
+        exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
+<p>${t(L, "lesson.exercise.run")}</p>${codeBlock(`.\\.venv\\Scripts\\python.exe ${repoPath.replace(/\//g, "\\")}`, "powershell", "PowerShell", L)}${codeBlock(`.venv/bin/python ${repoPath}`, "bash", "bash", L)}
+<p><a class="btn" href="${REPO}/blob/${BRANCH}/${repoPath}" rel="noopener">${t(L, "lesson.exercise.open")}</a></p>
+<details class="source"><summary>${t(L, "lesson.exercise.show", { n: lines })}</summary>${codeBlock(code, "python", repoPath, L)}</details></section>`;
+      }
+      toc.push({ level: 2, id: "my-notes", text: t(L, "lesson.notes") });
 
-    const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside>
-<main id="content" class="main lesson" data-slug="${lesson.slug}" tabindex="-1">
+      const nextSteps = [];
+      if (next) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.lesson")}</span> ${lessonLink(next.slug)}</li>`);
+      if (noteSlug) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.note")}</span> <a href="note-${noteSlug}.html">${esc(pick(noteBySlug.get(noteSlug), lang).data.title)}</a></li>`);
+
+      const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside>
+<main id="content" class="main lesson" data-key="${lesson.key}" tabindex="-1">
+${crumb}
 <p class="eyebrow"><span>${t(L, "lesson.label", { n: lesson.n })}</span><span class="dot" aria-hidden="true"></span><span>${esc(track.name[lang])}</span><span class="dot" aria-hidden="true"></span><span>${t(L, "lesson.minutes", { n: d.minutes || 25 })}</span><span class="dot" aria-hidden="true"></span><span>${t(L, `lesson.level.${level}`)}</span></p>
 <h1>${esc(d.title)}</h1>
 <p class="lede">${esc(d.summary)}</p>
 <div class="lesson-actions">
 <button type="button" class="act" id="done-btn" aria-pressed="false"><span class="box" aria-hidden="true"></span><span class="label">${t(L, "lesson.done")}</span></button>
-<button type="button" class="act" id="bookmark-btn" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg><span class="label">${t(L, "lesson.bookmark")}</span></button>
+<button type="button" class="act" id="bookmark-btn" aria-pressed="false">${ICON.bookmark}<span class="label">${t(L, "lesson.bookmark")}</span></button>
 </div>
-${prereqs.length ? `<p class="prereqs"><span class="muted">${t(L, "lesson.prereqs")}:</span> ${prereqs.map((p) => lessonLink(lang, p)).join(", ")}</p>` : ""}
+${tocHtml(toc, L, true)}
+${prereqs.length ? `<p class="prereqs"><span class="muted">${t(L, "lesson.prereqs")}:</span> ${prereqs.map(lessonLink).join(", ")}</p>` : ""}
 ${notices.join("\n")}
-${html}
+<div class="prose">${html}</div>
 ${quiz}
 ${exercise}
 <section class="mine" id="my-notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "lesson.notes")}</h2>
@@ -304,62 +326,97 @@ ${exercise}
 </section>
 ${nextSteps.length ? `<section class="next-steps" aria-labelledby="next-h"><h2 id="next-h">${t(L, "lesson.next")}</h2><ul>${nextSteps.join("")}</ul></section>` : ""}
 <nav class="pager" aria-label="${attr(t(L, "lesson.next"))}">
-${prev ? `<a class="prev" href="${prev.slug}.html" rel="prev"><small>${t(L, "lesson.prev")}</small><span>${prev.n}. ${esc(pick(prev, lang).data.title)}</span></a>` : `<a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${t(L, "lesson.nextAll")}</span></a>`}
-${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "lesson.nextShort")}</small><span>${next.n}. ${esc(pick(next, lang).data.title)}</span></a>` : `<a class="next" href="index.html"><small>${t(L, "lesson.nextAll")}</small><span>${t(L, "nav.home")}</span></a>`}
+${prev ? `<a class="prev" href="${prev.slug}.html" rel="prev"><small>${t(L, "lesson.prev")}</small><span>${prev.n}. ${esc(pick(prev, lang).data.title)}</span></a>` : `<a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${esc(courseTitle)}</span></a>`}
+${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "lesson.nextShort")}</small><span>${next.n}. ${esc(pick(next, lang).data.title)}</span></a>` : `<a class="next" href="index.html"><small>${t(L, "lesson.nextAll")}</small><span>${esc(courseTitle)}</span></a>`}
 </nav></main></div>`;
-    emit(pagePath(lang, `${lesson.slug}.html`), page({ lang, name: `${lesson.slug}.html`, title: `${lesson.n}. ${d.title}`, desc: String(d.summary), body, kind: "lesson", slug: lesson.slug, hasMermaid: html.includes('class="mermaid"'), extra: { n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length } }));
-    searchIndex[lang].push({ slug: lesson.slug, url: `${lesson.slug}.html`, kind: "lesson", n: lesson.n, title: d.title, summary: d.summary, headings: toc.filter((x) => x.level <= 3).map((x) => ({ id: x.id, text: x.text })) });
-  });
-
-  for (const note of notes) {
-    const v = pick(note, lang);
-    const { html, toc } = render(v.body, L);
-    const notices = isTranslated(note, lang) ? "" : `<aside class="notice" role="note">${t(L, "lesson.untranslated")}</aside>`;
-    const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside><main id="content" class="main lesson note" tabindex="-1">
-<p class="eyebrow"><span>${t(L, "note.label")}</span></p><h1>${esc(v.data.title)}</h1><p class="lede">${esc(v.data.summary)}</p>${notices}${html}
-<nav class="pager" aria-label="${attr(t(L, "nav.home"))}"><a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${t(L, "lesson.nextAll")}</span></a><span></span></nav></main></div>`;
-    emit(pagePath(lang, `note-${note.slug}.html`), page({ lang, name: `note-${note.slug}.html`, title: String(v.data.title), desc: String(v.data.summary), body, kind: "note", slug: `note-${note.slug}`, hasMermaid: html.includes('class="mermaid"'), extra: { title: v.data.title } }));
-    searchIndex[lang].push({ slug: `note-${note.slug}`, url: `note-${note.slug}.html`, kind: "note", title: v.data.title, summary: v.data.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
-  }
-
-  const totalMinutes = lessons.reduce((s, l) => s + Number(pick(l, lang).data.minutes || 25), 0);
-  const trackSections = curriculum.tracks.map((track) => {
-    const items = lessons.filter((l) => l.track === track.key);
-    const planned = curriculum.planned.filter((p) => p.track === track.key);
-    const rows = items.map((l) => {
-      const d = pick(l, lang).data;
-      return `<li><a class="row" href="${l.slug}.html" data-slug="${l.slug}" data-minutes="${d.minutes || 25}" data-title="${attr(d.title)}"><span class="num" aria-hidden="true">${l.n}</span><span class="txt"><span class="row-title">${esc(d.title)}</span><span class="row-sum">${esc(d.summary)}</span><span class="row-meta"><span>${t(L, "lesson.minutes", { n: d.minutes || 25 })}</span><span class="dot" aria-hidden="true"></span><span>${t(L, `lesson.level.${d.level || "core"}`)}</span></span></span><span class="state" data-state="new">${t(L, "status.new")}</span></a></li>`;
+      const name = `${C}/${lesson.slug}.html`;
+      emit(outPath(lang, name), page({ lang, name, title: `${lesson.n}. ${d.title}`, desc: String(d.summary), body, kind: "lesson", slug: lesson.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length, courseTitle } }));
+      searchIndex[lang].push({ key: lesson.key, url: name, course: C, courseTitle, kind: "lesson", n: lesson.n, title: d.title, summary: d.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
+      allLessonMeta[lang].push({ key: lesson.key, course: C, url: name, n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length });
     });
-    const plannedRows = planned.map((p) => `<li class="planned"><div class="row" aria-disabled="true"><span class="num" aria-hidden="true">&middot;</span><span class="txt"><span class="row-title">${esc(p.title[lang])}</span><span class="row-sum">${esc(p.summary[lang])}</span></span><span class="state" data-state="planned">${t(L, "status.planned")}</span></div></li>`);
-    return `<section class="track" id="track-${track.key}" aria-labelledby="track-${track.key}-h" data-track="${track.key}">
-<h3 id="track-${track.key}-h"><span class="letter" aria-hidden="true">${track.key}</span>${esc(track.name[lang])}</h3>
+
+    for (const note of course.notes) {
+      const v = pick(note, lang);
+      const { html, toc } = render(v.body, L);
+      const notices = isTranslated(note, lang) ? "" : `<aside class="notice" role="note">${t(L, "lesson.untranslated")}</aside>`;
+      const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside><main id="content" class="main lesson note" tabindex="-1">
+${crumb}<p class="eyebrow"><span>${t(L, "note.label")}</span></p><h1>${esc(v.data.title)}</h1><p class="lede">${esc(v.data.summary)}</p>${tocHtml(toc, L, true)}${notices}<div class="prose">${html}</div>
+<nav class="pager" aria-label="${attr(t(L, "nav.home"))}"><a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${esc(courseTitle)}</span></a><span></span></nav></main></div>`;
+      const name = `${C}/note-${note.slug}.html`;
+      emit(outPath(lang, name), page({ lang, name, title: String(v.data.title), desc: String(v.data.summary), body, kind: "note", slug: note.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { title: v.data.title } }));
+      searchIndex[lang].push({ key: note.key, url: name, course: C, courseTitle, kind: "note", title: v.data.title, summary: v.data.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
+    }
+
+    const trackSections = course.meta.tracks.map((track) => {
+      const items = course.lessons.filter((l) => l.track === track.key);
+      const planned = (course.meta.planned || []).filter((p) => p.track === track.key);
+      const rows = items.map((l) => {
+        const d = pick(l, lang).data;
+        return `<li><a class="row" href="${l.slug}.html" data-key="${l.key}" data-title="${attr(d.title)}"><span class="num" aria-hidden="true">${l.n}</span><span class="txt"><span class="row-title">${esc(d.title)}</span><span class="row-sum">${esc(d.summary)}</span><span class="row-meta">${t(L, "lesson.minutes", { n: d.minutes || 25 })}<span class="dot" aria-hidden="true"></span>${t(L, `lesson.level.${d.level || "core"}`)}</span></span><span class="state" data-state="new">${t(L, "status.new")}</span>${ICON.chevron}</a></li>`;
+      });
+      const plannedRows = planned.map((p) => `<li class="planned"><div class="row" aria-disabled="true"><span class="num" aria-hidden="true">&middot;</span><span class="txt"><span class="row-title">${esc(p.title[lang])}</span><span class="row-sum">${esc(p.summary[lang])}</span></span><span class="state" data-state="planned">${t(L, "status.planned")}</span></div></li>`);
+      return `<section class="track" id="track-${track.key}" aria-labelledby="track-${track.key}-h" data-track="${track.key}">
+<h3 id="track-${track.key}-h" class="group-title"><span class="letter" aria-hidden="true">${track.key}</span>${esc(track.name[lang])}</h3>
 <p class="blurb">${esc(track.blurb[lang])}</p>
-${rows.length ? `<ol class="lesson-list">${rows.join("")}</ol>` : `<p class="empty">${t(L, "home.track.empty")}</p>`}
-${plannedRows.length ? `<details class="planned-list"><summary>${t(L, "home.planned")} (${plannedRows.length})</summary><p class="hint">${t(L, "home.planned.hint")}</p><ol class="lesson-list">${plannedRows.join("")}</ol></details>` : ""}
+${rows.length ? `<ol class="list">${rows.join("")}</ol>` : `<p class="empty">${t(L, "home.track.empty")}</p>`}
+${plannedRows.length ? `<details class="planned-list"><summary>${t(L, "home.planned")} (${plannedRows.length})</summary><p class="hint">${t(L, "home.planned.hint")}</p><ol class="list">${plannedRows.join("")}</ol></details>` : ""}
 </section>`;
-  }).join("\n");
+    }).join("\n");
 
-  const noteList = notes.length ? `<section class="notes-section" id="notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "home.notes")}</h2><p class="hint">${t(L, "home.notes.hint")}</p><ul class="note-list">${notes.map((n) => `<li><a class="row" href="note-${n.slug}.html"><span class="txt"><span class="row-title">${esc(pick(n, lang).data.title)}</span><span class="row-sum">${esc(pick(n, lang).data.summary)}</span></span></a></li>`).join("")}</ul></section>` : "";
+    const noteList = course.notes.length ? `<section class="notes-section" id="notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "home.notes")}</h2><p class="hint">${t(L, "home.notes.hint")}</p><ul class="list">${course.notes.map((n) => `<li><a class="row" href="note-${n.slug}.html"><span class="txt"><span class="row-title">${esc(pick(n, lang).data.title)}</span><span class="row-sum">${esc(pick(n, lang).data.summary)}</span></span>${ICON.chevron}</a></li>`).join("")}</ul></section>` : "";
 
-  const lessonMeta = lessons.map((l) => ({ slug: l.slug, n: l.n, title: pick(l, lang).data.title, minutes: Number(pick(l, lang).data.minutes || 25), quiz: extractQuiz(pick(l, lang).body).questions.length }));
-
-  const home = `<main id="content" class="main home" tabindex="-1">
-<header class="hero"><p class="eyebrow"><span>${esc(t(L, "site.tagline"))}</span></p><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p></header>
-<section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2>
-<div class="continue-card" id="continue-card"><p class="progress" id="progress"><span id="progress-text">${t(L, "home.progress", { done: 0, total: lessons.length })}</span><span class="bar" aria-hidden="true"><span id="progress-fill" style="width:0%"></span></span><span class="muted" id="progress-time">${t(L, "home.progress.time", { minutes: totalMinutes })}</span></p><div id="continue-body"></div></div></section>
-<section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="review-list" id="review-list"></ul></section>
+    const lessonMeta = course.lessons.map((l) => ({ key: l.key, url: `${l.slug}.html`, n: l.n, title: pick(l, lang).data.title, minutes: Number(pick(l, lang).data.minutes || 25), quiz: extractQuiz(pick(l, lang).body).questions.length }));
+    const totalMinutes = lessonMeta.reduce((s, l) => s + l.minutes, 0);
+    const courseBody = `<main id="content" class="main home course-page" tabindex="-1">
+<a class="crumb" href="../index.html">${ICON.back}<span>${t(L, "nav.courses")}</span></a>
+<header class="hero course-hero">${ring(C, 64)}<div><p class="eyebrow"><span>${t(L, "course.label")}</span></p><h1>${esc(courseTitle)}</h1><p class="lede">${esc(course.meta.summary[lang])}</p></div></header>
+<section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h" class="sr">${t(L, "home.continue")}</h2>
+<div class="card continue-card"><p class="progress"><span id="progress-text">${t(L, "home.progress", { done: 0, total: lessonMeta.length })}</span><span class="bar" aria-hidden="true"><span id="progress-fill" style="width:0%"></span></span><span class="muted" id="progress-time">${t(L, "home.progress.time", { minutes: totalMinutes })}</span></p><div id="continue-body"></div></div></section>
 <section class="catalog" id="catalog" aria-labelledby="catalog-h"><h2 id="catalog-h">${t(L, "home.catalog")}</h2>
-<div class="catalog-tools"><div class="search" id="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
-<div class="filters" role="group" aria-label="${attr(t(L, "home.catalog"))}"><button type="button" class="chip" data-filter="all" aria-pressed="true">${t(L, "home.filter.all")}</button><button type="button" class="chip" data-filter="todo" aria-pressed="false">${t(L, "home.filter.todo")}</button><button type="button" class="chip" data-filter="progress" aria-pressed="false">${t(L, "home.filter.progress")}</button><button type="button" class="chip" data-filter="done" aria-pressed="false">${t(L, "home.filter.done")}</button><button type="button" class="chip" data-filter="saved" aria-pressed="false">${t(L, "home.filter.saved")}</button></div></div>
-<div class="search-results" id="search-results" hidden><h3>${t(L, "home.search.results")}</h3><ul id="search-hits"></ul></div>
+<div class="catalog-tools"><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
+<div class="segmented filters" role="group" aria-label="${attr(t(L, "home.catalog"))}"><button type="button" data-filter="all" aria-pressed="true">${t(L, "home.filter.all")}</button><button type="button" data-filter="todo" aria-pressed="false">${t(L, "home.filter.todo")}</button><button type="button" data-filter="progress" aria-pressed="false">${t(L, "home.filter.progress")}</button><button type="button" data-filter="done" aria-pressed="false">${t(L, "home.filter.done")}</button><button type="button" data-filter="saved" aria-pressed="false">${t(L, "home.filter.saved")}</button></div></div>
+<div class="search-results card" id="search-results" hidden><h3>${t(L, "home.search.sections")}</h3><ul id="search-hits"></ul></div>
 <p class="empty" id="filter-empty" hidden>${t(L, "home.filter.empty")}</p>
 ${trackSections}
 </section>
 ${noteList}
+</main>`;
+    const cname = `${C}/index.html`;
+    emit(outPath(lang, cname), page({ lang, name: cname, title: courseTitle, desc: course.meta.summary[lang], body: courseBody, kind: "course", course: C, ogType: "website", extra: { lessons: lessonMeta, searchScope: C } }));
+  }
+}
+
+for (const lang of LANGS) {
+  const L = lang;
+  const courseRows = courses.map((c) => {
+    const title = c.meta.title[lang] || c.meta.title.en;
+    const tracks = c.meta.tracks.filter((tr) => c.lessons.some((l) => l.track === tr.key)).map((tr) => tr.name[lang]);
+    return `<li><a class="row course-row" href="${c.id}/index.html" data-course="${c.id}" data-total="${c.lessons.length}">${ring(c.id, 52)}<span class="txt"><span class="row-title">${esc(title)}</span><span class="row-sum">${esc(c.meta.summary[lang])}</span><span class="row-meta" data-course-progress="${c.id}">${t(L, "course.lessons", { n: c.lessons.length })}${tracks.length ? `<span class="dot" aria-hidden="true"></span>${esc(tracks.join(", "))}` : ""}</span></span>${ICON.chevron}</a></li>`;
+  }).join("");
+  const first = courses[0] && courses[0].lessons[0];
+  const home = `<main id="content" class="main home" tabindex="-1">
+<header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p></header>
+<section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
+<section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
+<section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
+<section class="global-search" id="search" aria-labelledby="search-h"><h2 id="search-h">${t(L, "nav.search")}</h2><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
+<div class="search-results card" id="search-results" hidden><ul id="search-hits"></ul></div></section>
 <section class="data" id="data" aria-labelledby="data-h"><h2 id="data-h">${t(L, "home.data")}</h2><p class="hint">${t(L, "home.data.hint")}</p><div class="data-actions"><button type="button" class="btn" id="open-account">${t(L, "account.title")}</button><button type="button" class="btn" data-action="export">${t(L, "account.export")}</button><button type="button" class="btn" data-action="export-md">${t(L, "account.exportMd")}</button><label class="btn file"><input type="file" accept="application/json,.json" id="import-file" class="sr">${t(L, "account.import")}</label></div><p class="status" id="data-status" aria-live="polite"></p></section>
 </main>`;
-  emit(pagePath(lang, "index.html"), page({ lang, name: "index.html", title: t(L, "site.name"), desc: t(L, "site.description"), body: home, kind: "home", ogType: "website", extra: { lessons: lessonMeta } }));
-  emit(pagePath(lang, "search.json"), JSON.stringify(searchIndex[lang]));
+  emit(outPath(lang, "index.html"), page({ lang, name: "index.html", title: t(L, "site.name"), desc: t(L, "site.description"), body: home, kind: "home", ogType: "website", extra: { lessons: allLessonMeta[lang], courses: courses.map((c) => ({ id: c.id, title: c.meta.title[lang] || c.meta.title.en, total: c.lessons.length })), firstUrl: first ? `${courses[0].id}/${first.slug}.html` : "" } }));
+  emit(outPath(lang, "search.json"), JSON.stringify(searchIndex[lang]));
+}
+
+const legacy = courses.find((c) => c.id === LEGACY_COURSE);
+if (legacy) {
+  const targets = [...legacy.lessons.map((l) => l.slug), ...legacy.notes.map((n) => `note-${n.slug}`)];
+  for (const lang of LANGS) {
+    for (const slug of targets) {
+      const name = `${slug}.html`;
+      const target = `${LEGACY_COURSE}/${slug}.html`;
+      emit(outPath(lang, name), `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(t(lang, "redirect.moved"))}</title><link rel="canonical" href="${SITE_URL + outPath(lang, target)}"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=${target}"><script>location.replace(${JSON.stringify(target)}+location.hash)</script></head><body><main id="content"><h1>${esc(t(lang, "redirect.moved"))}</h1><p><a href="${target}">${esc(t(lang, "redirect.go"))}</a></p></main></body></html>`);
+    }
+  }
 }
 
 rmSync(join(out, "vendor"), { recursive: true, force: true });
@@ -382,7 +439,7 @@ const config = { supabaseUrl: env.SUPABASE_URL || publicConfig.supabaseUrl || ""
 if (/service_role|sb_secret_/.test(config.supabaseAnonKey)) throw new Error("Refusing to build: the Supabase key looks like a secret key. Use the anon or publishable key.");
 emit("config.js", `window.__CONFIG=${JSON.stringify(config)};\n`);
 
-const sitemapUrls = files.filter((f) => f.endsWith(".html")).map((f) => `<url><loc>${SITE_URL + f.replace(/(^|\/)index\.html$/, "$1")}</loc></url>`).join("\n");
+const sitemapUrls = files.filter((f) => f.endsWith(".html") && !readFileSync(join(out, f), "utf8").includes('name="robots" content="noindex"')).map((f) => `<url><loc>${SITE_URL + f.replace(/(^|\/)index\.html$/, "$1")}</loc></url>`).join("\n");
 emit("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls}\n</urlset>\n`);
 emit("robots.txt", `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}sitemap.xml\n`);
 
@@ -393,7 +450,13 @@ const precache = ["./", ...files.filter((f) => f !== "config.js").map((f) => "./
 writeFileSync(join(out, "sw.js"), readFileSync(join(src, "sw.js"), "utf8").replace("__VERSION__", version).replace("__FILES__", JSON.stringify(precache)));
 writeFileSync(join(out, ".nojekyll"), "");
 
-for (const old of readdirSync(out)) {
-  if (old.endsWith(".html") && !files.includes(old)) rmSync(join(out, old));
+function walk(dir) {
+  return readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
 }
-console.log(`Built ${lessons.length} lessons, ${notes.length} notes, ${LANGS.length} languages, ${files.length} files, version ${version}${config.supabaseUrl ? ", sync configured" : ", sync not configured"}`);
+const keep = new Set([...files, "sw.js", ".nojekyll"]);
+for (const f of walk(out)) {
+  const relName = f.slice(out.length + 1).replace(/\\/g, "/");
+  if (!keep.has(relName)) rmSync(f);
+}
+const lessonCount = courses.reduce((s, c) => s + c.lessons.length, 0);
+console.log(`Built ${courses.length} course(s), ${lessonCount} lessons, ${LANGS.length} languages, ${files.length} files, version ${version}${config.supabaseUrl ? ", sync configured" : ", sync not configured"}`);
