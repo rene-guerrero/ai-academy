@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESC}}">
+<meta name="theme-color" content="#0f1720" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AI Academy">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="{{BODYCLASS}}" data-page="{{PAGEID}}">
+<header class="topbar"><a class="brand" href="index.html"><span class="logo" aria-hidden="true"></span>AI Academy</a><span class="spacer"></span><span class="offline" id="offline" hidden>Offline</span></header>
+{{BODY}}
+<footer class="foot">Personal AI engineering course. Progress and notes stay in this browser.</footer>
+{{MERMAID}}
+<script src="app.js" defer></script>
+</body>
+</html>

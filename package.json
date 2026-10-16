@@ -1,0 +1,14 @@
+{
+  "name": "ai-academy-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node site-src/build.mjs",
+    "serve": "node site-src/serve.mjs"
+  },
+  "dependencies": {
+    "highlight.js": "11.11.1",
+    "marked": "12.0.2",
+    "mermaid": "11.12.0"
+  }
+}
