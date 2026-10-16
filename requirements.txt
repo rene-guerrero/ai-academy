@@ -1,0 +1,3 @@
+tiktoken
+numpy
+sentence-transformers
