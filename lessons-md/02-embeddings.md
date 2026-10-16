@@ -5,6 +5,9 @@ area: A
 n: 2
 minutes: 25
 exercise: lessons/lesson_02_embeddings.py
+level: foundations
+prereqs: 01-tokenization
+note: rag
 ---
 
 ## The hook
@@ -50,7 +53,7 @@ flowchart LR
 
 ### Two kinds of embeddings
 
-Do not confuse the embedding table *inside* an LLM (a lookup from token ID to vector, learned during training, lesson 4) with an embedding *model* like MiniLM, which is a full network that outputs one vector for a whole text. They share an idea, not an API.
+Do not confuse the embedding table *inside* an LLM (a lookup from token ID to vector, learned during training; lesson 4 shows where it sits in the stack) with an embedding *model* like MiniLM, which is a full network that outputs one vector for a whole text. They share an idea, not an API.
 
 ### What these vectors do badly
 
@@ -98,9 +101,7 @@ The pairs:
 2. Which pair is most surprising if you think of similarity as "means the same thing"?
 3. Will pair 2 score higher or lower than pair 4? What does that tell you about using a threshold to decide "relevant"?
 
-```bash
-python lessons/lesson_02_embeddings.py
-```
+The run command is at the bottom of this page.
 
 Follow-ups:
 
@@ -117,3 +118,18 @@ Follow-ups:
 **Check question:** your support search returns the article for order status when the user types a specific order number that does not exist. Why does the embedding approach produce this, and what other signal would you add?
 
 **Next up:** attention, the mechanism that lets a model decide which earlier tokens matter for the next one.
+
+::: quiz
+Q: Two sentences get a cosine similarity of 0.85. What can you conclude, and what can you not conclude?
+A: They are about closely related things in the ways the model learned to care about. You cannot conclude they mean the same thing, that one is true, or that they agree: negations and swapped identifiers often score this high.
+Q: Why is the dot product enough to compare the vectors in the exercise?
+A: The vectors are normalized to length 1, so the cosine formula's denominator is 1 and the dot product is the cosine similarity.
+Q: You change the embedding model in production. What has to happen to the stored vectors?
+A: All of them must be recomputed. Vectors from different models live in unrelated spaces, so mixing them makes nearest-neighbor search meaningless.
+:::
+
+## References
+
+- Reimers and Gurevych, "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks" (2019), the training idea behind MiniLM-style models: https://arxiv.org/abs/1908.10084
+- Sentence-Transformers documentation and the `all-MiniLM-L6-v2` model card: https://www.sbert.net and https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+- pgvector, vector similarity search for PostgreSQL: https://github.com/pgvector/pgvector

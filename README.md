@@ -32,25 +32,16 @@ Lessons 2 and 6 download the `all-MiniLM-L6-v2` model on first run (about 90 MB)
 
 ## Lessons website
 
-The Markdown files in `lessons-md/` and `notes-md/` are the source of truth. A small Node script builds them into a static site in `dist/`.
+Live site: https://rene-guerrero.github.io/ai-academy/ (Spanish: https://rene-guerrero.github.io/ai-academy/es/)
+
+The Markdown in `lessons-md/` (English) and `lessons-md/es/` (Spanish), plus `notes-md/`, is the source of truth. `site-src/build.mjs` turns it into a static site in `dist/` with light and dark themes, both languages, knowledge checks, bookmarks, notes, search, offline support and optional cloud sync.
 
     npm install
     npm run build
-    npm run serve
+    npm run check
+    npm run serve      # http://localhost:4173/
+    npm test           # build, checks and a browser smoke test
 
-Then open http://localhost:4173/. The site works offline after the first visit and can be added to a phone home screen.
+Authoring conventions, the deployment workflow and the optional Supabase sync setup are documented in `docs/SETUP_AND_DEPLOYMENT.md`. The audit and roadmap are in `docs/IMPROVEMENT_PLAN.md`.
 
-Each lesson file starts with front matter:
-
-    ---
-    title: Lesson title
-    summary: One line shown on the home page.
-    area: A
-    n: 7
-    minutes: 25
-    exercise: lessons/lesson_07_name.py
-    ---
-
-Areas: A How modern AI works, B LLM engineering, C Agents, D ML and model development, E AI systems engineering, F Research and future. Add `regenerated: true` to show the regenerated-lesson notice.
-
-Pushing to `master` runs `.github/workflows/pages.yml`, which builds and deploys to GitHub Pages. One-time setup: repository Settings, Pages, Source: GitHub Actions.
+Pushing to `master` runs `.github/workflows/pages.yml`, which builds, checks and deploys to GitHub Pages.

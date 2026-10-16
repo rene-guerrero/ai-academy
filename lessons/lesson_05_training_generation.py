@@ -1,6 +1,7 @@
 import numpy as np
 
 rng = np.random.default_rng(3)
+sample_rng = np.random.default_rng(5)
 
 corpus = (
     "the cat sat on the mat . the dog sat on the rug . "
@@ -73,7 +74,7 @@ def sample(logits, temperature=1.0, top_p=1.0):
     q = np.zeros_like(p)
     q[keep] = p[keep]
     q /= q.sum()
-    return int(rng.choice(len(p), p=q))
+    return int(sample_rng.choice(len(p), p=q))
 
 
 def generate(start, length, temperature, top_p):
@@ -86,4 +87,4 @@ def generate(start, length, temperature, top_p):
 print("\nTop-p keeps the smallest set of tokens whose probability adds up to p.")
 for t, tp in [(0.2, 1.0), (1.0, 1.0), (1.0, 0.5), (3.0, 1.0), (3.0, 0.5)]:
     print(f"T={t} top_p={tp}: {generate('the', 14, t, tp)}")
-print("\nRun the file twice: the seed is fixed, so the output repeats. Change the seed and watch only the sampled lines change.")
+print("\nRun the file twice: both seeds are fixed, so the output repeats. Change the seed of sample_rng and only the sampled lines change.")

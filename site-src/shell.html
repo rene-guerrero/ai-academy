@@ -1,26 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{LANG}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>{{TITLE}}</title>
+<title>{{TITLE}} · {{SITE}}</title>
 <meta name="description" content="{{DESC}}">
-<meta name="theme-color" content="#0f1720" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="{{CANONICAL}}">
+{{ALTLINKS}}
+<meta property="og:site_name" content="{{SITE}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESC}}">
+<meta property="og:type" content="{{OGTYPE}}">
+<meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:image" content="{{OGIMAGE}}">
+<meta property="og:locale" content="{{OGLOCALE}}">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#14181d" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
 <meta name="color-scheme" content="light dark">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="{{REL}}manifest.webmanifest">
+<link rel="icon" href="{{REL}}icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="{{REL}}icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="AI Academy">
-<link rel="stylesheet" href="style.css">
+<meta name="apple-mobile-web-app-title" content="{{SITE}}">
+<link rel="stylesheet" href="{{REL}}style.css">
+<script>window.__PAGE={{PAGEDATA}};window.__T={{DICT}};</script>
+<script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("aia:theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t);}catch(e){}try{var p=window.__PAGE;var l=localStorage.getItem("aia:lang");if(!l){l=(navigator.language||"").slice(0,2)==="es"?"es":"en";localStorage.setItem("aia:lang",l);if(l!==p.lang&&p.alt){location.replace(p.alt+location.hash);}}}catch(e){}})();</script>
 </head>
-<body class="{{BODYCLASS}}" data-page="{{PAGEID}}">
-<header class="topbar"><a class="brand" href="index.html"><span class="logo" aria-hidden="true"></span>AI Academy</a><span class="spacer"></span><span class="offline" id="offline" hidden>Offline</span></header>
+<body data-kind="{{KIND}}">
+<a class="skip" href="#content">{{SKIP}}</a>
+<header class="topbar"><a class="brand" href="{{REL}}index.html"><span class="logo" aria-hidden="true"></span><span>{{SITE}}</span></a><span class="spacer"></span><span class="offline" id="offline" hidden></span>{{TOOLS}}</header>
 {{BODY}}
-<footer class="foot">Personal AI engineering course. Progress and notes stay in this browser.</footer>
+<footer class="foot"><p>{{FOOTER}}</p></footer>
+{{DIALOGS}}
+<script src="{{REL}}config.js"></script>
 {{MERMAID}}
-<script src="app.js" defer></script>
+<script src="{{REL}}app.js" defer></script>
 </body>
 </html>

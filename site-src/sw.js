@@ -14,21 +14,27 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin !== location.origin) return;
+  if (url.pathname.endsWith("/config.js")) {
+    event.respondWith(fetch(req).then((res) => { if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone())); return res; }).catch(() => caches.match(req)));
+    return;
+  }
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then((hit) => {
       const network = fetch(req).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
+        if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
         return res;
       });
       if (hit) {
         network.catch(() => {});
         return hit;
       }
-      return network.catch(() => caches.match("./index.html"));
+      return network.catch(() => {
+        const base = url.pathname.replace(/[^/]*$/, "");
+        return caches.match(base + "index.html") || caches.match("./index.html");
+      });
     })
   );
 });

@@ -1,0 +1,230 @@
+{
+  "tracks": [
+    {
+      "key": "A",
+      "name": { "en": "How modern AI works", "es": "Cómo funciona la IA moderna" },
+      "blurb": {
+        "en": "Tokens, embeddings, attention, the transformer block, training and generation. The mechanics behind every model you will use.",
+        "es": "Tokens, embeddings, atención, el bloque transformer, entrenamiento y generación. La mecánica detrás de cada modelo que vas a usar."
+      }
+    },
+    {
+      "key": "B",
+      "name": { "en": "LLM engineering", "es": "Ingeniería con LLM" },
+      "blurb": {
+        "en": "Building reliable applications: retrieval, prompting, structured output, evaluation, cost, security.",
+        "es": "Construir aplicaciones fiables: recuperación, prompting, salidas estructuradas, evaluación, costes, seguridad."
+      }
+    },
+    {
+      "key": "C",
+      "name": { "en": "Agents and agentic systems", "es": "Agentes y sistemas agénticos" },
+      "blurb": {
+        "en": "Tool calling, planning, state, MCP, orchestration, permissions, and why agents fail.",
+        "es": "Llamadas a herramientas, planificación, estado, MCP, orquestación, permisos y por qué fallan los agentes."
+      }
+    },
+    {
+      "key": "D",
+      "name": { "en": "ML and model development", "es": "ML y desarrollo de modelos" },
+      "blurb": {
+        "en": "Datasets, training fundamentals, PyTorch, fine-tuning, LoRA, quantization.",
+        "es": "Conjuntos de datos, fundamentos de entrenamiento, PyTorch, fine-tuning, LoRA, cuantización."
+      }
+    },
+    {
+      "key": "E",
+      "name": { "en": "AI systems engineering", "es": "Ingeniería de sistemas de IA" },
+      "blurb": {
+        "en": "Inference, serving, batching, caching, GPUs, cost and latency, monitoring, production operations.",
+        "es": "Inferencia, serving, batching, cachés, GPU, coste y latencia, monitorización, operación en producción."
+      }
+    },
+    {
+      "key": "F",
+      "name": { "en": "Research and emerging capabilities", "es": "Investigación y capacidades emergentes" },
+      "blurb": {
+        "en": "Reasoning models, multimodality, open models, and how to evaluate new developments critically.",
+        "es": "Modelos de razonamiento, multimodalidad, modelos abiertos y cómo evaluar críticamente las novedades."
+      }
+    }
+  ],
+  "planned": [
+    {
+      "slug": "07-rag-pipeline",
+      "track": "B",
+      "level": "core",
+      "prereqs": ["02-embeddings", "06-semantic-search-evaluation"],
+      "title": { "en": "A RAG pipeline end to end", "es": "Un pipeline RAG de principio a fin" },
+      "summary": {
+        "en": "Chunking, retrieval, prompt assembly, and answering with citations. Measure answer quality separately from retrieval quality.",
+        "es": "Fragmentación, recuperación, montaje del prompt y respuestas con citas. Medir la calidad de la respuesta por separado de la calidad de la recuperación."
+      }
+    },
+    {
+      "slug": "08-structured-outputs",
+      "track": "B",
+      "level": "core",
+      "prereqs": ["05-training-and-generation"],
+      "title": { "en": "Structured outputs and function calling", "es": "Salidas estructuradas y function calling" },
+      "summary": {
+        "en": "JSON schemas, constrained decoding, tool definitions, validation and retries from a C# or TypeScript client.",
+        "es": "Esquemas JSON, decodificación restringida, definiciones de herramientas, validación y reintentos desde un cliente C# o TypeScript."
+      }
+    },
+    {
+      "slug": "09-context-and-hallucination",
+      "track": "A",
+      "level": "foundations",
+      "prereqs": ["03-attention", "05-training-and-generation"],
+      "title": { "en": "Context windows, memory and hallucination", "es": "Ventanas de contexto, memoria y alucinaciones" },
+      "summary": {
+        "en": "What a context window really is, why models lose the middle, where confident errors come from, and what mitigates them.",
+        "es": "Qué es realmente una ventana de contexto, por qué los modelos pierden la parte central, de dónde salen los errores seguros y qué los mitiga."
+      }
+    },
+    {
+      "slug": "10-post-training",
+      "track": "A",
+      "level": "core",
+      "prereqs": ["05-training-and-generation"],
+      "title": { "en": "From base model to assistant: post-training", "es": "De modelo base a asistente: post-entrenamiento" },
+      "summary": {
+        "en": "Instruction tuning, preference optimization and verifier-based reinforcement learning, and what each one changes.",
+        "es": "Ajuste por instrucciones, optimización por preferencias y aprendizaje por refuerzo con verificadores, y qué cambia cada uno."
+      }
+    },
+    {
+      "slug": "11-evaluating-llm-apps",
+      "track": "B",
+      "level": "core",
+      "prereqs": ["06-semantic-search-evaluation", "07-rag-pipeline"],
+      "title": { "en": "Evaluating LLM applications", "es": "Evaluar aplicaciones con LLM" },
+      "summary": {
+        "en": "Golden sets, LLM-as-judge with its biases, regression tests in CI, and observability for prompts.",
+        "es": "Conjuntos de referencia, LLM como juez y sus sesgos, pruebas de regresión en CI y observabilidad de prompts."
+      }
+    },
+    {
+      "slug": "12-prompt-injection-and-security",
+      "track": "B",
+      "level": "core",
+      "prereqs": ["07-rag-pipeline", "08-structured-outputs"],
+      "title": { "en": "Prompt injection and LLM security", "es": "Inyección de prompts y seguridad de LLM" },
+      "summary": {
+        "en": "Untrusted text as an attack surface, data exfiltration through tools, and the defenses that actually hold.",
+        "es": "El texto no confiable como superficie de ataque, exfiltración de datos a través de herramientas y las defensas que sí funcionan."
+      }
+    },
+    {
+      "slug": "13-first-agent",
+      "track": "C",
+      "level": "core",
+      "prereqs": ["08-structured-outputs"],
+      "title": { "en": "Your first agent: a loop with tools", "es": "Tu primer agente: un bucle con herramientas" },
+      "summary": {
+        "en": "The agent loop, tool schemas, state, termination, and the difference between an agent and a workflow.",
+        "es": "El bucle del agente, esquemas de herramientas, estado, terminación y la diferencia entre un agente y un flujo de trabajo."
+      }
+    },
+    {
+      "slug": "14-mcp",
+      "track": "C",
+      "level": "core",
+      "prereqs": ["13-first-agent"],
+      "title": { "en": "MCP: tools as a protocol", "es": "MCP: herramientas como protocolo" },
+      "summary": {
+        "en": "Servers, tools, resources and prompts; building an MCP server in TypeScript for an existing API.",
+        "es": "Servidores, herramientas, recursos y prompts; construir un servidor MCP en TypeScript para una API existente."
+      }
+    },
+    {
+      "slug": "15-agent-failures",
+      "track": "C",
+      "level": "advanced",
+      "prereqs": ["13-first-agent", "11-evaluating-llm-apps"],
+      "title": { "en": "Why agents fail and how to debug them", "es": "Por qué fallan los agentes y cómo depurarlos" },
+      "summary": {
+        "en": "Traces, loops, tool errors, permission design, human approval, and agent evaluation.",
+        "es": "Trazas, bucles, errores de herramientas, diseño de permisos, aprobación humana y evaluación de agentes."
+      }
+    },
+    {
+      "slug": "16-small-network-from-scratch",
+      "track": "D",
+      "level": "core",
+      "prereqs": ["04-transformer-block", "05-training-and-generation"],
+      "title": { "en": "A small neural network from scratch in PyTorch", "es": "Una red neuronal pequeña desde cero en PyTorch" },
+      "summary": {
+        "en": "Tensors, autograd, a training loop, validation and overfitting on a real dataset.",
+        "es": "Tensores, autograd, un bucle de entrenamiento, validación y sobreajuste en un conjunto de datos real."
+      }
+    },
+    {
+      "slug": "17-fine-tuning-lora",
+      "track": "D",
+      "level": "advanced",
+      "prereqs": ["16-small-network-from-scratch", "10-post-training"],
+      "title": { "en": "Fine-tuning and LoRA", "es": "Fine-tuning y LoRA" },
+      "summary": {
+        "en": "When fine-tuning beats prompting, low-rank adapters, data preparation, and measuring the result.",
+        "es": "Cuándo el fine-tuning supera al prompting, adaptadores de bajo rango, preparación de datos y medición del resultado."
+      }
+    },
+    {
+      "slug": "18-quantization",
+      "track": "D",
+      "level": "advanced",
+      "prereqs": ["04-transformer-block"],
+      "title": { "en": "Quantization and memory", "es": "Cuantización y memoria" },
+      "summary": {
+        "en": "Weights in 16, 8 and 4 bits, what degrades, and how to fit a model on the hardware you have.",
+        "es": "Pesos en 16, 8 y 4 bits, qué se degrada y cómo encajar un modelo en el hardware que tienes."
+      }
+    },
+    {
+      "slug": "19-inference-serving",
+      "track": "E",
+      "level": "core",
+      "prereqs": ["03-attention", "18-quantization"],
+      "title": { "en": "Inference serving: batching, KV cache and throughput", "es": "Serving de inferencia: batching, caché KV y rendimiento" },
+      "summary": {
+        "en": "Prefill versus decode, continuous batching, paged attention, and the numbers behind tokens per second.",
+        "es": "Prefill frente a decode, batching continuo, paged attention y los números detrás de los tokens por segundo."
+      }
+    },
+    {
+      "slug": "20-cost-latency-reliability",
+      "track": "E",
+      "level": "core",
+      "prereqs": ["11-evaluating-llm-apps", "19-inference-serving"],
+      "title": { "en": "Cost, latency and reliability in production", "es": "Coste, latencia y fiabilidad en producción" },
+      "summary": {
+        "en": "Caching, model routing, timeouts and fallbacks, monitoring, versioning prompts and models.",
+        "es": "Cachés, enrutamiento de modelos, tiempos de espera y alternativas, monitorización, versionado de prompts y modelos."
+      }
+    },
+    {
+      "slug": "21-reasoning-models",
+      "track": "F",
+      "level": "core",
+      "prereqs": ["10-post-training"],
+      "title": { "en": "Reasoning models and test-time compute", "es": "Modelos de razonamiento y cómputo en inferencia" },
+      "summary": {
+        "en": "What changes when a model thinks longer, what the benchmarks do and do not show, and when it is worth the cost.",
+        "es": "Qué cambia cuando un modelo piensa más tiempo, qué muestran y qué no los benchmarks, y cuándo compensa el coste."
+      }
+    },
+    {
+      "slug": "22-multimodal",
+      "track": "F",
+      "level": "core",
+      "prereqs": ["02-embeddings", "04-transformer-block"],
+      "title": { "en": "Multimodal models", "es": "Modelos multimodales" },
+      "summary": {
+        "en": "How images and audio become tokens, what vision-language models can and cannot do, and practical uses.",
+        "es": "Cómo las imágenes y el audio se convierten en tokens, qué pueden y qué no pueden hacer los modelos de visión y lenguaje, y usos prácticos."
+      }
+    }
+  ]
+}

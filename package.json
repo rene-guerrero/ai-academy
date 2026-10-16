@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "node site-src/build.mjs",
-    "serve": "node site-src/serve.mjs"
+    "check": "node site-src/check.mjs",
+    "serve": "node site-src/serve.mjs",
+    "test": "node site-src/build.mjs && node site-src/check.mjs && node tests/smoke.mjs"
   },
   "dependencies": {
     "highlight.js": "11.11.1",

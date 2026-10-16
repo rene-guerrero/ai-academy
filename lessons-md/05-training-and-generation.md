@@ -6,6 +6,8 @@ n: 5
 minutes: 30
 exercise: lessons/lesson_05_training_generation.py
 regenerated: true
+level: foundations
+prereqs: 04-transformer-block
 ---
 
 ## The hook
@@ -16,7 +18,7 @@ Everything else, translation, code, reasoning-like behavior, falls out of doing 
 
 ## The simple explanation
 
-**Training** is practice with an answer key. Take a sentence from the internet. Hide the last word. Make the model guess the probabilities of all possible words, then measure how much probability it put on the right one. Nudge the weights so that next time it puts a bit more there. Repeat for an enormous amount of text.
+**Training** is practice with an answer key. Take a text from the internet. At every position, make the model guess the probabilities of all possible next tokens, then measure how much probability it put on the token that actually follows. Nudge the weights so that next time it puts a bit more there. Repeat for an enormous amount of text.
 
 **Generation** is the opposite direction: ask the model for probabilities of the next token, pick one, append it, and repeat.
 
@@ -42,7 +44,7 @@ During training, at every position the model is fed the *true* previous tokens, 
 
 ### Gradient descent
 
-The loss is a function of the weights. Backpropagation computes its gradient, the direction in which each weight should move to reduce loss, and the optimizer takes a step of size `lr` (the learning rate). For softmax with cross-entropy, the gradient with respect to the logits has a very clean form: `p - onehot(y)`. The exercise uses exactly that to train a bigram model with a few lines of NumPy.
+The loss is a function of the weights. Backpropagation computes its gradient, the direction in which each weight should move to reduce loss, and the optimizer moves every weight by `lr` (the learning rate) times its gradient, in the opposite direction. For softmax with cross-entropy, the gradient with respect to the logits has a very clean form: `p - onehot(y)`. The exercise uses exactly that to train a bigram model with a few lines of NumPy.
 
 ```mermaid
 flowchart LR
@@ -55,7 +57,7 @@ flowchart LR
 
 ### The loss floor
 
-Loss does not reach 0 on natural text, or in the exercise. After "the", the corpus is followed by cat, dog, mat or rug with different frequencies; no model can know which. The best possible loss on that data is the conditional entropy of the text, about 0.59 for the toy corpus. The exercise gets close, around 0.64 after 300 steps. Real language models face the same irreducible uncertainty, which is also why overfitting to 0 on the training set means memorization.
+Loss does not reach 0 on natural text, or in the exercise. The exercise trains a **bigram** model: it sees only the previous token. After "the", the corpus continues with cat, dog, mat or rug, and one token of context cannot tell which. The best a bigram model can do on this corpus is the conditional entropy given one token, about 0.59. The exercise gets close, around 0.64 after 300 steps. A model with two tokens of context would do better ("on the" is always followed by mat or rug, "to the" by cat or dog), which is the follow-up at the end. Real language models face the same kind of irreducible uncertainty, which is also why a training loss of 0 means memorization, not understanding.
 
 ### From probabilities to text
 
@@ -73,8 +75,8 @@ Low temperature does not make a model correct. It makes it consistent. A wrong a
 - **Why outputs vary.** Sampling is built in. Set temperature near 0 for extraction, classification or tests. Use higher values for brainstorming. Even at 0, different hardware and batching can cause small nondeterminism, so never rely on bit-exact repeats.
 - **Why hallucination exists.** The objective rewards plausible continuations, not truth. When the training data does not determine the answer, the model still has to put its probability somewhere.
 - **Training versus inference economics.** Training is a huge, one-off, parallel job. Inference is repeated, sequential per token and memory-bound. This shapes both pricing and architecture.
-- **Phases beyond next-token training.** Pretraining is this lesson. Instruction tuning and reinforcement learning from human or verifier feedback then shape behavior. The base objective stays the same underneath.
-- **Structured output.** Constrained decoding masks tokens that would break a schema before sampling. It is the same mechanism as top-p, with a hard filter.
+- **Phases beyond next-token training.** Pretraining is this lesson. Instruction tuning continues with the same next-token loss on curated conversations; preference and reinforcement learning stages then optimize a reward instead. All of them start from the pretrained weights, which is why pretraining sets the ceiling.
+- **Structured output.** Constrained decoding masks tokens that would break a grammar or JSON schema before sampling. Like top-p it zeroes out part of the distribution, but the filter is validity, not probability mass.
 
 ## Hands-on challenge
 
@@ -88,9 +90,7 @@ File: `lessons/lesson_05_training_generation.py`. Numpy only. It trains a tiny b
 4. What does temperature do to the entropy of that distribution at 0.2 and at 5?
 5. Which setting will produce the most repetitive text, and which the most chaotic?
 
-```bash
-python lessons/lesson_05_training_generation.py
-```
+The run command is at the bottom of this page.
 
 <details>
 <summary>What the script printed for me (open after predicting)</summary>
@@ -99,8 +99,8 @@ python lessons/lesson_05_training_generation.py
 - Loss: 2.24 after step 1, 1.45 at step 20, 0.99 at step 50, 0.78 at step 100, 0.64 at step 300. It plateaus, and does not go to 0.
 - After "the": cat 0.33, dog 0.33, mat 0.16, rug 0.16.
 - Entropy after "the": 0.82 at T=0.2, 1.47 at T=1, 2.23 at T=5 (the maximum possible for 10 tokens is 2.30).
-- Low temperature gives loops like "sat on the dog sat on the cat". High temperature with no top-p gives word salad; top-p 0.5 trims the tail even at T=3.
-- The sampled lines are identical on every run because of the fixed seed.
+- Low temperature gives loops like "sat on the cat sat on the cat". High temperature with no top-p gives word salad ("cat mat sat on sat mat"). Top-p 0.5 reduces the damage at T=3 but does not remove it: the distribution is flat enough that top-p keeps several tokens, and "ran to mat" is a transition the corpus never had.
+- The sampled lines are identical on every run because both seeds are fixed. Training and sampling use separate generators, so changing the sampling seed leaves the losses untouched.
 
 </details>
 
@@ -115,3 +115,18 @@ Follow-ups: increase the corpus and watch the floor move. Replace the bigram tab
 **Check question:** you set temperature to 0 for a classification task and still see wrong answers every time for one input. What does that tell you, and what would you change instead of the temperature?
 
 **Next up:** putting this to work. Retrieval and context are how we give a frozen model knowledge it was never trained on.
+
+::: quiz
+Q: A freshly initialized model with a 50,000-token vocabulary: what is its loss, roughly, and why?
+A: About ln(50000), near 10.8. With no knowledge it spreads probability evenly, so every correct token gets probability 1/50000 and the loss is minus the log of that.
+Q: Why can training process a whole document in one forward pass while generation is token by token?
+A: Teacher forcing feeds the true text and the causal mask hides the future, so every position is a prediction at once. In generation each next token depends on the token just sampled, so steps are sequential.
+Q: Temperature 0 and the answer is still wrong every time. What does that tell you?
+A: The model's top token is wrong for that input. Temperature only controls randomness. Fix the prompt, the retrieved context or the model, not the sampling.
+:::
+
+## References
+
+- Holtzman et al., "The Curious Case of Neural Text Degeneration" (2019), the nucleus (top-p) sampling paper: https://arxiv.org/abs/1904.09751
+- Radford et al., "Language Models are Unsupervised Multitask Learners" (2019), next-token pretraining at scale: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+- Ouyang et al., "Training language models to follow instructions with human feedback" (2022), the stages after pretraining: https://arxiv.org/abs/2203.02155

@@ -65,9 +65,9 @@ class BM25:
         return result
 
 
-def ranking_from_scores(scores):
+def ranking_from_scores(scores, drop_zero=False):
     order = np.argsort(-scores, kind="stable")
-    return [DOC_IDS[i] for i in order]
+    return [DOC_IDS[i] for i in order if not drop_zero or scores[i] > 0]
 
 
 def reciprocal_rank_fusion(rankings, k=60):
@@ -80,9 +80,9 @@ def reciprocal_rank_fusion(rankings, k=60):
 
 def evaluate(name, all_rankings):
     n = len(QUERIES)
-    hit1 = sum(r[0] == expected for r, (_, expected) in zip(all_rankings, QUERIES)) / n
+    hit1 = sum(r[:1] == [expected] for r, (_, expected) in zip(all_rankings, QUERIES)) / n
     hit3 = sum(expected in r[:3] for r, (_, expected) in zip(all_rankings, QUERIES)) / n
-    mrr = sum(1 / (r.index(expected) + 1) for r, (_, expected) in zip(all_rankings, QUERIES)) / n
+    mrr = sum(1 / (r.index(expected) + 1) if expected in r else 0 for r, (_, expected) in zip(all_rankings, QUERIES)) / n
     print(f"{name:10} hit@1={hit1:.2f}  hit@3={hit3:.2f}  MRR={mrr:.2f}")
 
 
@@ -95,7 +95,7 @@ vector_rankings = []
 hybrid_rankings = []
 
 for query, _ in QUERIES:
-    keyword = ranking_from_scores(bm25.scores(query))
+    keyword = ranking_from_scores(bm25.scores(query), drop_zero=True)
     query_vector = model.encode(query, normalize_embeddings=True)
     vector = ranking_from_scores(doc_vectors @ query_vector)
     keyword_rankings.append(keyword)
@@ -110,9 +110,9 @@ evaluate("hybrid", hybrid_rankings)
 print("\nTop-1 misses per method:")
 for name, rankings in [("keyword", keyword_rankings), ("vector", vector_rankings), ("hybrid", hybrid_rankings)]:
     misses = [
-        f"{query!r} -> got {r[0]}, wanted {expected}"
+        f"{query!r} -> got {r[0] if r else 'nothing'}, wanted {expected}"
         for r, (query, expected) in zip(rankings, QUERIES)
-        if r[0] != expected
+        if r[:1] != [expected]
     ]
     print(f"\n{name} ({len(misses)} misses)")
     for line in misses:

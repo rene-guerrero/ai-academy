@@ -6,13 +6,15 @@ n: 3
 minutes: 30
 exercise: lessons/lesson_03_attention.py
 regenerated: true
+level: foundations
+prereqs: 01-tokenization, 02-embeddings
 ---
 
 ## The hook
 
 Read this sentence: "The trophy didn't fit in the suitcase because it was too big." What does "it" refer to? Now change "big" to "small". The referent flips.
 
-To get that right, a model must let the word "it" look back at the other words and decide which one matters. That lookup is **attention**, and it is the single mechanism that made modern language models possible. It is also the reason long contexts are expensive.
+To get that right, a model must let the word "it" look back at the other words and decide which one matters. That lookup is **attention**, the mechanism at the center of the transformer (Vaswani et al., 2017, in the references). It is also the reason long contexts are expensive.
 
 ## The simple explanation
 
@@ -48,7 +50,7 @@ flowchart LR
   X["Token vectors X"] --> Q["Q = X W_Q"]
   X --> K["K = X W_K"]
   X --> V["V = X W_V"]
-  Q --> S["scores = Q K^T / sqrt d"]
+  Q --> S["scores = Q K^T / sqrt(d_head)"]
   K --> S
   S --> M["add causal mask"]
   M --> W["softmax per row"]
@@ -60,14 +62,14 @@ flowchart LR
 Walk through the pieces:
 
 - **`Q K^T`** gives an `n x n` matrix. Cell `(i, j)` is how much token `i`'s query matches token `j`'s key (a dot product).
-- **Dividing by `sqrt(d_head)`** keeps the scores in a sane range. Dot products of long random vectors grow with the dimension. Without scaling, softmax would saturate into near one-hot rows, and saturated softmax has tiny gradients, so training stalls. Experiment B in the exercise shows this.
+- **Dividing by `sqrt(d_head)`** keeps the scores in a sane range. The spread of a dot product between random vectors grows with the square root of their dimension, so the division keeps that spread constant whatever the head size. Without it, softmax saturates into near one-hot rows, and a saturated softmax has tiny gradients, so training stalls. Experiment B in the exercise shows this.
 - **Softmax** turns each row of scores into positive weights that sum to 1.
 - **The causal mask** sets scores for future positions to minus infinity before the softmax, so their weight is exactly 0. A token may look at itself and the past, never the future. This is what makes next-token prediction honest: during training the model cannot peek at the answer.
 - **Weights times V** blends the values.
 
 ### Multi-head attention
 
-One attention pattern is not enough. A token may need syntax from one place, a referent from another, a nearby word from a third. So the model runs several smaller attention computations in parallel, called **heads**, each with its own `W_Q`, `W_K`, `W_V`. Head outputs are concatenated and mixed by an output matrix. Heads are free to specialize, and in trained models some do, though most are not cleanly interpretable.
+One attention pattern is not enough. A token may need syntax from one place, a referent from another, a nearby word from a third. So the model runs several smaller attention computations in parallel, called **heads**, each with its own `W_Q`, `W_K`, `W_V` of width `d_head = d_model / number of heads`. Head outputs are concatenated and mixed by an output matrix. Heads are free to specialize, and in trained models some do, though most are not cleanly interpretable.
 
 ### The cost
 
@@ -83,7 +85,7 @@ The trade: the cache saves compute but occupies GPU memory that grows with conte
 
 - **Why prompts have a price.** A long prompt must be processed (the "prefill" phase) and then cached. Output tokens are generated one at a time, each attending over the whole cache. This is why providers price input and output differently and why latency has two parts: time to first token, then tokens per second.
 - **Prompt caching.** If many requests start with the same long prefix (system prompt, documents), the provider can reuse its KV cache for that prefix. Put stable content first and variable content last to benefit.
-- **"Lost in the middle".** Attention weights sum to 1, so evidence in a huge context competes with everything else. Models often use information at the start and end of a long context better than the middle. A bigger window is not the same as better recall.
+- **"Lost in the middle".** Models often use information at the start and end of a long context better than information in the middle (Liu et al., 2023, in the references). One intuition, not a proven cause: attention weights sum to 1, so evidence in a huge context competes with everything else. Whatever the mechanism, a bigger window is not the same as better recall.
 - **Information flows only backward.** Causal attention is why decoder-only models answer by continuing text, and why the order of content in your prompt matters.
 - **Capacity planning.** For self-hosting, KV cache size per token multiplied by context length and concurrency is a first-order sizing number.
 
@@ -100,9 +102,7 @@ File: `lessons/lesson_03_attention.py`. Numpy only, a four-token toy with a fixe
 5. With 256-dimensional heads, which is closer to a one-hot row: scaled or unscaled scores?
 6. Doubling the context length multiplies the score matrix size by what factor?
 
-```bash
-python lessons/lesson_03_attention.py
-```
+The run command is at the bottom of this page.
 
 <details>
 <summary>What the script printed for me (open after predicting)</summary>
@@ -136,6 +136,21 @@ Follow-ups: change `d_head` and see how unscaled saturation changes. Write the K
 2. The causal mask makes weights for future tokens exactly zero. Scaling by `sqrt(d_head)` keeps softmax trainable.
 3. The score matrix grows with the square of context length. The KV cache trades memory for compute during generation.
 
-**Check question:** why can a model generate the 1,001st token much faster than it processed the first 1,000 tokens of the prompt, and what resource does that speed cost?
+**Check question:** why does generating token 1,001 not require reprocessing the first 1,000 tokens, and what does avoiding that work cost in return?
 
 **Next up:** the transformer block, which wraps attention with a feed-forward network, residual connections and normalization.
+
+::: quiz
+Q: In the causal weight matrix, why is the first row always `[1, 0, 0, 0]`?
+A: The first token can only attend to itself. Every future position is masked to minus infinity, which softmax turns into exactly zero, and the one remaining weight must sum to 1.
+Q: You double a model's context length. What happens to the attention score matrix per head per layer?
+A: It grows four times, because the matrix is n by n. This is the quadratic cost of attention.
+Q: What does the KV cache save, and what does it spend?
+A: It saves recomputing keys and values for every earlier token on each generation step. It spends GPU memory that grows with context length, layers and concurrent requests.
+:::
+
+## References
+
+- Vaswani et al., "Attention Is All You Need" (2017): https://arxiv.org/abs/1706.03762
+- Liu et al., "Lost in the Middle: How Language Models Use Long Contexts" (2023): https://arxiv.org/abs/2307.03172
+- Kwon et al., "Efficient Memory Management for Large Language Model Serving with PagedAttention" (2023), on KV cache memory in serving: https://arxiv.org/abs/2309.06180

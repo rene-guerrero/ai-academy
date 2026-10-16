@@ -32,7 +32,7 @@ It is search plus prompt plus LLM. The model is not retrained. It reads the pass
 
 ## Where it fails
 
-- **Retrieval misses.** If the right chunk is not retrieved, the model cannot use it. Most RAG failures are search failures, which is why lesson 6 measures retrieval separately.
+- **Retrieval misses.** If the right chunk is not retrieved, the model cannot use it. In practice a large share of RAG failures are search failures, which is why lesson 6 measures retrieval separately.
 - **Bad chunking.** Chunks that cut a table or a thought in half lose meaning.
 - **Ignored context.** The model may prefer its own memory, or lose evidence in a long prompt.
 - **Prompt injection.** Retrieved text is untrusted input. A document can contain instructions aimed at the model.
@@ -40,7 +40,7 @@ It is search plus prompt plus LLM. The model is not retrained. It reads the pass
 
 ## RAG versus fine-tuning
 
-RAG injects *knowledge* at question time and is easy to update. Fine-tuning changes *behavior and style* of the model and is a poor way to add facts. Many systems use RAG first and fine-tune only for a clear gap.
+RAG injects *knowledge* at question time and is easy to update. Fine-tuning mainly changes *behavior and style*; it is usually an unreliable way to add specific facts, and the facts cannot be updated without retraining. Many systems use RAG first and fine-tune only for a clear gap.
 
 ## How to evaluate it
 
