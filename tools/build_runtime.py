@@ -75,13 +75,14 @@ def tiktoken_vocab():
     log(f"cl100k_base vocabulary ({dest.stat().st_size // 1024} KB, {len(ranks)} tokens)")
 
 
-def quantize(weights, use_int8):
+def quantize(weights, mode):
     import numpy as np
 
     store = {}
     for name, value in weights.items():
         value = value.astype(np.float32)
         is_matrix = value.ndim == 2 and "LayerNorm" not in name and "position_embeddings" not in name and "token_type_embeddings" not in name
+        use_int8 = mode == "int8" or (mode == "mixed" and name == "embeddings.word_embeddings.weight")
         if is_matrix and use_int8:
             scale = np.abs(value).max(axis=1) / 127.0
             scale[scale == 0] = 1.0
@@ -129,15 +130,15 @@ def minilm():
     spec.loader.exec_module(shim)
 
     best = None
-    for use_int8 in (True, False):
-        np.savez_compressed(assets / "minilm.npz", **quantize(weights, use_int8))
+    for mode in ("int8", "mixed", "fp16"):
+        np.savez_compressed(assets / "minilm.npz", **quantize(weights, mode))
         model = shim.SentenceTransformer("all-MiniLM-L6-v2")
         ours = model.encode(sentences, normalize_embeddings=True)
         sims_ref = reference @ reference.T
         sims_ours = ours @ ours.T
         diff = float(np.abs(sims_ref - sims_ours).max())
-        log(f"MiniLM {'int8' if use_int8 else 'fp16'}: {(assets / 'minilm.npz').stat().st_size // 1024} KB, max cosine difference {diff:.5f} over {len(sentences)} sentences")
-        best = ("int8" if use_int8 else "fp16", diff)
+        log(f"MiniLM {mode}: {(assets / 'minilm.npz').stat().st_size // 1024} KB, max cosine difference {diff:.5f} over {len(sentences)} sentences")
+        best = (mode, diff)
         if diff <= MINILM_TOLERANCE:
             break
     if best[1] > MINILM_TOLERANCE:
