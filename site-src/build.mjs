@@ -192,7 +192,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
   const tools = `<nav class="tools" aria-label="${attr(t(L, "nav.settings"))}">
 <a class="tool" href="${rel}${langPrefix(lang)}index.html#search" aria-label="${attr(t(L, "nav.search"))}">${ICON.search}</a>
 <a class="tool lang" href="${alt}" hreflang="${other}" lang="${other}" data-set-lang="${other}" title="${attr(t(L, "lang.switch"))}" aria-label="${attr(t(L, "lang.switch"))}"><span class="lang-code">${other.toUpperCase()}</span></a>
-<button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" aria-label="${attr(t(L, "nav.settings"))}">${ICON.cloud}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sync-label" id="sync-label">${t(L, "sync.local")}</span></button>
+<button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" title="${attr(t(L, "nav.settings"))}">${ICON.cloud}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sr" id="sync-label">${t(L, "sync.local")}</span></button>
 </nav>`;
   const themeButtons = ["system", "light", "dark"].map((c) => `<button type="button" role="radio" data-theme-choice="${c}" aria-checked="${c === "system" ? "true" : "false"}">${t(L, `theme.${c}`)}</button>`).join("");
   const dialogs = `<dialog id="account-dialog" class="sheet" aria-labelledby="account-title">

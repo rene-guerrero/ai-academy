@@ -626,7 +626,7 @@
     var text = s === "local" ? (sync.configured ? t("sync.signin") : t("sync.local")) : t("sync." + s);
     if (label) label.textContent = text;
     var btn = $("#account-btn");
-    if (btn) btn.title = text;
+    if (btn) btn.title = t("nav.settings") + " · " + text;
     if ($("#account-dialog") && $("#account-dialog").open) renderAccount();
   }
   function loadSupabase() {
