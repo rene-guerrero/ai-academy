@@ -4,6 +4,7 @@ summary: Models read token IDs, not letters. BPE, what tokens cost, and why LLMs
 area: A
 n: 1
 minutes: 25
+runtime: pyodide
 exercise: exercises/lesson_01_tokenization.py
 level: foundations
 note: rag

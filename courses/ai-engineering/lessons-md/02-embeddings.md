@@ -4,6 +4,7 @@ summary: Meaning as geometry. Vectors, cosine similarity, and the places where s
 area: A
 n: 2
 minutes: 25
+runtime: pyodide
 exercise: exercises/lesson_02_embeddings.py
 level: foundations
 prereqs: 01-tokenization

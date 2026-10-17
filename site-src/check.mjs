@@ -103,7 +103,7 @@ else {
     if (/\{\{[A-Z]+\}\}/.test(html)) problems.push(`${page.slice(dist.length + 1)}: unreplaced template token`);
   }
   const sw = readFileSync(join(dist, "sw.js"), "utf8");
-  for (const f of all) if (!f.endsWith("sw.js") && f !== "config.js" && f !== ".nojekyll" && !sw.includes(JSON.stringify("./" + f))) problems.push(`sw.js does not precache ${f}`);
+  for (const f of all) if (!f.endsWith("sw.js") && !f.startsWith("runtime/") && f !== "config.js" && f !== ".nojekyll" && !sw.includes(JSON.stringify("./" + f))) problems.push(`sw.js does not precache ${f}`);
 }
 
 const errors = problems.filter((p) => !p.startsWith("warning:"));

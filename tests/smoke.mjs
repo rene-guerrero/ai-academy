@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "dist");
-const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".xml": "application/xml", ".txt": "text/plain" };
+const types = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".xml": "application/xml", ".txt": "text/plain; charset=utf-8", ".mjs": "text/javascript", ".wasm": "application/wasm", ".zip": "application/zip", ".whl": "application/zip", ".npz": "application/octet-stream", ".py": "text/plain; charset=utf-8", ".tiktoken": "text/plain" };
 
 let chromium;
 for (const candidate of ["playwright", "/opt/node22/lib/node_modules/playwright/index.mjs"]) {

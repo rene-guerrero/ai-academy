@@ -155,6 +155,100 @@ const courses = readdirSync(join(root, "courses"))
   .sort((a, b) => (a.meta.order || 99) - (b.meta.order || 99));
 
 const files = [];
+const runtimeFiles = [];
+const runtime = assembleRuntime();
+
+function assembleRuntime() {
+  const pyDir = join(root, "node_modules", "pyodide");
+  if (!existsSync(join(pyDir, "pyodide.mjs"))) return null;
+  const cacheDir = join(root, "runtime-cache");
+  const lock = JSON.parse(readFileSync(join(pyDir, "pyodide-lock.json"), "utf8"));
+  const coreFiles = ["pyodide.mjs", "pyodide.asm.mjs", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json"];
+  const wheelDir = join(cacheDir, "pyodide");
+  const wheels = existsSync(wheelDir) ? readdirSync(wheelDir).filter((f) => f.endsWith(".whl") || f.endsWith(".zip")) : [];
+  const haveWheel = new Set(wheels);
+  const packages = Object.entries(lock.packages)
+    .filter(([name, info]) => {
+      const seen = new Set();
+      const ok = (n) => {
+        if (seen.has(n)) return true;
+        seen.add(n);
+        const i = lock.packages[n];
+        return Boolean(i) && haveWheel.has(i.file_name) && (i.depends || []).every(ok);
+      };
+      return ok(name) && info.package_type !== "cpython_module";
+    })
+    .map(([name, info]) => ({ name, imports: info.imports || [name], size: statSync(join(wheelDir, info.file_name)).size, file: info.file_name, depends: info.depends || [] }));
+  const assetDir = join(cacheDir, "assets");
+  const assets = existsSync(assetDir) ? Object.fromEntries(readdirSync(assetDir).map((f) => [f, statSync(join(assetDir, f)).size])) : {};
+  const shimDir = join(src, "runtime", "shims");
+  const shimFiles = readdirSync(shimDir).filter((f) => f.endsWith(".py"));
+  const hash = createHash("sha1");
+  hash.update(JSON.stringify(lock.info)).update(JSON.stringify(packages.map((p) => p.file))).update(JSON.stringify(assets));
+  for (const f of shimFiles) hash.update(readFileSync(join(shimDir, f)));
+  hash.update(readFileSync(join(src, "runtime", "py-worker.mjs")));
+  const version = hash.digest("hex").slice(0, 10);
+  const base = `runtime/${version}/`;
+  const core = coreFiles.filter((f) => f !== "pyodide-lock.json").reduce((n, f) => n + statSync(join(pyDir, f)).size, 0);
+  const put = (from, to) => {
+    const target = join(out, base, to);
+    mkdirSync(dirname(target), { recursive: true });
+    if (!existsSync(target) || statSync(target).size !== statSync(from).size) copyFileSync(from, target);
+    runtimeFiles.push(base + to);
+  };
+  for (const f of coreFiles) put(join(pyDir, f), "pyodide/" + f);
+  for (const p of packages) put(join(wheelDir, p.file), "pyodide/" + p.file);
+  for (const f of Object.keys(assets)) put(join(assetDir, f), "assets/" + f);
+  for (const f of shimFiles) put(join(shimDir, f), "shims/" + f);
+  put(join(src, "runtime", "py-worker.mjs"), "py-worker.mjs");
+  const known = {};
+  for (const [name, info] of Object.entries(lock.packages)) if (info.package_type !== "cpython_module") for (const i of info.imports || [name]) known[i] = name;
+  const manifest = { version, python: lock.info.python, core, packages: packages.map((p) => p.name), known, assets };
+  mkdirSync(join(out, base), { recursive: true });
+  writeFileSync(join(out, base, "manifest.json"), JSON.stringify(manifest));
+  runtimeFiles.push(base + "manifest.json");
+  const importMap = {};
+  for (const p of packages) for (const i of p.imports) importMap[i] = p.name;
+  const sizeOf = (name, seen = new Set()) => {
+    if (seen.has(name)) return 0;
+    seen.add(name);
+    const p = packages.find((x) => x.name === name);
+    return p ? p.size + p.depends.reduce((n, d) => n + sizeOf(d, seen), 0) : 0;
+  };
+  const SHIMS = { tiktoken: { packages: ["regex"], assets: ["cl100k_base.tiktoken"] }, sentence_transformers: { packages: ["numpy"], assets: ["minilm.npz", "minilm-vocab.txt", "minilm.json"] } };
+  const outputsDir = join(cacheDir, "outputs");
+  const outputsMeta = existsSync(join(outputsDir, "meta.json")) ? JSON.parse(readFileSync(join(outputsDir, "meta.json"), "utf8")) : null;
+  return {
+    base,
+    version,
+    manifest,
+    outputsDir,
+    outputsMeta,
+    estimate(code) {
+      const imports = new Set([...code.matchAll(/^\s*(?:from|import)\s+([A-Za-z_][\w]*)/gm)].map((m) => m[1]));
+      let bytes = core;
+      const pk = new Set();
+      const missing = [];
+      for (const i of imports) {
+        const shim = SHIMS[i];
+        if (shim) {
+          shim.packages.forEach((x) => pk.add(x));
+          for (const a of shim.assets) {
+            if (assets[a] === undefined) missing.push(i);
+            else bytes += assets[a];
+          }
+        } else if (importMap[i]) pk.add(importMap[i]);
+        else if (Object.values(lock.packages).some((x) => (x.imports || []).includes(i))) missing.push(i);
+      }
+      const seen = new Set();
+      for (const x of pk) {
+        if (!packages.find((p) => p.name === x)) missing.push(x);
+        bytes += sizeOf(x, seen);
+      }
+      return { bytes, missing: [...new Set(missing)] };
+    },
+  };
+}
 function emit(name, content) {
   const target = join(out, name);
   mkdirSync(dirname(target), { recursive: true });
@@ -162,6 +256,7 @@ function emit(name, content) {
   files.push(name);
 }
 
+const rel_ = (lang, name) => relPrefix(lang, name);
 const langPrefix = (lang) => (lang === DEFAULT_LANG ? "" : `${lang}/`);
 const outPath = (lang, name) => langPrefix(lang) + name;
 function relPrefix(lang, name) {
@@ -234,6 +329,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
     .replace("{{DIALOGS}}", dialogs)
     .replace("{{FOOTER}}", t(L, "site.footer"))
     .replace("{{MERMAID}}", hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
+    .replace("{{RUNNER}}", extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
     .replace("{{BODY}}", body);
 }
 
@@ -285,16 +381,45 @@ for (const course of courses) {
       }
 
       let exercise = "";
+      let runtimeInfo = null;
       if (d.exercise) {
         const rel = String(d.exercise);
         const repoPath = posix.join("courses", C, rel);
         const code = readFileSync(join(course.dir, rel), "utf8");
         const lines = code.split("\n").length - (code.endsWith("\n") ? 1 : 0);
         toc.push({ level: 2, id: "exercise", text: t(L, "lesson.exercise") });
-        exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
-<p>${t(L, "lesson.exercise.run")}</p>${codeBlock(`.\\.venv\\Scripts\\python.exe ${repoPath.replace(/\//g, "\\")}`, "powershell", "PowerShell", L)}${codeBlock(`.venv/bin/python ${repoPath}`, "bash", "bash", L)}
-<p><a class="btn" href="${REPO}/blob/${BRANCH}/${repoPath}" rel="noopener">${t(L, "lesson.exercise.open")}</a></p>
-<details class="source"><summary>${t(L, "lesson.exercise.show", { n: lines })}</summary>${codeBlock(code, "python", repoPath, L)}</details></section>`;
+        const local = `<p>${t(L, "lesson.exercise.run")}</p>${codeBlock(`.\\.venv\\Scripts\\python.exe ${repoPath.replace(/\//g, "\\")}`, "powershell", "PowerShell", L)}${codeBlock(`.venv/bin/python ${repoPath}`, "bash", "bash", L)}
+<p><a class="btn" href="${REPO}/blob/${BRANCH}/${repoPath}" rel="noopener">${t(L, "lesson.exercise.open")}</a></p>`;
+        const useRuntime = Boolean(d.runtime === "pyodide" && runtime);
+        let reference = "";
+        const refFile = runtime && join(runtime.outputsDir, C, rel.replace(/^exercises\//, "").replace(/\.py$/, ".txt"));
+        if (refFile && existsSync(refFile)) {
+          const date = runtime.outputsMeta && runtime.outputsMeta.date ? runtime.outputsMeta.date : "";
+          reference = `<details class="reference"><summary>${t(L, "runner.reference")}</summary><p class="hint">${t(L, "runner.reference.hint", { date })}</p><div class="code"><div class="code-bar"><span>${t(L, "runner.output")}</span><button type="button" class="copy" aria-label="${attr(t(L, "code.copyLabel"))}">${t(L, "code.copy")}</button></div><pre tabindex="0"><code>${esc(readFileSync(refFile, "utf8"))}</code></pre></div></details>`;
+        }
+        if (useRuntime) {
+          const est = runtime.estimate(code);
+          runtimeInfo = { base: rel_(lang, `${C}/${lesson.slug}.html`) + runtime.base, version: runtime.version, missing: est.missing };
+          exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
+<div class="runner" data-runner data-key="${lesson.key}" hidden>
+<div class="runner-bar"><button type="button" class="btn primary" data-run><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>${t(L, "runner.run")}</button><button type="button" class="btn" data-stop hidden><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>${t(L, "runner.stop")}</button><button type="button" class="btn" data-edit aria-pressed="false">${t(L, "runner.edit")}</button><button type="button" class="btn" data-reset hidden>${t(L, "runner.reset")}</button><span class="runner-edited" hidden>${t(L, "runner.edited")}</span></div>
+<p class="runner-status" role="status" aria-live="polite"></p>
+<div class="runner-progress" hidden><span></span></div>
+<p class="runner-nudge" hidden><a href="#my-notes">${t(L, "runner.predictFirst")}</a></p>
+<div class="runner-view">${codeBlock(code, "python", repoPath, L)}</div>
+<label class="sr" for="runner-editor">${t(L, "runner.edit")}</label><textarea id="runner-editor" class="runner-editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" hidden></textarea>
+<textarea class="runner-original" hidden aria-hidden="true" tabindex="-1">${esc(code)}</textarea>
+<div class="runner-out code" hidden><div class="code-bar"><span>${t(L, "runner.output")}</span><button type="button" class="copy" aria-label="${attr(t(L, "code.copyLabel"))}">${t(L, "code.copy")}</button></div><pre tabindex="0"><code></code></pre></div>
+<p class="hint runner-hint">${t(L, "runner.hint", { size: (est.bytes / 1048576).toFixed(0) + " MB" })}</p>
+</div>
+<noscript>${codeBlock(code, "python", repoPath, L)}</noscript>
+${reference}
+<details class="local-run"><summary>${t(L, "runner.local")}</summary>${local}</details></section>`;
+        } else {
+          exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
+${local}
+<details class="source"><summary>${t(L, "lesson.exercise.show", { n: lines })}</summary>${codeBlock(code, "python", repoPath, L)}</details>${reference}</section>`;
+        }
       }
       toc.push({ level: 2, id: "my-notes", text: t(L, "lesson.notes") });
 
@@ -330,7 +455,7 @@ ${prev ? `<a class="prev" href="${prev.slug}.html" rel="prev"><small>${t(L, "les
 ${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "lesson.nextShort")}</small><span>${next.n}. ${esc(pick(next, lang).data.title)}</span></a>` : `<a class="next" href="index.html"><small>${t(L, "lesson.nextAll")}</small><span>${esc(courseTitle)}</span></a>`}
 </nav></main></div>`;
       const name = `${C}/${lesson.slug}.html`;
-      emit(outPath(lang, name), page({ lang, name, title: `${lesson.n}. ${d.title}`, desc: String(d.summary), body, kind: "lesson", slug: lesson.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length, courseTitle } }));
+      emit(outPath(lang, name), page({ lang, name, title: `${lesson.n}. ${d.title}`, desc: String(d.summary), body, kind: "lesson", slug: lesson.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length, courseTitle, ...(runtimeInfo ? { runtime: runtimeInfo } : {}) } }));
       searchIndex[lang].push({ key: lesson.key, url: name, course: C, courseTitle, kind: "lesson", n: lesson.n, title: d.title, summary: d.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
       allLessonMeta[lang].push({ key: lesson.key, course: C, url: name, n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length });
     });
@@ -420,7 +545,7 @@ if (legacy) {
 }
 
 rmSync(join(out, "vendor"), { recursive: true, force: true });
-for (const f of ["style.css", "app.js", "manifest.webmanifest"]) {
+for (const f of ["style.css", "app.js", "runner.js", "manifest.webmanifest"]) {
   copyFileSync(join(src, f), join(out, f));
   files.push(f);
 }
@@ -447,16 +572,20 @@ const hash = createHash("sha1");
 for (const f of [...files].sort()) hash.update(f).update(readFileSync(join(out, f)));
 const version = hash.digest("hex").slice(0, 10);
 const precache = ["./", ...files.filter((f) => f !== "config.js").map((f) => "./" + f)];
-writeFileSync(join(out, "sw.js"), readFileSync(join(src, "sw.js"), "utf8").replace("__VERSION__", version).replace("__FILES__", JSON.stringify(precache)));
+writeFileSync(join(out, "sw.js"), readFileSync(join(src, "sw.js"), "utf8").replace("__VERSION__", version).replace("__RUNTIME__", runtime ? runtime.version : "none").replace("__FILES__", JSON.stringify(precache)));
 writeFileSync(join(out, ".nojekyll"), "");
 
 function walk(dir) {
   return readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
 }
-const keep = new Set([...files, "sw.js", ".nojekyll"]);
+const keep = new Set([...files, ...runtimeFiles, "sw.js", ".nojekyll"]);
 for (const f of walk(out)) {
   const relName = f.slice(out.length + 1).replace(/\\/g, "/");
   if (!keep.has(relName)) rmSync(f);
 }
+if (runtime && existsSync(join(out, "runtime"))) {
+  for (const d of readdirSync(join(out, "runtime"))) if (d !== runtime.version) rmSync(join(out, "runtime", d), { recursive: true, force: true });
+}
 const lessonCount = courses.reduce((s, c) => s + c.lessons.length, 0);
+console.log(runtime ? `Python runtime ${runtime.version}: Python ${runtime.manifest.python}, packages [${runtime.manifest.packages.join(", ") || "none"}], assets [${Object.keys(runtime.manifest.assets).join(", ") || "none"}]${runtime.outputsMeta ? ", reference outputs" : ""}` : "Python runtime: not available (run npm install)");
 console.log(`Built ${courses.length} course(s), ${lessonCount} lessons, ${LANGS.length} languages, ${files.length} files, version ${version}${config.supabaseUrl ? ", sync configured" : ", sync not configured"}`);

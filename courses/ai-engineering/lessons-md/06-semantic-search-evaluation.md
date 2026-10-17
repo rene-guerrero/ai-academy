@@ -4,6 +4,7 @@ summary: Labeled queries, hit@k and MRR, and why keyword plus vector search fuse
 area: B
 n: 6
 minutes: 30
+runtime: pyodide
 exercise: exercises/lesson_06_semantic_search.py
 level: core
 prereqs: 02-embeddings

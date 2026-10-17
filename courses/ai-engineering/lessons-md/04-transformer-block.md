@@ -4,6 +4,7 @@ summary: The residual stream, attention plus MLP, layer norm, stacking blocks an
 area: A
 n: 4
 minutes: 30
+runtime: pyodide
 exercise: exercises/lesson_04_transformer_block.py
 regenerated: true
 level: foundations

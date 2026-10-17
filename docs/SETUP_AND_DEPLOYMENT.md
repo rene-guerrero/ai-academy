@@ -102,6 +102,21 @@ For a local build, copy `.env.example` to `.env` and fill the same values. `.env
 
 A new lesson for the AI Engineering course needs: `courses/ai-engineering/lessons-md/NN-slug.md`, optionally its Spanish twin in `courses/ai-engineering/lessons-md/es/`, the exercise in `courses/ai-engineering/exercises/`, removal of the matching `planned` entry in `course.json`, `npm run build && npm run check`, and a push to `master`. The deploy is automatic. The session that does this must have the repository attached with push access; scheduled tasks created from a chat cannot attach a repository by themselves, so attach it in the scheduled task's settings.
 
-## 6. Migration notes
+## 6. Running exercises in the browser
+
+Lessons with `runtime: pyodide` in their front matter get a Run button that executes the exercise script in the browser with Pyodide (CPython compiled to WebAssembly) inside a Web Worker. Everything is self-hosted under `dist/runtime/<version>/`; no third-party CDN is contacted at run time.
+
+- Python core: copied from the `pyodide` npm package on every build.
+- Packages: `npm run runtime` (`tools/build_runtime.py`) downloads the Pyodide wheels for NumPy and `regex`, checking the sha256 values from `pyodide-lock.json`, into `runtime-cache/` (git-ignored). The worker loads only the packages a script imports.
+- `tiktoken` in the browser is a pure-Python implementation in `site-src/runtime/shims/tiktoken.py` that uses the real `cl100k_base` ranks (exported from the real package by `npm run runtime`). CI requires its output to be identical to real tiktoken.
+- `sentence_transformers` in the browser is a NumPy implementation of the MiniLM BERT forward pass in `site-src/runtime/shims/sentence_transformers.py`. `npm run runtime` exports the real `all-MiniLM-L6-v2` weights (int8 per row, or fp16 if int8 is not accurate enough) and fails if any cosine similarity differs from PyTorch by more than 0.005.
+- Reference outputs: `npm run runtime` also runs every exercise with real Python and the real packages; lesson pages show that output under "Reference output".
+- Edits to an exercise are stored as `code:<course>/<lesson>` in the learning state and sync like notes.
+- The service worker caches runtime files on first use in a cache named after the runtime version, so a lesson that has run once also runs offline.
+- Packages that do not run in Pyodide, such as PyTorch, cannot run in the browser. Lessons that need them omit `runtime: pyodide`; they still get the reference output and the run-on-your-computer commands.
+
+Local preparation needs internet access and the packages in `requirements.txt` (`pip install -r requirements.txt`), then `npm run runtime && npm run build`. `node tests/runtime.mjs` runs every runtime lesson in headless Chromium and compares the output with the reference: identical for lessons using NumPy or tiktoken, within 0.02 for the embedding lessons. CI runs all of this before deploying.
+
+## 7. Migration notes
 
 Until October 2026 lessons lived at the site root (`/03-attention.html`) and progress keys had no course prefix (`done:03-attention`). Old URLs now redirect, keeping the `#hash`, to `/ai-engineering/...`. On first load the client rewrites old keys to `done:ai-engineering/03-attention` and writes a null tombstone for each old key, so synced devices converge; incoming old-format keys from the cloud, imports or devices still running the old version are normalized the same way.

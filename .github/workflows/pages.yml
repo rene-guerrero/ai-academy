@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       SITE_URL: ${{ vars.SITE_URL }}
       SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -27,9 +28,33 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
       - run: npm ci
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/data-gym-cache
+            runtime-cache/pyodide
+          key: runtime-${{ hashFiles('package-lock.json', 'requirements.txt', 'tools/build_runtime.py') }}
+      - name: Prepare the in-browser Python runtime and reference outputs
+        run: npm run runtime
       - run: npm run build
       - run: npm run check
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Site tests
+        run: node tests/smoke.mjs
+      - name: In-browser Python tests
+        run: node tests/runtime.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

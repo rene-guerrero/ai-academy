@@ -4,6 +4,7 @@ summary: Next-token loss, cross-entropy, teacher forcing, and how temperature an
 area: A
 n: 5
 minutes: 30
+runtime: pyodide
 exercise: exercises/lesson_05_training_generation.py
 regenerated: true
 level: foundations

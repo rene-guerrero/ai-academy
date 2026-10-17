@@ -816,6 +816,8 @@
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && sync.session) scheduleSync(300); });
   }
 
+  window.__aia = { get: get, set: set, onChange: onChange, t: t };
+
   document.addEventListener("DOMContentLoaded", function () {
     initTheme(); initLang(); initCopy(); initLesson(); initCourse(); initHome(); initToc(); initMermaid(); initOffline(); initSync();
   });

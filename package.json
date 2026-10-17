@@ -6,11 +6,16 @@
     "build": "node site-src/build.mjs",
     "check": "node site-src/check.mjs",
     "serve": "node site-src/serve.mjs",
-    "test": "node site-src/build.mjs && node site-src/check.mjs && node tests/smoke.mjs"
+    "test": "node site-src/build.mjs && node site-src/check.mjs && node tests/smoke.mjs && node tests/runtime.mjs",
+    "runtime": "python3 tools/build_runtime.py"
   },
   "dependencies": {
     "highlight.js": "11.11.1",
     "marked": "12.0.2",
-    "mermaid": "11.12.0"
+    "mermaid": "11.12.0",
+    "pyodide": "314.0.7"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
   }
 }

@@ -4,6 +4,7 @@ summary: Queries, keys and values, softmax, the causal mask, multiple heads, the
 area: A
 n: 3
 minutes: 30
+runtime: pyodide
 exercise: exercises/lesson_03_attention.py
 regenerated: true
 level: foundations

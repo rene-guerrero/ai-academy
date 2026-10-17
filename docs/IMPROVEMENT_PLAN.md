@@ -118,3 +118,9 @@ Not verified here: cloud sync against a real Supabase project (no credentials in
 - UI redesigned with the Apple design skill (`.claude/skills/apple-design/`): system typography with a serif display face for lesson titles only, one indigo accent (#4b48c9 light, 6.84:1 on white; #8e8cff dark, 5.95:1 on #1c1c1e), grouped inset lists with inset separators, segmented controls for filters and settings, a settings sheet (bottom sheet on phones) that holds appearance, language and sync, a translucent top bar that becomes opaque under Reduce Transparency, and a per-course progress ring as the signature element.
 - The sync control in the top bar is icon-only at every width (44 px target) with a colored status dot; the status text is in its tooltip, in its accessible name and in the settings sheet, so it is never conveyed by color alone (`toolbars.md › Best practices`: prefer recognizable symbols over text; keep text-labeled actions separate).
 - Known deviation from the HIG: the in-app appearance switch (`dark-mode.md › Best practices`) is kept because the owner asked for it; System is the default.
+
+## 7. Iteration 3 (2026-10-17): run exercises in the browser
+
+- Pyodide runner on every lesson: Run, Stop, Edit with saved and synced edits, Reset, streamed output, clean tracebacks, 60 s limit, warm reruns in under 100 ms, offline after first use.
+- Embedding lessons run a NumPy implementation of MiniLM instead of Transformers.js plus ONNX Runtime: about half the download, no async bridge, the scripts run unchanged. Accuracy is enforced in CI against PyTorch.
+- Reference outputs recorded by CI with real Python; the hand-written "what the script printed" notes in lessons 3 to 5 stay because they carry commentary.
