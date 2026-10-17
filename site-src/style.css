@@ -356,3 +356,4 @@ li.is-hidden { display: none; }
   body { background: #fff; color: #000; }
   .layout { display: block; }
 }
+.sync-label { display: none !important; }

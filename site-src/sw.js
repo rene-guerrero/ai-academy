@@ -1,9 +1,10 @@
 const VERSION = "__VERSION__";
 const CACHE = "aia-" + VERSION;
 const FILES = __FILES__;
+const NETWORK_FIRST = /(\.html|\.css|\.js|\.json|\/)$/;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -12,29 +13,28 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function fromNetwork(req) {
+  return fetch(req, { cache: "no-cache" }).then((res) => {
+    if (res && res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy));
+    }
+    return res;
+  });
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  if (url.pathname.endsWith("/config.js")) {
-    event.respondWith(fetch(req).then((res) => { if (res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone())); return res; }).catch(() => caches.match(req)));
+  if (NETWORK_FIRST.test(url.pathname)) {
+    event.respondWith(
+      fromNetwork(req).catch(() =>
+        caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match(url.pathname.replace(/[^/]*$/, "") + "index.html")).then((hit) => hit || caches.match("./index.html"))
+      )
+    );
     return;
   }
-  event.respondWith(
-    caches.match(req, { ignoreSearch: true }).then((hit) => {
-      const network = fetch(req).then((res) => {
-        if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone()));
-        return res;
-      });
-      if (hit) {
-        network.catch(() => {});
-        return hit;
-      }
-      return network.catch(() => {
-        const base = url.pathname.replace(/[^/]*$/, "");
-        return caches.match(base + "index.html") || caches.match("./index.html");
-      });
-    })
-  );
+  event.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fromNetwork(req)));
 });

@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -191,6 +191,13 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
     check("offline mermaid renders", (await page.evaluate(() => document.querySelectorAll(".mermaid svg").length)) === 1);
     check("offline badge shown", !(await page.isHidden("#offline")));
     await ctx.setOffline(false);
+    const target = join(dist, "es", "index.html");
+    const original = readFileSync(target, "utf8");
+    await page.goto(base + "es/index.html"); await page.waitForTimeout(800);
+    writeFileSync(target, original.replace("</main>", '<p id="fresh-marker">new</p></main>'));
+    await page.goto(base + "es/index.html"); await page.waitForTimeout(800);
+    check("updated page shown on next load", (await page.locator("#fresh-marker").count()) === 1);
+    writeFileSync(target, original);
   }
   await ctx.close();
 }
