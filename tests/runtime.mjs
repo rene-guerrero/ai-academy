@@ -100,8 +100,8 @@ if (chunks.vectors) {
   await page.goto(`${base}index.html`);
   await page.click('[data-ask-mode="hybrid"]');
   await page.fill("#ask-input", "why does the loss never reach zero");
-  await page.waitForFunction(() => /MiniLM|unavailable|could not/.test(document.querySelector(".ask-status").textContent), null, { timeout: 180000 });
-  check("hybrid search runs MiniLM in the browser", /MiniLM/.test(await page.textContent(".ask-status")), await page.textContent(".ask-status"));
+  await page.waitForFunction(() => /reciprocal rank fusion|unavailable|could not/.test(document.querySelector(".ask-status").textContent), null, { timeout: 180000 });
+  check("hybrid search runs MiniLM in the browser", /reciprocal rank fusion/.test(await page.textContent(".ask-status")), await page.textContent(".ask-status"));
   const top = await page.evaluate(() => [...document.querySelectorAll("#ask-results a")].slice(0, 3).map((a) => a.getAttribute("href")));
   check("hybrid search finds the loss floor section", top.includes("ai-engineering/05-training-and-generation.html#the-loss-floor"), top.join(", "));
   check("hybrid results explain both rankings", /meaning #/.test(await page.textContent("#ask-results")));

@@ -65,7 +65,7 @@ Tiene un conjunto etiquetado de {{q:queries}} preguntas por idioma, cada una aso
 | Significado (MiniLM) | {{q:es.vector.hit1}} | {{q:es.vector.hit3}} | {{q:es.vector.mrr}} |
 | Híbrido (RRF) | {{q:es.hybrid.hit1}} | {{q:es.hybrid.hit3}} | {{q:es.hybrid.mrr}} |
 
-La compilación rellena estas tablas, así que son los números de la versión desplegada. all-MiniLM-L6-v2 se entrenó en inglés, así que en las filas en español es donde más deberían pesar las palabras clave.
+La compilación rellena estas tablas, así que son los números de la versión desplegada. all-MiniLM-L6-v2 se entrenó en inglés. En inglés, la búsqueda por significado encuentra lo que las palabras clave no ven; en español el mismo modelo es débil y combinarlo puede quedar por debajo de las palabras clave solas. Por eso las palabras clave son el modo por defecto, y por eso el siguiente paso de abajo es un modelo multilingüe medido con las mismas preguntas.
 
 ## Funciones de aprendizaje que usan la misma maquinaria
 

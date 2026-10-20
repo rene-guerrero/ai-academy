@@ -65,7 +65,7 @@ It has a labeled set of {{q:queries}} questions per language, each mapped to the
 | Meaning (MiniLM) | {{q:es.vector.hit1}} | {{q:es.vector.hit3}} | {{q:es.vector.mrr}} |
 | Hybrid (RRF) | {{q:es.hybrid.hit1}} | {{q:es.hybrid.hit3}} | {{q:es.hybrid.mrr}} |
 
-These tables are filled by the build, so they are the numbers of the deployed version. all-MiniLM-L6-v2 was trained on English, so the Spanish rows are where keywords should matter most.
+These tables are filled by the build, so they are the numbers of the deployed version. all-MiniLM-L6-v2 was trained on English. In English, meaning search finds what keywords miss; in Spanish the same model is weak, and fusing it in can rank below keywords alone. That is why keywords stay the default, and why the next step below is a multilingual model measured against the same questions.
 
 ## Learning features that use the same machinery
 
