@@ -49,6 +49,16 @@ Body conventions:
       :::
 
 - A `## References` section is ordinary Markdown.
+- Results from an exercise are never typed by hand. Write `{{claim:name}}` and add the claim to `courses/<course>/claims.json` under the lesson slug: `{ "name": { "pattern": "regex with one capture group", "value": "expected text" } }`. The build substitutes the value (inside code fences as plain text, elsewhere underlined) and, when reference outputs exist, fails if the pattern no longer captures exactly that value from the exercise's real output. Spanish lessons use the same placeholders.
+- A prediction block goes right after the "Predict before you run" list:
+
+      ::: predict
+      P: id | number | claim:name or a literal | tolerance | Prompt text
+      P: id | choice:a=Label A;b=Label B | b | | Prompt text
+      :::
+
+  Readers lock an answer and a confidence before running, then check it. Results are stored as `predq:<lesson key>:<id>` and feed the calibration chart on the home page.
+- English front matter may carry provenance: `author`, `drafted` (date) and `reviewed` (date, empty until a person has reviewed the lesson).
 - Code blocks must be byte-identical between the English and Spanish versions; `npm run check` enforces this.
 
 Planned lessons (not yet written) are declared in the course's `course.json` under `planned`, with bilingual title and summary, track and prerequisites. They render as non-clickable "Planned" rows.
@@ -120,3 +130,17 @@ Local preparation needs internet access and the packages in `requirements.txt` (
 ## 7. Migration notes
 
 Until October 2026 lessons lived at the site root (`/03-attention.html`) and progress keys had no course prefix (`done:03-attention`). Old URLs now redirect, keeping the `#hash`, to `/ai-engineering/...`. On first load the client rewrites old keys to `done:ai-engineering/03-attention` and writes a null tombstone for each old key, so synced devices converge; incoming old-format keys from the cloud, imports or devices still running the old version are normalized the same way.
+
+## 8. Ask the course and the quality page
+
+The build splits every lesson and note into section chunks (by `##` and `###`, about 140 words per chunk, code blocks and references left out) and writes `dist/search/<lang>-chunks.json`. The home page ranks them with BM25 (`site-src/search-core.mjs`, shared by the browser and the build). In meaning mode the browser embeds the question with the in-browser MiniLM and fuses BM25 and cosine rankings with reciprocal rank fusion (k = 60).
+
+Chunk vectors come from `python tools/embed_search.py`, which reads the chunks of a finished build, embeds them and the labeled questions with the real `all-MiniLM-L6-v2`, and writes `runtime-cache/search/`. The next build copies the vectors into `dist/search/` only if their hash matches the current chunks.
+
+`tests/search-eval.json` lists questions in both languages with the English heading of each section that answers them; Spanish sections are matched by position, so the Spanish lesson must keep the same heading structure. Every build computes hit@1, hit@3 and MRR at section level for the modes it can (BM25 always; meaning and hybrid when vectors exist), writes `dist/quality.json`, renders `quality.html`, and fails below `thresholds`. With `AIA_REQUIRE_SEARCH=1` (set in CI) missing or stale vectors also fail the build.
+
+The case study (`site-src/pages/case-study.md` and `es/`) can quote live numbers with `{{q:<lang>.<mode>.<hit1|hit3|mrr>}}`, `{{q:claims}}`, `{{q:queries}}` and `{{q:minilm}}`.
+
+## 9. Supabase keep-alive
+
+Free Supabase projects pause after a week without requests. `.github/workflows/keepalive.yml` runs `tools/keepalive.mjs` daily: it calls the optional `public.ping()` function from `supabase/schema.sql`, or, if that function does not exist, makes an anonymous read of `learning_items`, which row-level security rejects but which still counts as activity.

@@ -4,6 +4,7 @@ import { join, dirname, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 import hljs from "highlight.js";
+import { makeIndex, search, metrics, decodeF16 } from "./search-core.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "site-src");
@@ -126,6 +127,7 @@ function substituteClaims(body, values, where) {
 }
 
 const claimErrors = [];
+const claimTotals = { ok: 0, lessons: 0, seen: new Set() };
 function resolveClaims(course, slug, scriptStem) {
   const defs = (course.claims || {})[slug] || {};
   const names = Object.keys(defs);
@@ -143,6 +145,12 @@ function resolveClaims(course, slug, scriptStem) {
         claimErrors.push(`${course.id}/${slug}: claim "${n}" is ${JSON.stringify(defs[n].value)} in claims.json but the exercise now prints ${JSON.stringify(got)}`);
       }
     }
+  }
+  const id = `${course.id}/${slug}`;
+  if (verified && !claimTotals.seen.has(id)) {
+    claimTotals.seen.add(id);
+    claimTotals.ok += names.length;
+    claimTotals.lessons += 1;
   }
   return { values, count: names.length, verified };
 }
@@ -301,6 +309,7 @@ function assembleRuntime() {
     manifest,
     outputsDir,
     outputsMeta,
+    minilm: existsSync(join(assetDir, "minilm.json")) ? JSON.parse(readFileSync(join(assetDir, "minilm.json"), "utf8")) : null,
     estimate(code) {
       const imports = new Set([...code.matchAll(/^\s*(?:from|import)\s+([A-Za-z_][\w]*)/gm)].map((m) => m[1]));
       let bytes = core;
@@ -406,7 +415,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
     .replace("{{DIALOGS}}", dialogs)
     .replace("{{FOOTER}}", t(L, "site.footer"))
     .replace("{{MERMAID}}", hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
-    .replace("{{RUNNER}}", extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
+    .replace("{{RUNNER}}", extra.ask ? `${extra.runtime ? `<script src="${rel}pyclient.js" defer></script>` : ""}<script type="module" src="${rel}ask.js"></script>` : extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
     .replace("{{BODY}}", body);
 }
 
@@ -433,6 +442,33 @@ function tocHtml(toc, L, inline = false) {
     : `<nav class="toc" aria-label="${attr(t(L, "lesson.toc"))}"><details open><summary>${t(L, "lesson.toc")}</summary><ol>${items}</ol></details></nav>`;
 }
 
+const decodeEntities = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+function chunkSections(html, key, url, title) {
+  const clean = html.replace(/<div class="code">[\s\S]*?<\/pre><\/div>/g, " ").replace(/<figure class="diagram">[\s\S]*?<\/figure>/g, " ").replace(/<!--[\s\S]*?-->/g, " ").replace(/<a class="anchor"[^>]*>#<\/a>/g, "");
+  const parts = clean.split(/(?=<h[23] id=")/);
+  const out = [];
+  for (const part of parts) {
+    const m = part.match(/^<h([23]) id="([^"]+)">([\s\S]*?)<\/h\1>/);
+    const heading = m ? decodeEntities(m[3].replace(/<[^>]+>/g, "")).trim() : title;
+    if (/^(references|referencias)$/i.test(heading)) continue;
+    const anchor = m ? m[2] : "";
+    const paras = decodeEntities((m ? part.slice(m[0].length) : part).replace(/<\/(p|li|tr|h4|blockquote)>/g, "\n").replace(/<[^>]+>/g, " ")).split("\n").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const windows = [];
+    let cur = [];
+    const words = (a) => a.join(" ").split(" ").length;
+    for (const p of paras) {
+      if (cur.length && words([...cur, p]) > 140) { windows.push(cur.join(" ")); cur = []; }
+      cur.push(p);
+    }
+    if (cur.length) windows.push(cur.join(" "));
+    out.push({ section: `${key}#${anchor}`, heading, windows: windows.length ? windows : [heading] });
+  }
+  return out.filter((x, i) => i > 0 || x.windows.join("").length > 40).flatMap((x, si) => x.windows.map((text) => ({ section: x.section, key, url: url + (x.section.endsWith("#") ? "" : "#" + x.section.split("#")[1]), title, heading: x.heading, text })));
+}
+const evalFile = join(root, "tests", "search-eval.json");
+const evalSet = existsSync(evalFile) ? JSON.parse(readFileSync(evalFile, "utf8")) : { queries: [], thresholds: {} };
+const askChunks = Object.fromEntries(LANGS.map((l) => [l, []]));
+const askSections = Object.fromEntries(LANGS.map((l) => [l, new Map()]));
 const searchIndex = Object.fromEntries(LANGS.map((l) => [l, []]));
 const allLessonMeta = Object.fromEntries(LANGS.map((l) => [l, []]));
 
@@ -459,6 +495,7 @@ for (const course of courses) {
       const pred = extractPredict(sub.text);
       const { stripped, questions } = extractQuiz(pred.stripped);
       let { html, toc } = render(stripped, L);
+      const proseHtml = html;
       html = html.replace(/<!--PREDICT-->/, predictHtml(pred.items, claims.values, L, lesson.key));
       const prev = course.lessons[i - 1];
       const next = course.lessons[i + 1];
@@ -556,6 +593,9 @@ ${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "les
 </nav></main></div>`;
       const name = `${C}/${lesson.slug}.html`;
       emit(outPath(lang, name), page({ lang, name, title: `${lesson.n}. ${d.title}`, desc: String(d.summary), body, kind: "lesson", slug: lesson.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length, courseTitle, ...(runtimeInfo ? { runtime: runtimeInfo } : {}) } }));
+      const lessonChunks = chunkSections(proseHtml, lesson.key, name, `${lesson.n}. ${d.title}`);
+      askChunks[lang].push(...lessonChunks);
+      askSections[lang].set(lesson.key, [...new Set(lessonChunks.map((c) => c.section))].map((sec) => ({ section: sec, heading: lessonChunks.find((c) => c.section === sec).heading })));
       searchIndex[lang].push({ key: lesson.key, url: name, course: C, courseTitle, kind: "lesson", n: lesson.n, title: d.title, summary: d.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
       allLessonMeta[lang].push({ key: lesson.key, course: C, url: name, n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length });
     });
@@ -569,6 +609,9 @@ ${crumb}<p class="eyebrow"><span>${t(L, "note.label")}</span></p><h1>${esc(v.dat
 <nav class="pager" aria-label="${attr(t(L, "nav.home"))}"><a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${esc(courseTitle)}</span></a><span></span></nav></main></div>`;
       const name = `${C}/note-${note.slug}.html`;
       emit(outPath(lang, name), page({ lang, name, title: String(v.data.title), desc: String(v.data.summary), body, kind: "note", slug: note.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { title: v.data.title } }));
+      const noteChunks = chunkSections(html, note.key, name, String(v.data.title));
+      askChunks[lang].push(...noteChunks);
+      askSections[lang].set(note.key, [...new Set(noteChunks.map((c) => c.section))].map((sec) => ({ section: sec, heading: noteChunks.find((c) => c.section === sec).heading })));
       searchIndex[lang].push({ key: note.key, url: name, course: C, courseTitle, kind: "note", title: v.data.title, summary: v.data.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
     }
 
@@ -628,6 +671,13 @@ ${noteList}
   }
 }
 
+function askRuntime(lang) {
+  if (!runtime) return null;
+  const est = runtime.estimate("from sentence_transformers import SentenceTransformer");
+  if (est.missing.length) return null;
+  return { askSize: (est.bytes / 1048576).toFixed(0) + " MB", runtime: { base: rel_(lang, "index.html") + runtime.base, version: runtime.version, missing: [] } };
+}
+
 for (const lang of LANGS) {
   const L = lang;
   const courseRows = courses.map((c) => {
@@ -642,12 +692,127 @@ for (const lang of LANGS) {
 <section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
 <section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
-<section class="global-search" id="search" aria-labelledby="search-h"><h2 id="search-h">${t(L, "nav.search")}</h2><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
-<div class="search-results card" id="search-results" hidden><ul id="search-hits"></ul></div></section>
+<section class="ask" id="ask" aria-labelledby="search-h"><span id="search" class="anchor-target"></span><h2 id="search-h">${t(L, "ask.title")}</h2><p class="hint">${t(L, "ask.hint")}</p>
+<form class="ask-form" role="search"><div class="search"><label for="ask-input" class="sr">${t(L, "ask.label")}</label>${ICON.search}<input id="ask-input" type="search" placeholder="${attr(t(L, "ask.placeholder"))}" autocomplete="off" enterkeyhint="search"></div></form>
+<div class="ask-tools"><div class="segmented" role="radiogroup" aria-label="${attr(t(L, "ask.mode"))}"><button type="button" role="radio" data-ask-mode="bm25" aria-checked="true">${t(L, "ask.mode.bm25")}</button><button type="button" role="radio" data-ask-mode="hybrid" aria-checked="false">${t(L, "ask.mode.hybrid")}</button></div></div>
+<p class="ask-examples"><span class="muted">${t(L, "ask.try")}</span> ${evalSet.queries.filter((_, i) => [2, 11, 21].includes(i)).map((q) => `<button type="button" class="chip" data-ask-example>${esc(q[lang])}</button>`).join(" ")}</p>
+<p class="hint ask-status" role="status" aria-live="polite"></p>
+<div class="runner-progress" hidden><span></span></div>
+<ol class="list ask-results" id="ask-results" aria-live="polite"></ol>
+<p class="hint"><a href="quality.html">${t(L, "ask.quality")}</a></p></section>
+<section class="built" id="built" aria-labelledby="built-h"><h2 id="built-h">${t(L, "home.built")}</h2><p class="hint">${t(L, "home.built.hint")}</p><ul class="list"><li><a class="row" href="case-study.html"><span class="txt"><span class="row-title">${t(L, "home.built.cs")}</span><span class="row-sum">${t(L, "home.built.cs.sum")}</span></span>${ICON.chevron}</a></li><li><a class="row" href="quality.html"><span class="txt"><span class="row-title">${t(L, "home.built.q")}</span><span class="row-sum">${t(L, "home.built.q.sum")}</span></span>${ICON.chevron}</a></li></ul></section>
 <section class="data" id="data" aria-labelledby="data-h"><h2 id="data-h">${t(L, "home.data")}</h2><p class="hint">${t(L, "home.data.hint")}</p><div class="data-actions"><button type="button" class="btn" id="open-account">${t(L, "account.title")}</button><button type="button" class="btn" data-action="export">${t(L, "account.export")}</button><button type="button" class="btn" data-action="export-md">${t(L, "account.exportMd")}</button><label class="btn file"><input type="file" accept="application/json,.json" id="import-file" class="sr">${t(L, "account.import")}</label></div><p class="status" id="data-status" aria-live="polite"></p></section>
 </main>`;
-  emit(outPath(lang, "index.html"), page({ lang, name: "index.html", title: t(L, "site.name"), desc: t(L, "site.description"), body: home, kind: "home", ogType: "website", extra: { lessons: allLessonMeta[lang], courses: courses.map((c) => ({ id: c.id, title: c.meta.title[lang] || c.meta.title.en, total: c.lessons.length })), firstUrl: first ? `${courses[0].id}/${first.slug}.html` : "" } }));
+  emit(outPath(lang, "index.html"), page({ lang, name: "index.html", title: t(L, "site.name"), desc: t(L, "site.description"), body: home, kind: "home", ogType: "website", extra: { ask: true, ...(askRuntime(lang) || {}), lessons: allLessonMeta[lang], courses: courses.map((c) => ({ id: c.id, title: c.meta.title[lang] || c.meta.title.en, total: c.lessons.length })), firstUrl: first ? `${courses[0].id}/${first.slug}.html` : "" } }));
   emit(outPath(lang, "search.json"), JSON.stringify(searchIndex[lang]));
+}
+
+const searchCache = join(root, "runtime-cache", "search");
+const readJson = (f) => (existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null);
+const queryVectors = readJson(join(searchCache, "queries.json"));
+const requireSemantic = env.AIA_REQUIRE_SEARCH === "1";
+const quality = { date: new Date().toISOString().slice(0, 10), model: "all-MiniLM-L6-v2", queries: evalSet.queries.length, languages: {} };
+const searchFailures = [];
+mkdirSync(join(out, "search"), { recursive: true });
+for (const lang of LANGS) {
+  const chunks = askChunks[lang];
+  const hash = createHash("sha1").update(JSON.stringify(chunks.map((c) => `${c.title}. ${c.heading}\n${c.text}`))).digest("hex").slice(0, 12);
+  const meta = readJson(join(searchCache, `${lang}-vectors.json`));
+  let vectors = null;
+  let vectorFile = null;
+  if (meta && meta.hash === hash) {
+    vectorFile = `search/${lang}-vectors-${hash}.bin`;
+    copyFileSync(join(searchCache, `${lang}-vectors.bin`), join(out, vectorFile));
+    files.push(vectorFile);
+    const buf = readFileSync(join(out, vectorFile));
+    vectors = decodeF16(new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2));
+  } else if (requireSemantic) searchFailures.push(`${lang}: chunk vectors are ${meta ? "stale" : "missing"}; run python3 tools/embed_search.py after a build`);
+  const data = { hash, dim: meta ? meta.dim : 384, model: quality.model, vectors: vectorFile ? vectorFile.replace("search/", "") : null, chunks: chunks.map(({ section, url, title, heading, text }) => ({ section, url, title, heading, text })) };
+  emit(`search/${lang}-chunks.json`, JSON.stringify(data));
+
+  const index = makeIndex(data, vectors);
+  const qv = queryVectors && queryVectors[lang];
+  const semantic = Boolean(vectors && qv && evalSet.queries.every((q) => qv[q[lang]]));
+  if (vectors && !semantic && requireSemantic) searchFailures.push(`${lang}: query vectors are missing for the evaluation set`);
+  const rows = evalSet.queries.map((q) => {
+    const expect = new Set(q.expect.map(([key, heading]) => {
+      const enList = askSections[DEFAULT_LANG].get(key);
+      if (!enList) throw new Error(`search-eval: unknown page ${key}`);
+      const i = enList.findIndex((x) => x.heading === heading);
+      if (i < 0) throw new Error(`search-eval: ${key} has no section "${heading}"`);
+      const list = askSections[lang].get(key);
+      if (list.length !== enList.length) throw new Error(`search-eval: ${lang}/${key} has ${list.length} sections, English has ${enList.length}`);
+      return list[i].section;
+    }));
+    const r = search(index, q[lang], semantic ? qv[q[lang]] : null);
+    const rankOf = (list) => (list ? list.slice(0, 10).findIndex((x) => expect.has(x.section)) + 1 : null);
+    const ranks = semantic ? { bm25: rankOf(r.lexical), vector: rankOf(r.semantic), hybrid: rankOf(r.results) } : { bm25: rankOf(r.results) };
+    const top = (list) => list && list[0] ? chunks[list[0].chunk].heading : "";
+    return { query: q[lang], expect: [...expect].map((sec) => { const c = chunks.find((x) => x.section === sec); return `${c.title} › ${c.heading}`; }), ranks, top: semantic ? { bm25: top(r.lexical), vector: top(r.semantic), hybrid: top(r.results) } : { bm25: top(r.results) } };
+  });
+  const modes = Object.keys(rows[0] ? rows[0].ranks : { bm25: 0 });
+  const result = Object.fromEntries(modes.map((m) => [m, metrics(rows.map((x) => x.ranks[m]))]));
+  quality.languages[lang] = { chunks: chunks.length, sections: new Set(chunks.map((c) => c.section)).size, semantic, metrics: result, rows };
+  const limits = (evalSet.thresholds || {})[lang] || {};
+  for (const [mode, lim] of Object.entries(limits)) {
+    if (!result[mode]) continue;
+    for (const [k, v] of Object.entries(lim)) if (result[mode][k] + 1e-9 < v) searchFailures.push(`${lang} ${mode} ${k} = ${result[mode][k].toFixed(3)}, below the threshold ${v}`);
+  }
+  console.log(`Ask the course (${lang}): ${chunks.length} chunks, ${modes.map((m) => `${m} hit@1 ${result[m].hit1.toFixed(2)} hit@3 ${result[m].hit3.toFixed(2)} MRR ${result[m].mrr.toFixed(2)}`).join("; ")}`);
+}
+quality.claims = { verified: claimTotals.ok, lessons: claimTotals.lessons };
+quality.runtime = runtime && runtime.outputsMeta ? { date: runtime.outputsMeta.date, python: runtime.outputsMeta.python, checks: runtime.outputsMeta.checks, minilm: runtime.minilm } : null;
+emit("quality.json", JSON.stringify(quality));
+const pct = (x) => (x * 100).toFixed(0) + "%";
+const qval = (path) => {
+  const [lang, mode, metric] = path.split(".");
+  const m = quality.languages[lang] && quality.languages[lang].metrics[mode];
+  return m ? (metric === "mrr" ? m.mrr.toFixed(2) : pct(m[metric])) : "n/a";
+};
+for (const lang of LANGS) {
+  const L = lang;
+  const name = "quality.html";
+  const modeName = (m) => t(L, `q.mode.${m}`);
+  const bar = (v) => `<span class="qbar" aria-hidden="true"><span style="width:${(v * 100).toFixed(1)}%"></span></span>`;
+  const langBlocks = LANGS.map((l) => {
+    const q = quality.languages[l];
+    const modes = Object.keys(q.metrics);
+    const rows = modes.map((m) => `<tr><th scope="row">${modeName(m)}</th>${["hit1", "hit3", "mrr"].map((k) => `<td><span class="qcell">${k === "mrr" ? q.metrics[m][k].toFixed(2) : pct(q.metrics[m][k])}${bar(q.metrics[m][k])}</span></td>`).join("")}</tr>`).join("");
+    const detail = q.rows.map((r) => `<tr><td>${esc(r.query)}</td><td>${r.expect.map(esc).join("<br>")}</td>${modes.map((m) => `<td class="num">${r.ranks[m] ? r.ranks[m] : "—"}</td>`).join("")}</tr>`).join("");
+    return `<section class="group-card" aria-labelledby="q-${l}-h"><h3 id="q-${l}-h">${dict[l]["lang.name"]}</h3><p class="hint">${t(L, "q.search.counts", { chunks: q.chunks, sections: q.sections })}${q.semantic ? "" : " " + t(L, "q.search.noSemantic")}</p>
+<div class="table-wrap" tabindex="0"><table class="qtable"><thead><tr><th scope="col">${t(L, "q.mode")}</th><th scope="col">hit@1</th><th scope="col">hit@3</th><th scope="col">MRR</th></tr></thead><tbody>${rows}</tbody></table></div>
+<details class="qdetail"><summary>${t(L, "q.search.perQuery", { n: q.rows.length })}</summary><div class="table-wrap" tabindex="0"><table><thead><tr><th scope="col">${t(L, "q.query")}</th><th scope="col">${t(L, "q.expected")}</th>${modes.map((m) => `<th scope="col" class="num">${modeName(m)}</th>`).join("")}</tr></thead><tbody>${detail}</tbody></table></div><p class="hint">${t(L, "q.rankHint")}</p></details></section>`;
+  }).join("");
+  const rt = quality.runtime;
+  const parity = rt ? Object.entries(rt.checks).map(([k, v]) => `<tr><td><code>${esc(k.split("/").pop())}</code></td><td>${esc(v === "identical" ? t(L, "q.parity.identical") : v === "real" ? t(L, "q.parity.real") : Number(v.replace("within ", "")) === 0 ? t(L, "q.parity.zero") : t(L, "q.parity.within", { d: v.replace("within ", "") }))}</td></tr>`).join("") : "";
+  const body = `<main id="content" class="main quality-page" tabindex="-1">
+<a class="crumb" href="index.html">${ICON.back}<span>${t(L, "nav.home")}</span></a>
+<p class="eyebrow"><span>${t(L, "q.eyebrow")}</span><span class="dot" aria-hidden="true"></span><span>${t(L, "q.date", { date: quality.date })}</span></p>
+<h1>${t(L, "q.title")}</h1>
+<p class="lede">${t(L, "q.lede")}</p>
+<div class="stat-row">
+<div class="card stat"><span>${t(L, "q.stat.search")}</span><strong>${qval(`${lang}.${quality.languages[lang].semantic ? "hybrid" : "bm25"}.hit3`)}</strong><small>${t(L, "q.stat.search.hint", { mode: modeName(quality.languages[lang].semantic ? "hybrid" : "bm25"), n: quality.queries })}</small></div>
+<div class="card stat"><span>${t(L, "q.stat.claims")}</span><strong>${quality.claims.verified}</strong><small>${t(L, "q.stat.claims.hint", { n: quality.claims.lessons })}</small></div>
+${rt && rt.minilm ? `<div class="card stat"><span>${t(L, "q.stat.minilm")}</span><strong>${rt.minilm.max_cosine_difference.toFixed(4)}</strong><small>${t(L, "q.stat.minilm.hint")}</small></div>` : ""}
+</div>
+<section id="search-quality" aria-labelledby="sq-h"><h2 id="sq-h">${t(L, "q.search")}</h2><p>${t(L, "q.search.body")}</p>${langBlocks}<p class="hint">${t(L, "q.search.gate")}</p></section>
+<section id="claims" aria-labelledby="cl-h"><h2 id="cl-h">${t(L, "q.claims")}</h2><p>${t(L, "q.claims.body", { n: quality.claims.verified, lessons: quality.claims.lessons })}</p></section>
+${rt ? `<section id="parity" aria-labelledby="pa-h"><h2 id="pa-h">${t(L, "q.parity")}</h2><p>${t(L, "q.parity.body", { python: rt.python, date: rt.date })}</p><div class="table-wrap" tabindex="0"><table><thead><tr><th scope="col">${t(L, "q.parity.script")}</th><th scope="col">${t(L, "q.parity.result")}</th></tr></thead><tbody>${parity}</tbody></table></div>${rt.minilm ? `<p>${t(L, "q.minilm.body", { d: rt.minilm.max_cosine_difference.toFixed(5), w: rt.minilm.weights })}</p>` : ""}</section>` : `<p class="notice">${t(L, "q.noRuntime")}</p>`}
+<p><a href="case-study.html">${t(L, "q.caseStudy")}</a> · <a href="${REPO}/blob/${BRANCH}/tests/search-eval.json" rel="noopener">${t(L, "q.evalSet")}</a></p>
+</main>`;
+  emit(outPath(lang, name), page({ lang, name, title: t(L, "q.title"), desc: t(L, "q.lede"), body, kind: "quality", ogType: "website" }));
+
+  const csFile = join(src, "pages", lang === DEFAULT_LANG ? "case-study.md" : `${lang}/case-study.md`);
+  const cs = parseFront(readFileSync(csFile, "utf8").replace(/\{\{q:([\w.]+)\}\}/g, (_, k) => k === "claims" ? String(quality.claims.verified) : k === "minilm" ? (rt && rt.minilm ? rt.minilm.max_cosine_difference.toFixed(4) : "n/a") : k === "queries" ? String(quality.queries) : qval(k)), csFile);
+  const { html: csHtml, toc: csToc } = render(cs.body, L);
+  const csName = "case-study.html";
+  const csBody = `<div class="layout"><aside class="side">${tocHtml(csToc, L)}</aside><main id="content" class="main lesson note case-study" tabindex="-1">
+<a class="crumb" href="index.html">${ICON.back}<span>${t(L, "nav.home")}</span></a><p class="eyebrow"><span>${t(L, "cs.eyebrow")}</span></p><h1>${esc(cs.data.title)}</h1><p class="lede">${esc(cs.data.summary)}</p>${tocHtml(csToc, L, true)}<div class="prose">${csHtml}</div></main></div>`;
+  emit(outPath(lang, csName), page({ lang, name: csName, title: String(cs.data.title), desc: String(cs.data.summary), body: csBody, kind: "page", hasMermaid: csHtml.includes('class="mermaid"'), ogType: "article" }));
+}
+if (searchFailures.length) {
+  console.error(searchFailures.join("\n"));
+  throw new Error("Ask the course quality regressed or its vectors are out of date.");
 }
 
 const legacy = courses.find((c) => c.id === LEGACY_COURSE);
@@ -667,7 +832,7 @@ if (claimErrors.length) {
   throw new Error(`${claimErrors.length} lesson claims no longer match their exercises. Update the lesson text and courses/<course>/claims.json.`);
 }
 rmSync(join(out, "vendor"), { recursive: true, force: true });
-for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "manifest.webmanifest"]) {
+for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "ask.js", "search-core.mjs", "manifest.webmanifest"]) {
   copyFileSync(join(src, f), join(out, f));
   files.push(f);
 }

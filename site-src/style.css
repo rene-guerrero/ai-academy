@@ -478,3 +478,29 @@ svg .marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .calib-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
 .calib-value { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .calib li.is-empty .calib-label { color: var(--muted); }
+.ask-form { margin-top: .5rem; }
+.ask-tools { display: flex; margin: 10px 0 0; }
+.ask-tools .segmented { flex: 0 1 auto; }
+.ask-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font-size: .875rem; }
+.ask-examples .chip { white-space: normal; text-align: left; }
+.ask-status { margin: 10px 0 0; }
+.ask-status:empty { display: none; }
+.main .ask-results { margin-top: 10px; }
+.main .ask-results:empty { display: none; }
+.ask-results .row-sum { display: block; }
+.ask-results mark { background: var(--accent-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+.ask-results .empty { padding: 14px 16px; }
+.anchor-target { position: relative; top: calc(-1 * var(--topbar) - 12px); display: block; height: 0; }
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 12px; margin: 1.25rem 0 1.5rem; }
+.stat-row .stat { padding: 16px; }
+.group-card { margin: 1rem 0 1.5rem; }
+.group-card h3 { margin: 0 0 .25rem; }
+.qtable td { min-width: 4.5rem; }
+.qtable th[scope="row"] { font-weight: 500; }
+.qcell { display: grid; gap: 4px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.qbar { display: block; height: 6px; background: var(--fill-2); border-radius: 3px; overflow: hidden; }
+.qbar span { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; }
+.qdetail { margin-top: .5rem; }
+.qdetail > summary { padding: 10px 0; font-weight: 600; color: var(--accent); min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.qdetail td.num, .qdetail th.num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) { .qbar span, .calib-fill { background: CanvasText; } }

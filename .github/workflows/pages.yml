@@ -48,6 +48,12 @@ jobs:
       - name: Prepare the in-browser Python runtime and reference outputs
         run: npm run runtime
       - run: npm run build
+      - name: Embed the course for Ask the course
+        run: python tools/embed_search.py
+      - name: Build with search vectors and enforce search quality
+        run: npm run build
+        env:
+          AIA_REQUIRE_SEARCH: "1"
       - run: npm run check
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium

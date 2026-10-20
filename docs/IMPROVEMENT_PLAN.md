@@ -124,3 +124,12 @@ Not verified here: cloud sync against a real Supabase project (no credentials in
 - Pyodide runner on every lesson: Run, Stop, Edit with saved and synced edits, Reset, streamed output, clean tracebacks, 60 s limit, warm reruns in under 100 ms, offline after first use.
 - Embedding lessons run a NumPy implementation of MiniLM instead of Transformers.js plus ONNX Runtime: about half the download, no async bridge, the scripts run unchanged. Accuracy is enforced in CI against PyTorch.
 - Reference outputs recorded by CI with real Python; the hand-written "what the script printed" notes in lessons 3 to 5 stay because they carry commentary.
+
+## 8. Iteration 4 (2026-10-20): a course that checks itself
+
+- Claims as code: 65 numbers and tables in six lessons are filled from CI reference outputs and fail the build on mismatch. Writing them exposed a wrong statement in lesson 6 (hybrid search does not beat vector search on its own test set); the lesson was corrected.
+- Predictions with confidence, scored against verified output, and a calibration chart on the home page.
+- Labs: model inspector and training lab, running on the same Pyodide worker.
+- Shareable exercise edits as compressed links; per-lesson provenance panel.
+- Ask the course: hybrid retrieval with a labeled evaluation set, metrics on a public quality page and a quality gate in CI; case study page; portfolio README.
+- Daily Supabase keep-alive workflow.

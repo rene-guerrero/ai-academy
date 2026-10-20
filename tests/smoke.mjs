@@ -43,7 +43,7 @@ async function newPage(opts = {}) {
 
 for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 768], [1440, 900], [1920, 1080]]) {
   const { ctx, page } = await newPage({ viewport: { width: w, height: h } });
-  for (const url of ["index.html", "ai-engineering/index.html", "ai-engineering/03-attention.html", "es/index.html", "es/ai-engineering/index.html", "es/ai-engineering/06-semantic-search-evaluation.html", "ai-engineering/note-rag.html"]) {
+  for (const url of ["index.html", "ai-engineering/index.html", "ai-engineering/03-attention.html", "es/index.html", "es/ai-engineering/index.html", "es/ai-engineering/06-semantic-search-evaluation.html", "ai-engineering/note-rag.html", "quality.html", "es/case-study.html", "ai-engineering/lab-model-inspector.html", "es/ai-engineering/lab-training-lab.html"]) {
     await page.goto(base + url, { waitUntil: "load" });
     await page.waitForTimeout(600);
     const m = await page.evaluate(() => ({
@@ -113,9 +113,21 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
   check("home review section visible", !(await page.isHidden("#review")));
   check("home course progress text", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 de 6"));
   check("ring drawn", await page.evaluate(() => parseFloat(document.querySelector(".ring-fill").style.strokeDashoffset) < parseFloat(document.querySelector(".ring-fill").dataset.c)));
-  await page.fill("#search-input", "atención"); await page.waitForTimeout(600);
-  const hitHref = await page.getAttribute("#search-hits li a >> nth=0", "href");
-  check("global search links into course", Boolean(hitHref) && hitHref.startsWith("ai-engineering/"), hitHref);
+  await page.fill("#ask-input", "¿por qué la pérdida nunca llega a cero?"); await page.waitForTimeout(800);
+  const hitHref = await page.getAttribute("#ask-results li a >> nth=0", "href");
+  check("ask the course links into a lesson section", Boolean(hitHref) && /^ai-engineering\/05-training-and-generation\.html#/.test(hitHref), hitHref);
+  check("ask the course highlights terms", (await page.locator("#ask-results mark").count()) > 0);
+  check("ask the course reports its mode", /BM25/.test(await page.textContent(".ask-status")));
+  const vectorsShipped = await page.evaluate(() => fetch("../search/es-chunks.json").then((r) => r.json()).then((j) => Boolean(j.vectors)));
+  check("meaning mode enabled only with vectors", (await page.isDisabled('[data-ask-mode="hybrid"]')) === !vectorsShipped);
+  await page.goto(base + "quality.html"); await page.waitForTimeout(300);
+  check("quality page shows search metrics", (await page.locator(".qtable tbody tr").count()) >= 2);
+  check("quality page lists every labeled question", (await page.locator(".qdetail >> nth=0 >> tbody tr").count()) === JSON.parse(readFileSync(join(root, "tests", "search-eval.json"), "utf8")).queries.length);
+  await page.goto(base + "case-study.html"); await page.waitForTimeout(300);
+  check("case study has no unfilled placeholders", !(await page.textContent("main")).includes("{{"));
+  await page.goto(base + "ai-engineering/03-attention.html"); await page.waitForTimeout(300);
+  check("lesson claims rendered", (await page.locator(".prose .claim").count()) > 0 && !(await page.textContent("main")).includes("{{claim"));
+  check("lesson provenance panel", (await page.locator("[data-prov]").count()) >= 4);
   await page.goto(base + "index.html"); await page.waitForTimeout(400);
   const [download] = await Promise.all([page.waitForEvent("download"), page.click('[data-action="export"]')]);
   const exported = readFileSync(await download.path(), "utf8");

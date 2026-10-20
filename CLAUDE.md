@@ -11,3 +11,6 @@ Static, bilingual (English/Spanish) learning site generated from Markdown, deplo
 - Before pushing: `npm run build && npm run check`, and `node tests/smoke.mjs` when Playwright is available. CI also runs `npm run runtime` and `node tests/runtime.mjs` (in-browser Python against real Python).
 - Exercise scripts should only import the standard library, NumPy, `tiktoken` or `sentence_transformers` (all runnable in the browser), or omit `runtime: pyodide`. Never add comments to them.
 - Never commit secret keys. `site-src/public-config.json` holds only the public Supabase URL and publishable key.
+- Never type results into lessons by hand. Quote exercise output with `{{claim:name}}` and define the claim (regex with one capture group, expected value) in `courses/<course>/claims.json`; the build fails when a claim stops matching the CI reference output.
+- Predictions go in `::: predict` blocks (`P: id | number or choice:key=Label;... | claim:name or literal | tolerance | prompt`). See `docs/SETUP_AND_DEPLOYMENT.md`.
+- Ask the course is evaluated against `tests/search-eval.json`. When lesson headings change, keep its expected sections valid; never lower a threshold to make a build pass without saying so.
