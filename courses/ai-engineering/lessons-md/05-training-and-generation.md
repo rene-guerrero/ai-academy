@@ -4,6 +4,9 @@ summary: Next-token loss, cross-entropy, teacher forcing, and how temperature an
 area: A
 n: 5
 minutes: 30
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_05_training_generation.py
 regenerated: true
@@ -91,16 +94,22 @@ File: `lessons/lesson_05_training_generation.py`. Numpy only. It trains a tiny b
 4. What does temperature do to the entropy of that distribution at 0.2 and at 5?
 5. Which setting will produce the most repetitive text, and which the most chaotic?
 
+::: predict
+P: untrained | number | claim:untrained | 0.05 | What is the loss of the untrained model?
+P: final | number | claim:loss300 | 0.05 | What is the loss after 300 steps?
+P: zero | choice:yes=Yes;no=No | no | | Will training reach a loss of 0?
+:::
+
 The run command is at the bottom of this page.
 
 <details>
 <summary>What the script printed for me (open after predicting)</summary>
 
-- `V = 10`, `ln(V) = 2.3026`, untrained loss 2.3027.
-- Loss: 2.24 after step 1, 1.45 at step 20, 0.99 at step 50, 0.78 at step 100, 0.64 at step 300. It plateaus, and does not go to 0.
-- After "the": cat 0.33, dog 0.33, mat 0.16, rug 0.16.
-- Entropy after "the": 0.82 at T=0.2, 1.47 at T=1, 2.23 at T=5 (the maximum possible for 10 tokens is 2.30).
-- Low temperature gives loops like "sat on the cat sat on the cat". High temperature with no top-p gives word salad ("cat mat sat on sat mat"). Top-p 0.5 reduces the damage at T=3 but does not remove it: the distribution is flat enough that top-p keeps several tokens, and "ran to mat" is a transition the corpus never had.
+- `V = {{claim:vocab}}`, `ln(V) = {{claim:lnv}}`, untrained loss {{claim:untrained}}.
+- Loss: {{claim:loss1}} after step 1, {{claim:loss20}} at step 20, {{claim:loss50}} at step 50, {{claim:loss100}} at step 100, {{claim:loss300}} at step 300. It plateaus, and does not go to 0.
+- After "the": {{claim:after_the}}.
+- Entropy after "the": {{claim:ent02}} at T=0.2, {{claim:ent1}} at T=1, {{claim:ent5}} at T=5 (the maximum possible for 10 tokens is 2.30).
+- Low temperature gives loops: "{{claim:sample_cold}}". High temperature with no top-p gives word salad: "{{claim:sample_hot}}". Top-p 0.5 reduces the damage at T=3 but does not remove it: "{{claim:sample_hot_nucleus}}". The distribution is flat enough that top-p keeps several tokens, and "ran to mat" is a transition the corpus never had.
 - The sampled lines are identical on every run because both seeds are fixed. Training and sampling use separate generators, so changing the sampling seed leaves the losses untouched.
 
 </details>

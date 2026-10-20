@@ -4,6 +4,9 @@ summary: Queries, keys and values, softmax, the causal mask, multiple heads, the
 area: A
 n: 3
 minutes: 30
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_03_attention.py
 regenerated: true
@@ -103,6 +106,12 @@ File: `lessons/lesson_03_attention.py`. Numpy only, a four-token toy with a fixe
 5. With 256-dimensional heads, which is closer to a one-hot row: scaled or unscaled scores?
 6. Doubling the context length multiplies the score matrix size by what factor?
 
+::: predict
+P: firstrow | choice:changed=It changes;same=It stays the same | same | | With the causal mask, you change the last token. What happens to the first token's output?
+P: onehot | choice:scaled=Scaled;unscaled=Unscaled | unscaled | | With 256-dimensional heads, which scores give rows closer to one-hot?
+P: factor | number | 4 | 0 | Doubling the context multiplies the score matrix size by how much?
+:::
+
 The run command is at the bottom of this page.
 
 <details>
@@ -111,19 +120,15 @@ The run command is at the bottom of this page.
 Weights (rows are queries):
 
 ```
-            The     cat     sat    down
-       The   1.000   0.000   0.000   0.000
-       cat   0.696   0.304   0.000   0.000
-       sat   0.001   0.984   0.015   0.000
-      down   0.123   0.852   0.002   0.024
+{{claim:weights_table}}
 ```
 
 - Everything above the diagonal is exactly 0. Every row sums to 1.
 - The first token can only see itself, so its row is `[1, 0, 0, 0]`.
-- Changing the last token leaves the first output unchanged with the mask. Without the mask, the first output changes.
-- Maximum weight per row, scaled: about 0.41 to 0.53. Unscaled: 1.0 in every row, which means almost no gradient.
-- Score matrix entries: 1M at 1,000 tokens, 4M at 2,000, 16M at 4,000. Doubling gives 4x.
-- Cached decoding equals full recompute: `True`.
+- Changing the last token: did the first output change with the mask? `{{claim:first_row_changed}}`. Without the mask? `{{claim:nomask_first_changed}}`.
+- Maximum weight per row, scaled: `{{claim:scaled_max}}`. Unscaled: `{{claim:unscaled_max}}`, one-hot rows, which means almost no gradient.
+- Score matrix entries per head and layer: {{claim:entries_1k}} at 1,000 tokens, {{claim:entries_2k}} at 2,000, {{claim:entries_4k}} at 4,000. Doubling gives 4x.
+- Cached decoding equals full recompute: `{{claim:kv_equal}}`.
 
 The weights are random, not trained, so the pattern means nothing linguistically. The mechanics are the point.
 

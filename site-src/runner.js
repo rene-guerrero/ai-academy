@@ -28,6 +28,9 @@
   var out = q(".runner-out pre", root);
   var nudge = q(".runner-nudge", root);
   var badge = q(".runner-edited", root);
+  var shareBtn = q("[data-share]", root);
+  var sharedBox = q(".runner-shared", root);
+  var sharedCode = null;
 
   root.hidden = false;
   root.classList.add("is-ready");
@@ -59,6 +62,31 @@
     var edited = Boolean(savedCode());
     badge.hidden = !edited;
     resetBtn.hidden = !edited;
+    shareBtn.hidden = !(edited || sharedCode !== null || (!editor.hidden && editor.value !== original));
+  }
+  function b64url(bytes) {
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function fromB64url(s) {
+    var bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function pipe(bytes, stream) {
+    return new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+  function encodeCode(code) {
+    var bytes = new TextEncoder().encode(code);
+    if (typeof CompressionStream === "function") return pipe(bytes, new CompressionStream("deflate-raw")).then(function (z) { return "z" + b64url(z); });
+    return Promise.resolve("p" + b64url(bytes));
+  }
+  function decodeCode(s) {
+    var kind = s[0], bytes = fromB64url(s.slice(1));
+    if (kind === "z") return pipe(bytes, new DecompressionStream("deflate-raw")).then(function (b) { return new TextDecoder().decode(b); });
+    return Promise.resolve(new TextDecoder().decode(bytes));
   }
   function autosize() {
     editor.style.height = "auto";
@@ -198,6 +226,7 @@
   var saveTimer;
   editor.addEventListener("input", function () {
     autosize();
+    if (sharedCode !== null) { paintEdited(); return; }
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       if (editor.value !== original) A.set("code:" + key, editor.value);
@@ -226,6 +255,44 @@
       if (!editor.hidden && document.activeElement !== editor) editor.value = savedCode() || original;
     }
   });
+  shareBtn.addEventListener("click", function () {
+    var code = !editor.hidden ? editor.value : (sharedCode !== null ? sharedCode : savedCode() || original);
+    encodeCode(code).then(function (enc) {
+      var url = location.origin + location.pathname + "#x=" + enc;
+      var label = shareBtn.textContent;
+      function done(msg) { shareBtn.textContent = msg; setTimeout(function () { shareBtn.textContent = label; }, 1800); }
+      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
+        navigator.share({ title: document.title, url: url }).catch(function () {});
+      } else if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function () { done(t("runner.linkCopied")); }, function () { prompt(t("runner.share"), url); });
+      } else prompt(t("runner.share"), url);
+    });
+  });
+  var m = location.hash.match(/^#x=([A-Za-z0-9_-]+)/);
+  if (m) {
+    decodeCode(m[1]).then(function (code) {
+      sharedCode = code;
+      sharedBox.hidden = false;
+      setEditing(true, false);
+      editor.value = code;
+      autosize();
+      paintEdited();
+      root.scrollIntoView({ block: "start" });
+    }).catch(function () {});
+    q("[data-keep]", root).addEventListener("click", function () {
+      A.set("code:" + key, editor.value);
+      sharedCode = null; sharedBox.hidden = true;
+      history.replaceState(null, "", location.pathname);
+      paintEdited();
+    });
+    q("[data-discard]", root).addEventListener("click", function () {
+      sharedCode = null; sharedBox.hidden = true;
+      history.replaceState(null, "", location.pathname);
+      editor.value = savedCode() || original;
+      if (!savedCode()) setEditing(false);
+      paintEdited();
+    });
+  }
   paintEdited();
-  if (savedCode()) setEditing(true, false);
+  if (savedCode() && !m) setEditing(true, false);
 })();

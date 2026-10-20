@@ -83,16 +83,22 @@ Archivo: `lessons/lesson_05_training_generation.py`. Solo Numpy. Entrena un mode
 4. ¿Qué efecto tiene la temperatura sobre la entropía de esa distribución con 0.2 y con 5?
 5. ¿Qué configuración producirá el texto más repetitivo y cuál el más caótico?
 
+::: predict
+P: untrained | number | claim:untrained | 0.05 | ¿Cuál es la pérdida del modelo sin entrenar?
+P: final | number | claim:loss300 | 0.05 | ¿Cuál es la pérdida tras 300 pasos?
+P: zero | choice:yes=Sí;no=No | no | | ¿Llegará el entrenamiento a una pérdida de 0?
+:::
+
 El comando para ejecutarlo está al final de esta página.
 
 <details>
 <summary>Lo que el script me imprimió (ábrelo después de predecir)</summary>
 
-- `V = 10`, `ln(V) = 2.3026`, pérdida sin entrenar 2.3027.
-- Pérdida: 2.24 tras el paso 1, 1.45 en el paso 20, 0.99 en el paso 50, 0.78 en el paso 100 y 0.64 en el paso 300. Se estanca y no baja a 0.
-- Después de "the": cat 0.33, dog 0.33, mat 0.16, rug 0.16.
-- Entropía después de "the": 0.82 con T=0.2, 1.47 con T=1 y 2.23 con T=5 (el máximo posible para 10 tokens es 2.30).
-- Una temperatura baja produce bucles como "sat on the cat sat on the cat". Una temperatura alta sin top-p produce una ensalada de palabras ("cat mat sat on sat mat"). Top-p 0.5 reduce el daño con T=3, pero no lo elimina: la distribución es lo bastante plana como para que top-p conserve varios tokens, y "ran to mat" es una transición que nunca aparece en el corpus.
+- `V = {{claim:vocab}}`, `ln(V) = {{claim:lnv}}`, pérdida sin entrenar {{claim:untrained}}.
+- Pérdida: {{claim:loss1}} tras el paso 1, {{claim:loss20}} en el paso 20, {{claim:loss50}} en el paso 50, {{claim:loss100}} en el paso 100 y {{claim:loss300}} en el paso 300. Se estanca y no baja a 0.
+- Después de "the": {{claim:after_the}}.
+- Entropía después de "the": {{claim:ent02}} con T=0.2, {{claim:ent1}} con T=1 y {{claim:ent5}} con T=5 (el máximo posible para 10 tokens es 2.30).
+- Una temperatura baja produce bucles: "{{claim:sample_cold}}". Una temperatura alta sin top-p produce una ensalada de palabras: "{{claim:sample_hot}}". Top-p 0.5 reduce el daño con T=3, pero no lo elimina: "{{claim:sample_hot_nucleus}}". La distribución es lo bastante plana como para que top-p conserve varios tokens, y "ran to mat" es una transición que nunca aparece en el corpus.
 - Las líneas muestreadas son idénticas en cada ejecución porque ambas semillas son fijas. El entrenamiento y el muestreo usan generadores distintos, así que cambiar la semilla de muestreo no altera las pérdidas.
 
 </details>

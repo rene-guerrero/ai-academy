@@ -1,9 +1,12 @@
 ---
 title: Evaluating semantic search
-summary: Labeled queries, hit@k and MRR, and why keyword plus vector search fused with reciprocal rank fusion beats either alone.
+summary: Labeled queries, hit@k and MRR, and how to find out whether fusing keyword and vector search with reciprocal rank fusion actually helps.
 area: B
 n: 6
 minutes: 30
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_06_semantic_search.py
 level: core
@@ -21,7 +24,7 @@ Without measurement, search quality is vibes. Someone tries three queries, likes
 
 Build a tiny **evaluation set**: real-looking queries paired with the one document that should come first. Run each search method, and count how often the right document lands at the top, in the top three, and how high on average. Now you can compare methods with numbers.
 
-Then combine two methods that fail on different queries. Keyword search is precise on exact strings and blind to paraphrase. Vector search understands paraphrase and blurs exact strings. A hybrid takes the best of both.
+Then combine two methods that fail on different queries. Keyword search is precise on exact strings and blind to paraphrase. Vector search understands paraphrase and can blur exact strings. A hybrid tries to take the best of both, and whether it succeeds is something you measure, as this exercise shows.
 
 It is the same discipline as unit tests, with one difference: results are ranked lists rather than pass or fail, so the metrics are slightly richer.
 
@@ -98,7 +101,13 @@ File: `lessons/lesson_06_semantic_search.py`. It builds BM25 from scratch, embed
 3. Will the vector ranker get both `ERR-4021` and `ERR-4012` right? Why or why not?
 4. Will hybrid beat the best single method on every metric, or only on some? Could it ever be worse than the best single method?
 
-The run command is at the bottom of this page. There is no "what the script printed" block for this lesson on purpose: paste the three metric lines and the misses into your notes below and compare them with your predictions.
+::: predict
+P: best | choice:keyword=Keyword;vector=Vector;hybrid=Hybrid | vector | | Which method gets the best hit@1?
+P: hybrid | choice:better=Better;worse=Worse;same=The same | worse | | Compared with vector search alone, hybrid hit@1 is…
+P: kwmiss | number | claim:kw_misses | 1 | On how many of the 12 queries does keyword search put the wrong document first?
+:::
+
+Press Run in the exercise section below, or use the commands for your computer. The recorded results are in "What the script printed", after the experiments.
 
 Then experiment:
 
@@ -107,10 +116,25 @@ Then experiment:
 - Write a query that fools *both* methods and add it to the set.
 - Replace the fusion with a weighted score sum. Why is that harder to get right?
 
+<details>
+<summary>What the script printed (open after predicting)</summary>
+
+| Method | hit@1 | hit@3 | MRR | Top-1 misses |
+|---|---|---|---|---|
+| Keyword (BM25) | {{claim:kw_hit1}} | {{claim:kw_hit3}} | {{claim:kw_mrr}} | {{claim:kw_misses}} |
+| Vector | {{claim:vec_hit1}} | {{claim:vec_hit3}} | {{claim:vec_mrr}} | {{claim:vec_misses}} |
+| Hybrid (RRF) | {{claim:hy_hit1}} | {{claim:hy_hit3}} | {{claim:hy_mrr}} | {{claim:hy_misses}} |
+
+- The surprise: on this set, vector search alone is perfect and hybrid is worse ({{claim:hy_hit1}} against {{claim:vec_hit1}} hit@1). Fusion helps when both rankers carry signal. Here BM25 puts the wrong document first on {{claim:kw_misses}} of 12 queries, and those confident wrong answers pull good vector results down the fused list.
+- Vector search also got both error codes right, the opposite of the usual warning. With only two codes in the collection and different words around them ("timed out" against "declined"), the two documents differ in meaning too. With hundreds of near-identical codes, the keyword ranker is what saves you.
+- The real lesson: hybrid is a strong default, not a law. Measure on your own queries before assuming.
+
+</details>
+
 ## Takeaways
 
 1. Search quality needs a labeled query set and metrics (hit@k, MRR). Without them, tuning is guesswork.
-2. Keyword and vector search fail on different queries, so combining them is a strong default.
+2. Keyword and vector search fail on different queries, so combining them is a strong default, but only a measurement tells you whether it helps on your data. In this exercise vector search alone wins.
 3. Reciprocal rank fusion merges rankings by position, so there is no score calibration to maintain.
 
 **Check question:** after you swap the embedding model, hit@3 rises but hit@1 drops. Using MRR and the printed misses, how do you decide whether the change is an improvement?

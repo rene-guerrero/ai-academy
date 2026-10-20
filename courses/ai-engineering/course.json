@@ -348,5 +348,37 @@
         "es": "Cómo las imágenes y el audio se convierten en tokens, qué pueden y qué no pueden hacer los modelos de visión y lenguaje, y usos prácticos."
       }
     }
+  ],
+  "labs": [
+    {
+      "id": "model-inspector",
+      "title": {
+        "en": "Model inspector",
+        "es": "Inspector del modelo"
+      },
+      "summary": {
+        "en": "Type a sentence and look inside a real 22-million-parameter transformer running in your browser: its tokens, every attention head in all six layers, and the residual stream.",
+        "es": "Escribe una frase y mira dentro de un transformer real de 22 millones de parámetros que se ejecuta en tu navegador: sus tokens, cada cabeza de atención de las seis capas y el flujo residual."
+      },
+      "lessons": [
+        "02-embeddings",
+        "03-attention",
+        "04-transformer-block"
+      ]
+    },
+    {
+      "id": "training-lab",
+      "title": {
+        "en": "Training lab",
+        "es": "Laboratorio de entrenamiento"
+      },
+      "summary": {
+        "en": "Train the lesson 5 language model live: change the learning rate and the number of steps, watch the loss curve, scrub through checkpoints, then sample with temperature and top-p.",
+        "es": "Entrena en vivo el modelo de lenguaje de la lección 5: cambia la tasa de aprendizaje y el número de pasos, observa la curva de pérdida, recorre los checkpoints y genera texto con temperatura y top-p."
+      },
+      "lessons": [
+        "05-training-and-generation"
+      ]
+    }
   ]
 }

@@ -87,6 +87,13 @@ Antes de ejecutarlo, escribe tus respuestas a estas preguntas en el cuadro del f
 3. ¿Necesitará `fresa` (strawberry en español) más o menos tokens que `strawberry`?
 4. ¿Qué ocupa más tokens, la frase en inglés sobre el reembolso o su traducción al español? ¿En qué porcentaje, aproximadamente?
 
+::: predict
+P: strawberry | number | claim:strawberry_tokens | 0 | ¿Cuántos tokens son `strawberry`?
+P: space | number | claim:space_strawberry_tokens | 0 | ¿Cuántos tokens son ` strawberry`, con un espacio delante?
+P: fresa | number | claim:fresa_tokens | 0 | ¿Cuántos tokens son `fresa`?
+P: language | choice:en=Inglés;es=Español;same=Más o menos igual | es | | ¿Qué frase del reembolso necesita más tokens?
+:::
+
 Después ejecútalo (el comando está al final de esta página).
 
 Para profundizar, si tienes tiempo:
@@ -99,6 +106,16 @@ Para profundizar, si tienes tiempo:
 <summary>Pistas, sin spoilers</summary>
 
 La regex de división previa separa letras, dígitos y espacios antes de aplicar las fusiones. Fíjate en dónde ha ido a parar el espacio en los fragmentos de la salida. En la comparación con el español, compara los tokens por carácter, no solo los totales.
+
+</details>
+
+<details>
+<summary>Lo que imprimió el script (ábrelo después de predecir)</summary>
+
+- `strawberry` son {{claim:strawberry_tokens}} tokens: {{claim:strawberry_pieces}}. Con un espacio delante es {{claim:space_strawberry_tokens}} token, porque ` strawberry` aparece tanto en texto inglés que tiene su propia entrada en el vocabulario. `Strawberry` con mayúscula son {{claim:cap_strawberry_tokens}} tokens.
+- `fresa` son {{claim:fresa_tokens}} tokens, {{claim:fresa_pieces}}: una palabra más corta, pero no proporcionalmente más barata.
+- `12345678` se convierte en {{claim:digits_pieces}}: las secuencias de dígitos se cortan en grupos de hasta tres antes de aplicar ninguna fusión.
+- La frase del reembolso: en inglés {{claim:english_chars}} caracteres y {{claim:english_tokens}} tokens; en español {{claim:spanish_chars}} caracteres y {{claim:spanish_tokens}} tokens. Alrededor de una quinta parte más de tokens para el mismo significado.
 
 </details>
 

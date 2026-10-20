@@ -92,6 +92,82 @@ function extractQuiz(body) {
   return { stripped, questions };
 }
 
+function extractPredict(body) {
+  const items = [];
+  const stripped = body.replace(/^::: ?predict\s*\r?\n([\s\S]*?)\r?\n:::\s*$/gm, (_, inner) => {
+    for (const line of inner.split(/\r?\n/)) {
+      const m = line.match(/^P:\s*(.*)$/);
+      if (!m) continue;
+      const parts = m[1].split("|").map((x) => x.trim());
+      if (parts.length < 5) throw new Error(`Bad predict line: ${line}`);
+      const [id, kind, answer, tolerance, ...prompt] = parts;
+      const item = { id, kind: kind.startsWith("choice:") ? "choice" : "number", answer, tolerance: Number(tolerance || 0), prompt: prompt.join("|") };
+      if (item.kind === "choice") item.options = kind.slice(7).split(";").map((o) => { const [k, ...v] = o.split("="); return { key: k.trim(), label: v.join("=").trim() }; });
+      items.push(item);
+    }
+    return "\n<!--PREDICT-->\n";
+  });
+  return { stripped, items };
+}
+
+function substituteClaims(body, values, where) {
+  const used = new Set();
+  const swap = (text, inCode) => text.replace(/\{\{claim:([\w-]+)\}\}/g, (_, name) => {
+    if (!(name in values)) throw new Error(`${where}: unknown claim ${name}`);
+    used.add(name);
+    const v = values[name];
+    return inCode ? v : `<span class="claim" data-claim="${attr(name)}">${esc(v)}</span>`;
+  });
+  const out = body.split(/(^```[^\n]*\n[\s\S]*?^```\s*$)/m).map((chunk, i) => {
+    if (i % 2 === 1) return swap(chunk, true);
+    return chunk.split(/(`[^`\n]+`)/).map((part, j) => (j % 2 === 1 ? swap(part, true) : swap(part, false))).join("");
+  }).join("");
+  return { text: out, used };
+}
+
+const claimErrors = [];
+function resolveClaims(course, slug, scriptStem) {
+  const defs = (course.claims || {})[slug] || {};
+  const names = Object.keys(defs);
+  const values = Object.fromEntries(names.map((n) => [n, defs[n].value]));
+  let verified = false;
+  const ref = runtime && scriptStem ? join(runtime.outputsDir, course.id, scriptStem + ".txt") : null;
+  if (ref && existsSync(ref) && names.length) {
+    const text = readFileSync(ref, "utf8");
+    verified = true;
+    for (const n of names) {
+      const m = text.match(new RegExp(defs[n].pattern, "m"));
+      const got = m ? m[1] : null;
+      if (got !== defs[n].value) {
+        verified = false;
+        claimErrors.push(`${course.id}/${slug}: claim "${n}" is ${JSON.stringify(defs[n].value)} in claims.json but the exercise now prints ${JSON.stringify(got)}`);
+      }
+    }
+  }
+  return { values, count: names.length, verified };
+}
+
+function predictHtml(items, values, L, key) {
+  if (!items.length) return "";
+  const answers = items.map((it) => {
+    let a = it.answer;
+    if (a.startsWith("claim:")) {
+      const n = a.slice(6);
+      if (!(n in values)) throw new Error(`${key}: prediction ${it.id} uses unknown claim ${n}`);
+      a = values[n];
+    }
+    return { id: it.id, kind: it.kind, answer: it.kind === "number" ? Number(a) : a, tolerance: it.tolerance, label: it.kind === "choice" ? (it.options.find((o) => o.key === a) || {}).label : a };
+  });
+  const conf = [50, 70, 90].map((c) => `<button type="button" data-conf="${c}" aria-pressed="false">${c}%</button>`).join("");
+  const rows = items.map((it) => {
+    const input = it.kind === "number"
+      ? `<input type="text" inputmode="decimal" autocomplete="off" data-pred-input aria-labelledby="pq-${it.id}">`
+      : `<div class="segmented choices" role="radiogroup" aria-labelledby="pq-${it.id}">${it.options.map((o) => `<button type="button" role="radio" aria-checked="false" data-choice="${attr(o.key)}">${esc(o.label)}</button>`).join("")}</div>`;
+    return `<li class="pred" data-pred="${attr(it.id)}"><p class="pred-q" id="pq-${it.id}">${marked.parseInline(it.prompt, { gfm: true })}</p>${input}<div class="pred-conf"><span class="muted">${t(L, "pred.confidence")}</span><div class="segmented" role="group" aria-label="${attr(t(L, "pred.confidence"))}">${conf}</div></div><p class="pred-result" aria-live="polite"></p></li>`;
+  }).join("");
+  return `<section class="predictions card" id="predictions-${key.replace(/[^\w-]/g, "-")}" data-predictions aria-labelledby="pred-h"><h3 id="pred-h">${t(L, "pred.title")}</h3><p class="hint">${t(L, "pred.hint")}</p><ol class="pred-list">${rows}</ol><div class="runner-bar"><button type="button" class="btn primary" data-lock>${t(L, "pred.lock")}</button><button type="button" class="btn" data-check hidden>${t(L, "pred.check")}</button><button type="button" class="btn" data-again hidden>${t(L, "pred.again")}</button></div><p class="pred-summary" aria-live="polite"></p><script type="application/json" class="pred-answers">${JSON.stringify(answers).replace(/</g, "\\u003c")}</script></section>`;
+}
+
 function render(body, L) {
   const toc = [];
   const used = new Set();
@@ -150,7 +226,8 @@ const courses = readdirSync(join(root, "courses"))
       .map((l) => ({ ...l, n: Number(l.versions.en.data.n), track: l.versions.en.data.area, key: `${id}/${l.slug}` }))
       .sort((a, b) => a.n - b.n);
     const notes = loadContent(join(dir, "notes-md"), "note").map((n) => ({ ...n, key: `${id}/note-${n.slug}` }));
-    return { id, dir, meta, lessons, notes, tracks: new Map(meta.tracks.map((x) => [x.key, x])) };
+    const claims = existsSync(join(dir, "claims.json")) ? JSON.parse(readFileSync(join(dir, "claims.json"), "utf8")) : {};
+    return { id, dir, meta, lessons, notes, claims, tracks: new Map(meta.tracks.map((x) => [x.key, x])) };
   })
   .sort((a, b) => (a.meta.order || 99) - (b.meta.order || 99));
 
@@ -329,8 +406,23 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
     .replace("{{DIALOGS}}", dialogs)
     .replace("{{FOOTER}}", t(L, "site.footer"))
     .replace("{{MERMAID}}", hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
-    .replace("{{RUNNER}}", extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
+    .replace("{{RUNNER}}", extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
     .replace("{{BODY}}", body);
+}
+
+function provenanceHtml(lesson, d, claims, L, lang, course) {
+  const checks = runtime && runtime.outputsMeta ? runtime.outputsMeta.checks || {} : {};
+  const script = d.exercise ? String(d.exercise).replace(/^.*\//, "") : "";
+  const parity = checks[`${course.id}/${script}`];
+  const items = [];
+  const who = d.author === "claude" ? t(L, "prov.byClaude") : t(L, "prov.byOwner");
+  items.push(["draft", `${who}${d.drafted ? " · " + esc(d.drafted) : ""}${d.regenerated ? " · " + t(L, "prov.regenerated") : ""}`, true]);
+  if (claims.count) items.push(["claims", claims.verified ? t(L, "prov.claims", { n: claims.count }) : t(L, "prov.claimsPending", { n: claims.count }), claims.verified]);
+  if (d.exercise) items.push(["exercise", parity ? (parity === "real" ? t(L, "prov.runsReal") : parity === "identical" ? t(L, "prov.identical") : t(L, "prov.close", { d: parity.replace("within ", "") })) : t(L, "prov.notRun"), Boolean(parity)]);
+  items.push(["translation", lesson.versions.es ? t(L, "prov.translated") : t(L, "prov.untranslated"), Boolean(lesson.versions.es)]);
+  items.push(["review", d.reviewed ? t(L, "prov.reviewed", { date: esc(d.reviewed) }) : t(L, "prov.notReviewed"), Boolean(d.reviewed)]);
+  const passed = items.filter((x) => x[2]).length;
+  return `<details class="provenance"><summary><span class="prov-badge" aria-hidden="true">${passed}/${items.length}</span>${t(L, "prov.title")}</summary><ul>${items.map(([k, text, ok]) => `<li class="${ok ? "ok" : "pending"}" data-prov="${k}"><span class="prov-mark" aria-hidden="true">${ok ? "✓" : "○"}</span><span class="sr">${ok ? t(L, "prov.ok") : t(L, "prov.pending")}: </span>${text}</li>`).join("")}</ul><p class="hint">${t(L, "prov.hint")}</p></details>`;
 }
 
 function tocHtml(toc, L, inline = false) {
@@ -361,8 +453,13 @@ for (const course of courses) {
     course.lessons.forEach((lesson, i) => {
       const v = pick(lesson, lang);
       const d = v.data;
-      const { stripped, questions } = extractQuiz(v.body);
-      const { html, toc } = render(stripped, L);
+      const scriptStem = d.exercise ? String(d.exercise).replace(/^.*\//, "").replace(/\.py$/, "") : "";
+      const claims = resolveClaims(course, lesson.slug, scriptStem);
+      const sub = substituteClaims(v.body, claims.values, `${C}/${lang}/${lesson.slug}`);
+      const pred = extractPredict(sub.text);
+      const { stripped, questions } = extractQuiz(pred.stripped);
+      let { html, toc } = render(stripped, L);
+      html = html.replace(/<!--PREDICT-->/, predictHtml(pred.items, claims.values, L, lesson.key));
       const prev = course.lessons[i - 1];
       const next = course.lessons[i + 1];
       const track = course.tracks.get(lesson.track);
@@ -402,7 +499,8 @@ for (const course of courses) {
           runtimeInfo = { base: rel_(lang, `${C}/${lesson.slug}.html`) + runtime.base, version: runtime.version, missing: est.missing };
           exercise = `<section class="exercise" id="exercise" aria-labelledby="exercise-h"><h2 id="exercise-h">${t(L, "lesson.exercise")}</h2>
 <div class="runner" data-runner data-key="${lesson.key}" hidden>
-<div class="runner-bar"><button type="button" class="btn primary" data-run><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>${t(L, "runner.run")}</button><button type="button" class="btn" data-stop hidden><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>${t(L, "runner.stop")}</button><button type="button" class="btn" data-edit aria-pressed="false">${t(L, "runner.edit")}</button><button type="button" class="btn" data-reset hidden>${t(L, "runner.reset")}</button><span class="runner-edited" hidden>${t(L, "runner.edited")}</span></div>
+<div class="runner-bar"><button type="button" class="btn primary" data-run><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>${t(L, "runner.run")}</button><button type="button" class="btn" data-stop hidden><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>${t(L, "runner.stop")}</button><button type="button" class="btn" data-edit aria-pressed="false">${t(L, "runner.edit")}</button><button type="button" class="btn" data-reset hidden>${t(L, "runner.reset")}</button><button type="button" class="btn" data-share hidden>${t(L, "runner.share")}</button><span class="runner-edited" hidden>${t(L, "runner.edited")}</span></div>
+<div class="runner-shared notice" hidden role="status"><p>${t(L, "runner.shared")}</p><div class="runner-bar"><button type="button" class="btn primary" data-keep>${t(L, "runner.keep")}</button><button type="button" class="btn" data-discard>${t(L, "runner.discard")}</button></div></div>
 <p class="runner-status" role="status" aria-live="polite"></p>
 <div class="runner-progress" hidden><span></span></div>
 <p class="runner-nudge" hidden><a href="#my-notes">${t(L, "runner.predictFirst")}</a></p>
@@ -425,6 +523,7 @@ ${local}
 
       const nextSteps = [];
       if (next) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.lesson")}</span> ${lessonLink(next.slug)}</li>`);
+      for (const lab of (course.meta.labs || []).filter((x) => (x.lessons || []).includes(lesson.slug))) nextSteps.push(`<li><span class="muted">${t(L, "lab.label")}</span> <a href="lab-${lab.id}.html">${esc(lab.title[lang])}</a></li>`);
       if (noteSlug) nextSteps.push(`<li><span class="muted">${t(L, "lesson.next.note")}</span> <a href="note-${noteSlug}.html">${esc(pick(noteBySlug.get(noteSlug), lang).data.title)}</a></li>`);
 
       const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside>
@@ -438,6 +537,7 @@ ${crumb}
 <button type="button" class="act" id="bookmark-btn" aria-pressed="false">${ICON.bookmark}<span class="label">${t(L, "lesson.bookmark")}</span></button>
 </div>
 ${tocHtml(toc, L, true)}
+${provenanceHtml(lesson, d, claims, L, lang, course)}
 ${prereqs.length ? `<p class="prereqs"><span class="muted">${t(L, "lesson.prereqs")}:</span> ${prereqs.map(lessonLink).join(", ")}</p>` : ""}
 ${notices.join("\n")}
 <div class="prose">${html}</div>
@@ -488,6 +588,22 @@ ${plannedRows.length ? `<details class="planned-list"><summary>${t(L, "home.plan
 </section>`;
     }).join("\n");
 
+    for (const lab of course.meta.labs || []) {
+      const name = `${C}/lab-${lab.id}.html`;
+      const tpl = readFileSync(join(src, "labs", `${lab.id}.html`), "utf8").replace(/\{\{t:([\w.]+)\}\}/g, (_, k) => esc(t(L, k)));
+      const py = readFileSync(join(src, "labs", `${lab.id}.py`), "utf8");
+      const est = runtime ? runtime.estimate(py) : { bytes: 0, missing: [] };
+      const labBody = `<main id="content" class="main lab-page" tabindex="-1">
+${crumb}
+<p class="eyebrow"><span>${t(L, "lab.label")}</span></p><h1>${esc(lab.title[lang])}</h1><p class="lede">${esc(lab.summary[lang])}</p>
+<p class="hint">${t(L, "lab.download", { size: (est.bytes / 1048576).toFixed(0) + " MB" })}</p>
+${tpl}
+<textarea id="lab-code" hidden aria-hidden="true" tabindex="-1">${esc(py)}</textarea>
+<noscript><p class="notice">${t(L, "runner.unsupported")}</p></noscript>
+</main>`;
+      emit(outPath(lang, name), page({ lang, name, title: lab.title[lang], desc: lab.summary[lang], body: labBody, kind: "lab", slug: `${C}/lab-${lab.id}`, course: C, extra: { lab: lab.id, ...(runtime ? { runtime: { base: rel_(lang, name) + runtime.base, version: runtime.version, missing: est.missing } } : {}) } }));
+    }
+    const labList = (course.meta.labs || []).length ? `<section class="labs-section" id="labs" aria-labelledby="labs-h"><h2 id="labs-h">${t(L, "home.labs")}</h2><p class="hint">${t(L, "home.labs.hint")}</p><ul class="list">${course.meta.labs.map((lab) => `<li><a class="row" href="lab-${lab.id}.html"><span class="txt"><span class="row-title">${esc(lab.title[lang])}</span><span class="row-sum">${esc(lab.summary[lang])}</span></span>${ICON.chevron}</a></li>`).join("")}</ul></section>` : "";
     const noteList = course.notes.length ? `<section class="notes-section" id="notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "home.notes")}</h2><p class="hint">${t(L, "home.notes.hint")}</p><ul class="list">${course.notes.map((n) => `<li><a class="row" href="note-${n.slug}.html"><span class="txt"><span class="row-title">${esc(pick(n, lang).data.title)}</span><span class="row-sum">${esc(pick(n, lang).data.summary)}</span></span>${ICON.chevron}</a></li>`).join("")}</ul></section>` : "";
 
     const lessonMeta = course.lessons.map((l) => ({ key: l.key, url: `${l.slug}.html`, n: l.n, title: pick(l, lang).data.title, minutes: Number(pick(l, lang).data.minutes || 25), quiz: extractQuiz(pick(l, lang).body).questions.length }));
@@ -504,6 +620,7 @@ ${plannedRows.length ? `<details class="planned-list"><summary>${t(L, "home.plan
 <p class="empty" id="filter-empty" hidden>${t(L, "home.filter.empty")}</p>
 ${trackSections}
 </section>
+${labList}
 ${noteList}
 </main>`;
     const cname = `${C}/index.html`;
@@ -522,6 +639,7 @@ for (const lang of LANGS) {
   const home = `<main id="content" class="main home" tabindex="-1">
 <header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p></header>
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
+<section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
 <section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
 <section class="global-search" id="search" aria-labelledby="search-h"><h2 id="search-h">${t(L, "nav.search")}</h2><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
@@ -544,10 +662,19 @@ if (legacy) {
   }
 }
 
+if (claimErrors.length) {
+  console.error(claimErrors.join("\n"));
+  throw new Error(`${claimErrors.length} lesson claims no longer match their exercises. Update the lesson text and courses/<course>/claims.json.`);
+}
 rmSync(join(out, "vendor"), { recursive: true, force: true });
-for (const f of ["style.css", "app.js", "runner.js", "manifest.webmanifest"]) {
+for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "manifest.webmanifest"]) {
   copyFileSync(join(src, f), join(out, f));
   files.push(f);
+}
+mkdirSync(join(out, "labs"), { recursive: true });
+for (const f of readdirSync(join(src, "labs")).filter((x) => x.endsWith(".js"))) {
+  copyFileSync(join(src, "labs", f), join(out, "labs", f));
+  files.push("labs/" + f);
 }
 mkdirSync(join(out, "icons"), { recursive: true });
 for (const f of readdirSync(join(src, "icons"))) {

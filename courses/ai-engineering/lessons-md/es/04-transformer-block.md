@@ -100,15 +100,21 @@ Archivo: `lessons/lesson_04_transformer_block.py`. Solo numpy. Construye una pil
 4. ¿Qué hace la layer norm con una fila cuyos valores son 100 veces mayores?
 5. ¿Qué forma tienen los logits y cuánto suman las probabilidades?
 
+::: predict
+P: ratio | number | claim:ratio | 0.05 | ¿Cuántas veces más parámetros tiene el MLP que la atención, por bloque?
+P: withres | choice:high=Cerca de 1;zero=Cerca de 0 | high | | Con residuales, ¿cuánto se parece la salida al embedding original?
+P: withoutres | choice:high=Cerca de 1;zero=Cerca de 0 | zero | | ¿Y sin residuales?
+:::
+
 El comando para ejecutarlo está al final de esta página.
 
 <details>
 <summary>Lo que el script me imprimió (ábrelo después de predecir)</summary>
 
-- Atención, 1024 parámetros; MLP, 2048 por bloque: proporción 2.0.
-- Norma media del flujo: 3.44 en los embeddings, y después 3.47, 3.55, 3.57 y 3.61. Cada bloque suma una actualización de tamaño 0.8 a 0.9, una cuarta parte de la longitud del flujo, y aun así la norma apenas se mueve. Las actualizaciones aleatorias son casi ortogonales al flujo, así que apenas añaden nada a su longitud; en un modelo entrenado las actualizaciones no son aleatorias, y la norma del flujo sí crece con la profundidad.
-- Coseno con el embedding original: de 0.87 a 0.94 con residuales; entre -0.21 y 0.18 sin ellos.
-- Layer norm: las desviaciones típicas de entrada 0.63, 6.49 y 92.89 pasan todas a 1.0, con media 0.
+- Atención, {{claim:attn_params}} parámetros; MLP, {{claim:mlp_params}} por bloque: proporción {{claim:ratio}}.
+- Norma media del flujo: {{claim:norm0}} en los embeddings, y después {{claim:norm1}}, {{claim:norm2}}, {{claim:norm3}} y {{claim:norm4}}. Cada bloque suma una actualización de tamaño 0.8 a 0.9, una cuarta parte de la longitud del flujo, y aun así la norma apenas se mueve. Las actualizaciones aleatorias son casi ortogonales al flujo, así que apenas añaden nada a su longitud; en un modelo entrenado las actualizaciones no son aleatorias, y la norma del flujo sí crece con la profundidad.
+- Coseno con el embedding original con residuales: `{{claim:cos_with}}`. Sin ellos: `{{claim:cos_without}}`.
+- Layer norm: las desviaciones típicas de entrada `{{claim:ln_in}}` pasan todas a `{{claim:ln_out}}`, con media 0.
 - Forma de los logits `(8,)`, las probabilidades suman 1.0. La predicción más probable es arbitraria porque los pesos son aleatorios.
 
 </details>

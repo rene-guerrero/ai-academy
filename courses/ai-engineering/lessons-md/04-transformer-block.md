@@ -4,6 +4,9 @@ summary: The residual stream, attention plus MLP, layer norm, stacking blocks an
 area: A
 n: 4
 minutes: 30
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_04_transformer_block.py
 regenerated: true
@@ -108,15 +111,21 @@ File: `lessons/lesson_04_transformer_block.py`. Numpy only. It builds a 4-block 
 4. What does layer norm do to a row whose values are 100 times larger?
 5. What is the shape of the logits and what do the probabilities add up to?
 
+::: predict
+P: ratio | number | claim:ratio | 0.05 | MLP parameters divided by attention parameters, per block?
+P: withres | choice:high=Close to 1;zero=Close to 0 | high | | With residuals, how similar is the output to the original embedding?
+P: withoutres | choice:high=Close to 1;zero=Close to 0 | zero | | And without residuals?
+:::
+
 The run command is at the bottom of this page.
 
 <details>
 <summary>What the script printed for me (open after predicting)</summary>
 
-- Attention 1024 parameters, MLP 2048 per block: ratio 2.0.
-- Mean norm of the stream: 3.44 at the embeddings, then 3.47, 3.55, 3.57, 3.61. Each block adds an update of size 0.8 to 0.9, a quarter of the stream's length, yet the norm barely moves. Random updates are nearly orthogonal to the stream, so they add almost nothing to its length; in a trained model updates are not random, and the norm of the stream does grow with depth.
-- Cosine to the original embedding: 0.87 to 0.94 with residuals; between -0.21 and 0.18 without.
-- Layer norm: input stds 0.63, 6.49, 92.89 all become 1.0, means 0.
+- Attention {{claim:attn_params}} parameters, MLP {{claim:mlp_params}} per block: ratio {{claim:ratio}}.
+- Mean norm of the stream: {{claim:norm0}} at the embeddings, then {{claim:norm1}}, {{claim:norm2}}, {{claim:norm3}}, {{claim:norm4}}. Each block adds an update of size 0.8 to 0.9, a quarter of the stream's length, yet the norm barely moves. Random updates are nearly orthogonal to the stream, so they add almost nothing to its length; in a trained model updates are not random, and the norm of the stream does grow with depth.
+- Cosine to the original embedding with residuals: `{{claim:cos_with}}`. Without: `{{claim:cos_without}}`.
+- Layer norm: input standard deviations `{{claim:ln_in}}` all become `{{claim:ln_out}}`, with mean 0.
 - Logits shape `(8,)`, probabilities sum to 1.0. The top prediction is arbitrary because the weights are random.
 
 </details>

@@ -1,0 +1,274 @@
+{
+  "01-tokenization": {
+    "strawberry_tokens": {
+      "pattern": "^'strawberry'\\s+tokens=(\\d+)",
+      "value": "3"
+    },
+    "strawberry_pieces": {
+      "pattern": "^'strawberry'.*pieces=(\\[.*\\])$",
+      "value": "['str', 'aw', 'berry']"
+    },
+    "space_strawberry_tokens": {
+      "pattern": "^' strawberry'\\s+tokens=(\\d+)",
+      "value": "1"
+    },
+    "cap_strawberry_tokens": {
+      "pattern": "^'Strawberry'\\s+tokens=(\\d+)",
+      "value": "3"
+    },
+    "fresa_tokens": {
+      "pattern": "^'fresa'\\s+tokens=(\\d+)",
+      "value": "2"
+    },
+    "fresa_pieces": {
+      "pattern": "^'fresa'.*pieces=(\\[.*\\])$",
+      "value": "['f', 'resa']"
+    },
+    "digits_pieces": {
+      "pattern": "^'12345678'.*pieces=(\\[.*\\])$",
+      "value": "['123', '456', '78']"
+    },
+    "english_chars": {
+      "pattern": "^English\\s+characters=(\\d+)",
+      "value": "79"
+    },
+    "english_tokens": {
+      "pattern": "^English\\s+characters=\\d+\\s+tokens=(\\d+)",
+      "value": "19"
+    },
+    "spanish_chars": {
+      "pattern": "^Spanish\\s+characters=(\\d+)",
+      "value": "91"
+    },
+    "spanish_tokens": {
+      "pattern": "^Spanish\\s+characters=\\d+\\s+tokens=(\\d+)",
+      "value": "23"
+    }
+  },
+  "02-embeddings": {
+    "pair_paraphrase": {
+      "pattern": "^([\\d.]+)  \\|  The movie was great  <->  The film was wonderful",
+      "value": "0.816"
+    },
+    "pair_negation": {
+      "pattern": "^([\\d.]+)  \\|  The movie was great  <->  The movie was not great",
+      "value": "0.792"
+    },
+    "pair_orders": {
+      "pattern": "^([\\d.]+)  \\|  Order #48213 has shipped",
+      "value": "0.971"
+    },
+    "pair_refund": {
+      "pattern": "^([\\d.]+)  \\|  How do I get my money back\\?  <->  Refund",
+      "value": "0.462"
+    },
+    "pair_cat": {
+      "pattern": "^([\\d.]+)  \\|  How do I get my money back\\?  <->  The cat",
+      "value": "0.039"
+    },
+    "dims": {
+      "pattern": "^Embedding dimensions: (\\d+)",
+      "value": "384"
+    }
+  },
+  "03-attention": {
+    "weights_table": {
+      "pattern": "^Attention weights \\(rows = query token, columns = key token\\)\\n((?:.*\\n){4}.*)$",
+      "value": "               The     cat     sat    down\n       The   1.000   0.000   0.000   0.000\n       cat   0.696   0.304   0.000   0.000\n       sat   0.001   0.984   0.015   0.000\n      down   0.123   0.852   0.002   0.024"
+    },
+    "first_row_changed": {
+      "pattern": "^Causal, first row changed\\?\\s+(\\w+)",
+      "value": "False"
+    },
+    "nomask_first_changed": {
+      "pattern": "^No mask, first row changed\\?\\s+(\\w+)",
+      "value": "True"
+    },
+    "scaled_max": {
+      "pattern": "^scaled    max weight per row: (\\[.*\\])$",
+      "value": "[0.411 0.498 0.53  0.503]"
+    },
+    "unscaled_max": {
+      "pattern": "^unscaled  max weight per row: (\\[.*\\])$",
+      "value": "[1. 1. 1. 1.]"
+    },
+    "entries_1k": {
+      "pattern": "^context=  1000  score entries per head per layer=\\s+([\\d,]+)",
+      "value": "1,000,000"
+    },
+    "entries_2k": {
+      "pattern": "^context=  2000  score entries per head per layer=\\s+([\\d,]+)",
+      "value": "4,000,000"
+    },
+    "entries_4k": {
+      "pattern": "^context=  4000  score entries per head per layer=\\s+([\\d,]+)",
+      "value": "16,000,000"
+    },
+    "kv_equal": {
+      "pattern": "^Cached decoding equals full recompute: (\\w+)",
+      "value": "True"
+    }
+  },
+  "04-transformer-block": {
+    "attn_params": {
+      "pattern": "^attention params per block = (\\d+)",
+      "value": "1024"
+    },
+    "mlp_params": {
+      "pattern": "^MLP params per block\\s+= (\\d+)",
+      "value": "2048"
+    },
+    "ratio": {
+      "pattern": "^MLP / attention\\s+= ([\\d.]+)",
+      "value": "2.0"
+    },
+    "norm0": {
+      "pattern": "^layer 0 \\(embeddings\\) mean norm = ([\\d.]+)",
+      "value": "3.44"
+    },
+    "norm1": {
+      "pattern": "^after block 1: mean norm = ([\\d.]+)",
+      "value": "3.47"
+    },
+    "norm2": {
+      "pattern": "^after block 2: mean norm = ([\\d.]+)",
+      "value": "3.55"
+    },
+    "norm3": {
+      "pattern": "^after block 3: mean norm = ([\\d.]+)",
+      "value": "3.57"
+    },
+    "norm4": {
+      "pattern": "^after block 4: mean norm = ([\\d.]+)",
+      "value": "3.61"
+    },
+    "cos_with": {
+      "pattern": "^with residual   : (\\[.*\\])$",
+      "value": "[0.88 0.94 0.91 0.92 0.89 0.87]"
+    },
+    "cos_without": {
+      "pattern": "^without residual: (\\[.*\\])$",
+      "value": "[ 0.16 -0.21 -0.1   0.18  0.17  0.02]"
+    },
+    "ln_in": {
+      "pattern": "^Input std per row : (\\[.*\\])$",
+      "value": "[ 0.63  6.49 92.89]"
+    },
+    "ln_out": {
+      "pattern": "^Output std per row: (\\[.*\\])$",
+      "value": "[1. 1. 1.]"
+    }
+  },
+  "05-training-and-generation": {
+    "vocab": {
+      "pattern": "^Vocabulary size = (\\d+)",
+      "value": "10"
+    },
+    "lnv": {
+      "pattern": "^ln\\(V\\) = ([\\d.]+)",
+      "value": "2.3026"
+    },
+    "untrained": {
+      "pattern": "^Loss of the untrained model = ([\\d.]+)",
+      "value": "2.3027"
+    },
+    "loss1": {
+      "pattern": "^step   1  loss = ([\\d.]+)",
+      "value": "2.2436"
+    },
+    "loss20": {
+      "pattern": "^step  20  loss = ([\\d.]+)",
+      "value": "1.4505"
+    },
+    "loss50": {
+      "pattern": "^step  50  loss = ([\\d.]+)",
+      "value": "0.9916"
+    },
+    "loss100": {
+      "pattern": "^step 100  loss = ([\\d.]+)",
+      "value": "0.7774"
+    },
+    "loss300": {
+      "pattern": "^step 300  loss = ([\\d.]+)",
+      "value": "0.6439"
+    },
+    "after_the": {
+      "pattern": "^after 'the' : (.*)$",
+      "value": "cat 0.33, dog 0.33, mat 0.16, rug 0.16"
+    },
+    "ent02": {
+      "pattern": "^T=0\\.2  .*entropy=([\\d.]+)",
+      "value": "0.82"
+    },
+    "ent1": {
+      "pattern": "^T=1\\.0  .*entropy=([\\d.]+)",
+      "value": "1.47"
+    },
+    "ent5": {
+      "pattern": "^T=5\\.0  .*entropy=([\\d.]+)",
+      "value": "2.23"
+    },
+    "sample_cold": {
+      "pattern": "^T=0\\.2 top_p=1\\.0: (.*)$",
+      "value": "the dog sat on the cat sat on the cat sat on the cat sat"
+    },
+    "sample_hot": {
+      "pattern": "^T=3\\.0 top_p=1\\.0: (.*)$",
+      "value": "the cat mat sat on sat mat . the cat sat on to ran to"
+    },
+    "sample_hot_nucleus": {
+      "pattern": "^T=3\\.0 top_p=0\\.5: (.*)$",
+      "value": "the dog . the dog sat on the dog . the dog ran to mat"
+    }
+  },
+  "06-semantic-search-evaluation": {
+    "kw_hit1": {
+      "pattern": "^keyword\\s+hit@1=([\\d.]+)",
+      "value": "0.58"
+    },
+    "kw_hit3": {
+      "pattern": "^keyword\\s+hit@1=[\\d.]+\\s+hit@3=([\\d.]+)",
+      "value": "0.67"
+    },
+    "kw_mrr": {
+      "pattern": "^keyword\\s+.*MRR=([\\d.]+)",
+      "value": "0.62"
+    },
+    "vec_hit1": {
+      "pattern": "^vector\\s+hit@1=([\\d.]+)",
+      "value": "1.00"
+    },
+    "vec_hit3": {
+      "pattern": "^vector\\s+hit@1=[\\d.]+\\s+hit@3=([\\d.]+)",
+      "value": "1.00"
+    },
+    "vec_mrr": {
+      "pattern": "^vector\\s+.*MRR=([\\d.]+)",
+      "value": "1.00"
+    },
+    "hy_hit1": {
+      "pattern": "^hybrid\\s+hit@1=([\\d.]+)",
+      "value": "0.75"
+    },
+    "hy_hit3": {
+      "pattern": "^hybrid\\s+hit@1=[\\d.]+\\s+hit@3=([\\d.]+)",
+      "value": "0.92"
+    },
+    "hy_mrr": {
+      "pattern": "^hybrid\\s+.*MRR=([\\d.]+)",
+      "value": "0.83"
+    },
+    "kw_misses": {
+      "pattern": "^keyword \\((\\d+) misses\\)",
+      "value": "5"
+    },
+    "vec_misses": {
+      "pattern": "^vector \\((\\d+) misses\\)",
+      "value": "0"
+    },
+    "hy_misses": {
+      "pattern": "^hybrid \\((\\d+) misses\\)",
+      "value": "3"
+    }
+  }
+}

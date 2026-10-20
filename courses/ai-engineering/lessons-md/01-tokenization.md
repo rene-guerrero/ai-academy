@@ -4,6 +4,9 @@ summary: Models read token IDs, not letters. BPE, what tokens cost, and why LLMs
 area: A
 n: 1
 minutes: 25
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_01_tokenization.py
 level: foundations
@@ -94,6 +97,13 @@ Before running it, write answers to these in the box at the bottom of the page:
 3. Will `fresa` (Spanish for strawberry) need more or fewer tokens than `strawberry`?
 4. Which is longer in tokens, the English refund sentence or its Spanish translation? By roughly what percentage?
 
+::: predict
+P: strawberry | number | claim:strawberry_tokens | 0 | How many tokens is `strawberry`?
+P: space | number | claim:space_strawberry_tokens | 0 | How many tokens is ` strawberry`, with a leading space?
+P: fresa | number | claim:fresa_tokens | 0 | How many tokens is `fresa`?
+P: language | choice:en=English;es=Spanish;same=About the same | es | | Which refund sentence needs more tokens?
+:::
+
 Then run it (the command is at the bottom of this page).
 
 Follow-ups, if you have time:
@@ -106,6 +116,16 @@ Follow-ups, if you have time:
 <summary>Hints, no spoilers</summary>
 
 The pre-split regex separates letters, digits and spaces before merges are applied. Check where the space ended up in the output pieces. For the Spanish comparison, compare tokens per character, not only totals.
+
+</details>
+
+<details>
+<summary>What the script printed (open after predicting)</summary>
+
+- `strawberry` is {{claim:strawberry_tokens}} tokens: {{claim:strawberry_pieces}}. With a leading space it is {{claim:space_strawberry_tokens}} token, because ` strawberry` is common enough in English text to earn its own vocabulary entry. `Strawberry` with a capital is {{claim:cap_strawberry_tokens}} tokens.
+- `fresa` is {{claim:fresa_tokens}} tokens, {{claim:fresa_pieces}}: a shorter word, but not proportionally cheaper.
+- `12345678` becomes {{claim:digits_pieces}}: digit runs are cut into groups of up to three before any merge happens.
+- The refund sentence: English {{claim:english_chars}} characters and {{claim:english_tokens}} tokens, Spanish {{claim:spanish_chars}} characters and {{claim:spanish_tokens}} tokens. About a fifth more tokens for the same meaning.
 
 </details>
 

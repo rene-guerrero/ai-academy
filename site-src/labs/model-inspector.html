@@ -1,0 +1,20 @@
+<div id="lab" class="lab">
+<form class="lab-form card">
+<label for="lab-a">{{t:lab.inspector.inputA}}</label>
+<textarea id="lab-a" rows="2" maxlength="300">The trophy didn't fit in the suitcase because it was too big.</textarea>
+<label for="lab-b">{{t:lab.inspector.inputB}}</label>
+<input id="lab-b" type="text" maxlength="300" value="The suitcase was too small for the trophy.">
+<div class="runner-bar"><button type="submit" class="btn primary" data-go>{{t:lab.inspector.go}}</button></div>
+<p class="lab-status runner-status" role="status" aria-live="polite"></p>
+<div class="runner-progress" hidden><span></span></div>
+</form>
+<div class="lab-output" hidden>
+<section aria-labelledby="tok-h"><h2 id="tok-h">{{t:lab.inspector.tokensTitle}}</h2><p class="hint token-count"></p><div class="tokens"></div></section>
+<section class="similarity card stat" hidden aria-live="polite"><span>{{t:lab.inspector.similarity}}</span><strong></strong><small></small></section>
+<section aria-labelledby="att-h"><h2 id="att-h">{{t:lab.inspector.attentionTitle}}</h2><p class="hint">{{t:lab.inspector.attentionHint}}</p>
+<div class="lab-controls"><span class="muted">{{t:lab.inspector.layerPick}}</span><div class="segmented layers" role="group" aria-label="{{t:lab.inspector.layerPick}}"></div></div>
+<div class="heads" role="group" aria-label="{{t:lab.inspector.headsLabel}}"></div>
+<div class="heat-big card"></div></section>
+<section aria-labelledby="norm-h"><h2 id="norm-h">{{t:lab.inspector.normsTitle}}</h2><p class="hint">{{t:lab.inspector.normsHint}}</p><div class="norms card"></div></section>
+</div>
+</div>

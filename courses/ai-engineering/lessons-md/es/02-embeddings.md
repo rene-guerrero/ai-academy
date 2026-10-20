@@ -94,6 +94,12 @@ Los pares:
 2. ¿Qué par resulta más sorprendente si entiendes la similitud como «significa lo mismo»?
 3. ¿El par 2 obtendrá una puntuación más alta o más baja que el par 4? ¿Qué te dice eso sobre usar un umbral para decidir qué es «relevante»?
 
+::: predict
+P: top | choice:paraphrase=Paráfrasis de la película;negation=Negación de la película;orders=Números de pedido;refund=Dinero y reembolso;cat=Dinero y gato | orders | | ¿Qué pareja puntúa más alto?
+P: negation | choice:negation=La pareja con negación;refund=La pareja del reembolso | negation | | ¿Cuál puntúa más: la pareja con negación o la del reembolso?
+P: dims | number | claim:dims | 0 | ¿Cuántas dimensiones tiene cada embedding?
+:::
+
 El comando para ejecutarlo está al final de esta página.
 
 Para profundizar:
@@ -101,6 +107,17 @@ Para profundizar:
 - Añade un par que solo se diferencie en la cifra de un precio ("costs $10" frente a "costs $1000").
 - Añade un par en español y en inglés con el mismo significado. ¿Los relaciona el modelo?
 - Imprime los cinco primeros números de un vector. ¿Puedes deducir algo de ellos? (No deberías poder.)
+
+<details>
+<summary>Lo que imprimió el script (ábrelo después de predecir)</summary>
+
+- La más alta de todas: las dos confirmaciones de pedido, {{claim:pair_orders}}. Para el modelo son casi la misma frase; un dígito transpuesto apenas mueve el vector.
+- Paráfrasis, "great" frente a "wonderful": {{claim:pair_paraphrase}}. Negación, "great" frente a "not great": {{claim:pair_negation}}, casi igual de cerca. Significados opuestos, mismo tema.
+- La pregunta frente a la política de reembolsos: {{claim:pair_refund}}, relacionadas y casi sin palabras en común. Frente al gato: {{claim:pair_cat}}.
+- La pareja con negación puntúa por encima de la del reembolso, así que ningún umbral único separa lo relevante de lo irrelevante: un corte lo bastante bajo para conservar la política de reembolsos también conserva la negación.
+- Cada vector tiene {{claim:dims}} dimensiones.
+
+</details>
 
 ## Ideas clave
 

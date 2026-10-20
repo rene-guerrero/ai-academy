@@ -1,0 +1,25 @@
+<div id="lab" class="lab">
+<form class="lab-form card">
+<label for="tl-corpus">{{t:lab.train.corpus}}</label>
+<textarea id="tl-corpus" rows="4">the cat sat on the mat . the dog sat on the rug . the cat ran to the dog . the dog ran to the cat . the cat sat on the rug . the dog sat on the mat .</textarea>
+<div class="slider-row"><label for="tl-lr">{{t:lab.train.lr}}</label><output for="tl-lr" id="tl-lr-out"></output><input id="tl-lr" type="range" min="0" max="8" step="1" value="4"></div>
+<div class="slider-row"><label for="tl-steps">{{t:lab.train.steps}}</label><output for="tl-steps" id="tl-steps-out"></output><input id="tl-steps" type="range" min="10" max="1000" step="10" value="300"></div>
+<div class="slider-row"><label for="tl-seed">{{t:lab.train.seed}}</label><input id="tl-seed" type="number" min="0" max="9999" value="3" inputmode="numeric"></div>
+<div class="runner-bar"><button type="submit" class="btn primary" data-go>{{t:lab.train.go}}</button></div>
+<p class="lab-status runner-status" role="status" aria-live="polite"></p>
+<div class="runner-progress" hidden><span></span></div>
+</form>
+<div class="lab-output" hidden>
+<section aria-labelledby="loss-h"><h2 id="loss-h">{{t:lab.train.lossTitle}}</h2><p class="hint loss-summary"></p><div class="loss card"></div></section>
+<section aria-labelledby="ck-h"><h2 id="ck-h">{{t:lab.train.ckTitle}}</h2><p class="hint">{{t:lab.train.ckHint}}</p>
+<div class="card dist-card">
+<div class="slider-row"><label for="tl-ck">{{t:lab.train.checkpoint}}</label><output for="tl-ck" id="tl-ck-out"></output><input id="tl-ck" type="range" min="0" max="1" step="1" value="1"></div>
+<div class="slider-row"><label for="tl-word">{{t:lab.train.after}}</label><select id="tl-word"></select></div>
+<div class="slider-row"><label for="tl-temp">{{t:lab.train.temperature}}</label><output for="tl-temp" id="tl-temp-out"></output><input id="tl-temp" type="range" min="0" max="12" step="1" value="6"></div>
+<div class="slider-row"><label for="tl-topp">{{t:lab.train.topp}}</label><output for="tl-topp" id="tl-topp-out"></output><input id="tl-topp" type="range" min="1" max="20" step="1" value="20"></div>
+<div class="dist"></div>
+<div class="runner-bar"><button type="button" class="btn" data-sample>{{t:lab.train.sample}}</button></div>
+<p class="sampled" aria-live="polite"></p>
+</div></section>
+</div>
+</div>

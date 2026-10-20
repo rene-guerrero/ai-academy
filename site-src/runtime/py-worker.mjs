@@ -108,6 +108,26 @@ function cleanTraceback(message) {
 
 self.onmessage = async (event) => {
   const msg = event.data;
+  if (msg.type === "eval") {
+    try {
+      await ensurePyodide();
+      await prepare(msg.code);
+      pyodide.setStdout({ batched: (text) => post("stdout", { text, id: msg.id }) });
+      pyodide.setStderr({ batched: (text) => post("stderr", { text, id: msg.id }) });
+      const globals = msg.persist ? pyodide.globals : pyodide.globals.get("dict")();
+      const started = performance.now();
+      await pyodide.runPythonAsync(msg.code, { globals, filename: "<lab>" });
+      const result = globals.get("__result__");
+      const json = result === undefined ? "null" : pyodide.runPython("import json\njson.dumps(__result__)", { globals });
+      if (result && result.destroy) result.destroy();
+      if (!msg.persist) globals.destroy();
+      post("result", { id: msg.id, json, ms: performance.now() - started });
+    } catch (err) {
+      const text = String(err && err.message ? err.message : err);
+      post("result", { id: msg.id, error: text.startsWith("MISSING:") ? "missing:" + text.slice(8) : cleanTraceback(text) });
+    }
+    return;
+  }
   if (msg.type !== "run") return;
   const started = performance.now();
   try {

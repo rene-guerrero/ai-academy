@@ -1,6 +1,6 @@
 ---
 title: Evaluación de la búsqueda semántica
-summary: Consultas etiquetadas, hit@k y MRR, y por qué combinar la búsqueda por palabras clave y la búsqueda vectorial con fusión por rango recíproco supera a cada una por separado.
+summary: Consultas etiquetadas, hit@k y MRR, y cómo averiguar si fusionar la búsqueda por palabras clave y la vectorial con la fusión por rango recíproco (RRF) ayuda de verdad.
 ---
 
 ## El gancho
@@ -13,7 +13,7 @@ Sin medir, la calidad de la búsqueda se juzga a ojo. Alguien prueba tres consul
 
 Construye un pequeño **conjunto de evaluación**: consultas de aspecto realista, cada una emparejada con el único documento que debería salir primero. Ejecuta cada método de búsqueda y cuenta con qué frecuencia el documento correcto queda en primera posición, entre los tres primeros y, de media, a qué altura. Así ya puedes comparar métodos con números.
 
-Después, combina dos métodos que fallan en consultas distintas. La búsqueda por palabras clave es precisa con cadenas exactas y ciega ante las paráfrasis. La búsqueda vectorial entiende las paráfrasis y desdibuja las cadenas exactas. Un enfoque híbrido se queda con lo mejor de ambas.
+Después, combina dos métodos que fallan en consultas distintas. La búsqueda por palabras clave es precisa con cadenas exactas y ciega ante las paráfrasis. La búsqueda vectorial entiende las paráfrasis y puede desdibujar las cadenas exactas. Un enfoque híbrido intenta quedarse con lo mejor de ambas, y si lo consigue es algo que se mide, como muestra este ejercicio.
 
 Es la misma disciplina que los tests unitarios, con una diferencia: los resultados son listas ordenadas y no un simple aprobado o suspenso, así que las métricas son algo más ricas.
 
@@ -90,7 +90,13 @@ Archivo: `lessons/lesson_06_semantic_search.py`. Construye BM25 desde cero, gene
 3. ¿Acertará el ranker vectorial tanto `ERR-4021` como `ERR-4012`? ¿Por qué sí o por qué no?
 4. ¿Superará el híbrido al mejor método individual en todas las métricas o solo en algunas? ¿Podría llegar a ser peor que el mejor método individual?
 
-El comando para ejecutarlo está al final de esta página. En esta lección no hay, a propósito, un bloque de "lo que imprimió el script": pega las tres líneas de métricas y los fallos en tus notas de abajo y compáralos con tus predicciones.
+::: predict
+P: best | choice:keyword=Palabras clave;vector=Vectorial;hybrid=Híbrida | vector | | ¿Qué método consigue el mejor hit@1?
+P: hybrid | choice:better=Mejor;worse=Peor;same=Igual | worse | | Comparado con la búsqueda vectorial sola, el hit@1 híbrido es…
+P: kwmiss | number | claim:kw_misses | 1 | ¿En cuántas de las 12 consultas pone primero el documento equivocado la búsqueda por palabras clave?
+:::
+
+Pulsa Ejecutar en la sección del ejercicio, más abajo, o usa los comandos para tu ordenador. Los resultados grabados están en "Lo que imprimió el script", después de los experimentos.
 
 Después, experimenta:
 
@@ -99,10 +105,25 @@ Después, experimenta:
 - Escribe una consulta que engañe a *ambos* métodos y añádela al conjunto.
 - Sustituye la fusión por una suma ponderada de puntuaciones. ¿Por qué es más difícil acertar con ella?
 
+<details>
+<summary>Lo que imprimió el script (ábrelo después de predecir)</summary>
+
+| Método | hit@1 | hit@3 | MRR | Fallos en top-1 |
+|---|---|---|---|---|
+| Palabras clave (BM25) | {{claim:kw_hit1}} | {{claim:kw_hit3}} | {{claim:kw_mrr}} | {{claim:kw_misses}} |
+| Vectorial | {{claim:vec_hit1}} | {{claim:vec_hit3}} | {{claim:vec_mrr}} | {{claim:vec_misses}} |
+| Híbrida (RRF) | {{claim:hy_hit1}} | {{claim:hy_hit3}} | {{claim:hy_mrr}} | {{claim:hy_misses}} |
+
+- La sorpresa: en este conjunto la búsqueda vectorial sola es perfecta y la híbrida es peor ({{claim:hy_hit1}} frente a {{claim:vec_hit1}} en hit@1). La fusión ayuda cuando los dos rankers aportan señal. Aquí BM25 pone primero el documento equivocado en {{claim:kw_misses}} de las 12 consultas, y esas respuestas erróneas tan seguras arrastran hacia abajo los buenos resultados vectoriales en la lista fusionada.
+- La búsqueda vectorial también acertó los dos códigos de error, lo contrario de la advertencia habitual. Con solo dos códigos en la colección y palabras distintas a su alrededor ("timed out" frente a "declined"), los dos documentos también difieren en significado. Con cientos de códigos casi idénticos, el ranker de palabras clave es el que te salva.
+- La lección de verdad: la híbrida es una buena opción por defecto, no una ley. Mide con tus propias consultas antes de darlo por hecho.
+
+</details>
+
 ## Ideas clave
 
 1. La calidad de la búsqueda necesita un conjunto de consultas etiquetadas y métricas (hit@k, MRR). Sin ellas, ajustar es ir a ciegas.
-2. La búsqueda por palabras clave y la búsqueda vectorial fallan en consultas distintas, así que combinarlas es una opción por defecto sólida.
+2. La búsqueda por palabras clave y la búsqueda vectorial fallan en consultas distintas, así que combinarlas es una opción por defecto sólida, pero solo una medición te dice si ayuda con tus datos. En este ejercicio gana la búsqueda vectorial sola.
 3. La fusión por rango recíproco combina rankings por posición, así que no hay ninguna calibración de puntuaciones que mantener.
 
 **Pregunta de control:** tras cambiar el modelo de embeddings, hit@3 sube pero hit@1 baja. Con el MRR y los fallos impresos, ¿cómo decides si el cambio es una mejora?

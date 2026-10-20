@@ -39,6 +39,7 @@ class _WordPiece:
         with open(vocab_path, encoding="utf-8") as f:
             tokens = [line.rstrip("\n") for line in f]
         self.vocab = {t: i for i, t in enumerate(tokens)}
+        self.ids_to_tokens = tokens
         self.lower = lower
         self.unk = self.vocab["[UNK]"]
         self.cls = self.vocab["[CLS]"]
@@ -163,7 +164,7 @@ class SentenceTransformer:
     def _linear(self, x, name):
         return x @ self._w[name + ".weight"].T + self._w[name + ".bias"]
 
-    def _forward(self, ids, mask):
+    def _forward(self, ids, mask, trace=None):
         c = self.config
         eps = float(c.get("layer_norm_eps", 1e-12))
         heads = int(c["num_attention_heads"])
@@ -174,6 +175,8 @@ class SentenceTransformer:
         x = self._word_embeddings(ids) + w["embeddings.position_embeddings.weight"][:length][None] + w["embeddings.token_type_embeddings.weight"][0][None, None]
         x = _layer_norm(x, w["embeddings.LayerNorm.weight"], w["embeddings.LayerNorm.bias"], eps)
         bias = (1.0 - mask[:, None, None, :].astype(np.float32)) * np.float32(-1e9)
+        if trace is not None:
+            trace.append({"layer": 0, "states": x})
         for i in range(int(c["num_hidden_layers"])):
             p = f"encoder.layer.{i}."
             q = self._linear(x, p + "attention.self.query").reshape(batch, length, heads, head_dim).transpose(0, 2, 1, 3)
@@ -187,6 +190,8 @@ class SentenceTransformer:
             x = _layer_norm(self._linear(context, p + "attention.output.dense") + x, w[p + "attention.output.LayerNorm.weight"], w[p + "attention.output.LayerNorm.bias"], eps)
             h = _gelu(self._linear(x, p + "intermediate.dense"))
             x = _layer_norm(self._linear(h, p + "output.dense") + x, w[p + "output.LayerNorm.weight"], w[p + "output.LayerNorm.bias"], eps)
+            if trace is not None:
+                trace.append({"layer": i + 1, "attention": probs, "states": x})
         return x
 
     def encode(self, sentences, batch_size=32, normalize_embeddings=False, convert_to_numpy=True, show_progress_bar=None, **kwargs):

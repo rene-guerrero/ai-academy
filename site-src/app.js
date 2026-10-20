@@ -816,9 +816,131 @@
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && sync.session) scheduleSync(300); });
   }
 
+
+  function parseNumber(v) {
+    var x = String(v || "").trim().replace(/\s/g, "").replace(",", ".");
+    return x === "" || isNaN(Number(x)) ? null : Number(x);
+  }
+  function initPredictions() {
+    $$("[data-predictions]").forEach(function (sec) {
+      var key = P.slug;
+      var answers = {};
+      try { JSON.parse($(".pred-answers", sec).textContent).forEach(function (a) { answers[a.id] = a; }); } catch (e) { return; }
+      var items = $$(".pred", sec);
+      var lockBtn = $("[data-lock]", sec), checkBtn = $("[data-check]", sec), againBtn = $("[data-again]", sec), summary = $(".pred-summary", sec);
+      function stateOf(id) { return get("predq:" + key + ":" + id); }
+      function readItem(li) {
+        var id = li.getAttribute("data-pred");
+        var input = $("[data-pred-input]", li);
+        var choice = $("[data-choice][aria-checked='true']", li);
+        var conf = $("[data-conf][aria-pressed='true']", li);
+        return { id: id, value: input ? input.value.trim() : choice ? choice.getAttribute("data-choice") : "", conf: conf ? Number(conf.getAttribute("data-conf")) : 0 };
+      }
+      function isRight(id, value) {
+        var a = answers[id];
+        if (!a) return false;
+        if (a.kind === "number") { var n = parseNumber(value); return n !== null && Math.abs(n - a.answer) <= a.tolerance + 1e-9; }
+        return value === a.answer;
+      }
+      function paint() {
+        var locked = false, checked = false, right = 0, total = 0;
+        items.forEach(function (li) {
+          var id = li.getAttribute("data-pred"), st = stateOf(id), input = $("[data-pred-input]", li), res = $(".pred-result", li);
+          li.classList.remove("is-right", "is-wrong");
+          res.textContent = "";
+          if (st) {
+            locked = true;
+            if (input) input.value = st.value;
+            $$("[data-choice]", li).forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-choice") === st.value ? "true" : "false"); });
+            $$("[data-conf]", li).forEach(function (b) { b.setAttribute("aria-pressed", Number(b.getAttribute("data-conf")) === st.conf ? "true" : "false"); });
+            if (st.checked) {
+              checked = true; total++;
+              if (st.correct) right++;
+              li.classList.add(st.correct ? "is-right" : "is-wrong");
+              res.textContent = t(st.correct ? "pred.right" : "pred.wrong", { answer: answers[id] ? answers[id].label : "?" });
+            }
+          }
+          $$("input, button", li).forEach(function (x) { x.disabled = locked; });
+        });
+        lockBtn.hidden = locked;
+        checkBtn.hidden = !locked || checked;
+        againBtn.hidden = !checked;
+        summary.textContent = checked ? t("pred.summary", { right: right, total: total }) : locked ? t("pred.locked") : "";
+      }
+      items.forEach(function (li) {
+        $$("[data-choice]", li).forEach(function (b) {
+          b.addEventListener("click", function () { $$("[data-choice]", li).forEach(function (x) { x.setAttribute("aria-checked", x === b ? "true" : "false"); }); });
+        });
+        $$("[data-conf]", li).forEach(function (b) {
+          b.addEventListener("click", function () { $$("[data-conf]", li).forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); });
+        });
+      });
+      lockBtn.addEventListener("click", function () {
+        var all = items.map(readItem);
+        if (all.some(function (x) { return !x.value || !x.conf; })) { summary.textContent = t("pred.missing"); return; }
+        all.forEach(function (x) { set("predq:" + key + ":" + x.id, { value: x.value, conf: x.conf, checked: false }); });
+        paint();
+      });
+      checkBtn.addEventListener("click", function () {
+        items.forEach(function (li) {
+          var id = li.getAttribute("data-pred"), st = stateOf(id);
+          if (st) set("predq:" + key + ":" + id, { value: st.value, conf: st.conf, checked: true, correct: isRight(id, st.value) });
+        });
+        paint();
+      });
+      againBtn.addEventListener("click", function () {
+        items.forEach(function (li) {
+          set("predq:" + key + ":" + li.getAttribute("data-pred"), null);
+          var input = $("[data-pred-input]", li);
+          if (input) input.value = "";
+          $$("[data-choice]", li).forEach(function (x) { x.setAttribute("aria-checked", "false"); });
+          $$("[data-conf]", li).forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+        });
+        paint();
+      });
+      onChange(function (k) { if (k === "*" || k.indexOf("predq:" + key) === 0) paint(); });
+      paint();
+    });
+  }
+  function calibration() {
+    var buckets = { 50: { n: 0, right: 0 }, 70: { n: 0, right: 0 }, 90: { n: 0, right: 0 } };
+    var total = 0, right = 0;
+    Object.keys(state.items).forEach(function (k) {
+      if (k.indexOf("predq:") !== 0) return;
+      var v = state.items[k].v;
+      if (!v || !v.checked || !buckets[v.conf]) return;
+      buckets[v.conf].n++; total++;
+      if (v.correct) { buckets[v.conf].right++; right++; }
+    });
+    return { buckets: buckets, total: total, right: right };
+  }
+  function paintIntuition() {
+    var sec = $("#intuition");
+    if (!sec) return;
+    var c = calibration(), body = $("#intuition-body");
+    body.innerHTML = "";
+    if (!c.total) { body.appendChild(el("p", { class: "hint", text: t("home.intuition.empty") })); return; }
+    body.appendChild(el("p", { class: "intuition-overall", text: t("home.intuition.overall", { right: c.right, total: c.total }) }));
+    var list = el("ol", { class: "calib", "aria-label": t("home.intuition.chart") });
+    [50, 70, 90].forEach(function (conf) {
+      var b = c.buckets[conf];
+      var pct = b.n ? Math.round(100 * b.right / b.n) : 0;
+      var fill = el("span", { class: "calib-fill" });
+      fill.style.width = (b.n ? pct : 0) + "%";
+      var mark = el("span", { class: "calib-mark", title: t("home.intuition.expected") + " " + conf + "%" });
+      mark.style.left = conf + "%";
+      list.appendChild(el("li", { class: b.n ? "" : "is-empty" }, [
+        el("span", { class: "calib-label", text: conf + "%" }),
+        el("span", { class: "calib-track" }, [fill, mark]),
+        el("span", { class: "calib-value", text: b.n ? pct + "% · " + b.n : "–" }),
+        el("span", { class: "sr", text: t("home.intuition.row", { conf: conf, pct: pct, n: b.n }) })
+      ]));
+    });
+    body.appendChild(list);
+  }
   window.__aia = { get: get, set: set, onChange: onChange, t: t };
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initLang(); initCopy(); initLesson(); initCourse(); initHome(); initToc(); initMermaid(); initOffline(); initSync();
+    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initMermaid(); initOffline(); initSync();
   });
 })();

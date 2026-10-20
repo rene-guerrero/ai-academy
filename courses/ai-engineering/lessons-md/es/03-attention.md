@@ -95,6 +95,12 @@ Archivo: `lessons/lesson_03_attention.py`. Solo numpy: un ejemplo de juguete de 
 5. Con cabezas de 256 dimensiones, ¿qué se acerca más a una fila one-hot: las puntuaciones escaladas o las no escaladas?
 6. Si duplicas la longitud del contexto, ¿por qué factor se multiplica el tamaño de la matriz de puntuaciones?
 
+::: predict
+P: firstrow | choice:changed=Cambia;same=No cambia | same | | Con la máscara causal cambias el último token. ¿Qué pasa con la salida del primer token?
+P: onehot | choice:scaled=Con escalado;unscaled=Sin escalado | unscaled | | Con cabezas de 256 dimensiones, ¿qué puntuaciones dan filas más cercanas a one-hot?
+P: factor | number | 4 | 0 | ¿Por cuánto se multiplica el tamaño de la matriz de puntuaciones al duplicar el contexto?
+:::
+
 El comando para ejecutarlo está al final de esta página.
 
 <details>
@@ -103,19 +109,15 @@ El comando para ejecutarlo está al final de esta página.
 Pesos (las filas son las consultas):
 
 ```
-            The     cat     sat    down
-       The   1.000   0.000   0.000   0.000
-       cat   0.696   0.304   0.000   0.000
-       sat   0.001   0.984   0.015   0.000
-      down   0.123   0.852   0.002   0.024
+{{claim:weights_table}}
 ```
 
 - Todo lo que queda por encima de la diagonal es exactamente 0. Cada fila suma 1.
 - El primer token solo puede verse a sí mismo, así que su fila es `[1, 0, 0, 0]`.
-- Con la máscara, cambiar el último token deja intacta la primera salida. Sin la máscara, la primera salida cambia.
-- Peso máximo por fila, con escalado: entre 0.41 y 0.53, aproximadamente. Sin escalar: 1.0 en todas las filas, lo que significa casi ningún gradiente.
-- Elementos de la matriz de puntuaciones: 1M con 1000 tokens, 4M con 2000 y 16M con 4000. Duplicar el contexto da 4x.
-- La decodificación con caché coincide con el recálculo completo: `True`.
+- Al cambiar el último token, ¿cambió la primera salida con la máscara? `{{claim:first_row_changed}}`. ¿Y sin la máscara? `{{claim:nomask_first_changed}}`.
+- Peso máximo por fila, con escalado: `{{claim:scaled_max}}`. Sin escalar: `{{claim:unscaled_max}}`, filas one-hot, lo que significa casi ningún gradiente.
+- Elementos de la matriz de puntuaciones por cabeza y capa: {{claim:entries_1k}} con 1000 tokens, {{claim:entries_2k}} con 2000 y {{claim:entries_4k}} con 4000. Duplicar el contexto da 4x.
+- La decodificación con caché coincide con el recálculo completo: `{{claim:kv_equal}}`.
 
 Los pesos son aleatorios, no entrenados, así que el patrón no significa nada desde el punto de vista lingüístico. Lo que importa es la mecánica.
 

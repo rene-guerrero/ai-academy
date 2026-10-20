@@ -4,6 +4,9 @@ summary: Meaning as geometry. Vectors, cosine similarity, and the places where s
 area: A
 n: 2
 minutes: 25
+author: claude
+drafted: 2026-10-16
+reviewed: 
 runtime: pyodide
 exercise: exercises/lesson_02_embeddings.py
 level: foundations
@@ -102,6 +105,12 @@ The pairs:
 2. Which pair is most surprising if you think of similarity as "means the same thing"?
 3. Will pair 2 score higher or lower than pair 4? What does that tell you about using a threshold to decide "relevant"?
 
+::: predict
+P: top | choice:paraphrase=Movie paraphrase;negation=Movie negation;orders=Order numbers;refund=Money back and refund;cat=Money back and cat | orders | | Which pair scores highest?
+P: negation | choice:negation=The negation pair;refund=The refund pair | negation | | Which scores higher: the negation pair or the refund pair?
+P: dims | number | claim:dims | 0 | How many dimensions does each embedding have?
+:::
+
 The run command is at the bottom of this page.
 
 Follow-ups:
@@ -109,6 +118,17 @@ Follow-ups:
 - Add a pair that differs only by a number in a price ("costs $10" vs "costs $1000").
 - Add a pair in Spanish and English with the same meaning. Does the model connect them?
 - Print the first five numbers of one vector. Can you read anything from them? (You should not be able to.)
+
+<details>
+<summary>What the script printed (open after predicting)</summary>
+
+- Highest of all: the two order confirmations, {{claim:pair_orders}}. To the model they are nearly the same sentence; one transposed digit barely moves the vector.
+- Paraphrase, "great" against "wonderful": {{claim:pair_paraphrase}}. Negation, "great" against "not great": {{claim:pair_negation}}, almost as close. Opposite meanings, same topic.
+- The question against the refund policy: {{claim:pair_refund}}, related with almost no shared words. Against the cat: {{claim:pair_cat}}.
+- The negation pair scores above the refund pair, so no single threshold separates relevant from irrelevant: a cutoff low enough to keep the refund policy also keeps the negation.
+- Every vector has {{claim:dims}} dimensions.
+
+</details>
 
 ## Takeaways
 
