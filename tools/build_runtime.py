@@ -189,6 +189,7 @@ def record_outputs():
         dest.parent.mkdir(parents=True, exist_ok=True)
         real = run(script)
         dest.write_text(real, encoding="utf-8")
+        print(f"----- BEGIN OUTPUT {course}/{script.name} -----\n{real}----- END OUTPUT {course}/{script.name} -----", flush=True)
         text = script.read_text(encoding="utf-8")
         uses = [m for m in ("tiktoken", "sentence_transformers") if re.search(rf"^\s*(from|import)\s+{m}\b", text, re.M)]
         status = "real"

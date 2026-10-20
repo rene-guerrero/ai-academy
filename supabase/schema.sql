@@ -29,3 +29,6 @@ create policy "own rows delete" on public.learning_items
 
 revoke all on public.learning_items from anon;
 grant select, insert, update, delete on public.learning_items to authenticated;
+
+create or replace function public.ping() returns text language sql stable as $$ select 'ok'::text $$;
+grant execute on function public.ping() to anon, authenticated;
