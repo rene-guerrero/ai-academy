@@ -58,14 +58,18 @@ Tiene un conjunto etiquetado de {{q:queries}} preguntas por idioma, cada una aso
 | Palabras clave (BM25) | {{q:en.bm25.hit1}} | {{q:en.bm25.hit3}} | {{q:en.bm25.mrr}} |
 | Significado (MiniLM) | {{q:en.vector.hit1}} | {{q:en.vector.hit3}} | {{q:en.vector.mrr}} |
 | Híbrido (RRF) | {{q:en.hybrid.hit1}} | {{q:en.hybrid.hit3}} | {{q:en.hybrid.mrr}} |
+| Significado (E5 multilingüe) | {{q:en.e5.hit1}} | {{q:en.e5.hit3}} | {{q:en.e5.mrr}} |
+| Híbrido, E5 (RRF) | {{q:en.hybrid-e5.hit1}} | {{q:en.hybrid-e5.hit3}} | {{q:en.hybrid-e5.mrr}} |
 
 | Español | hit@1 | hit@3 | MRR |
 |---|---|---|---|
 | Palabras clave (BM25) | {{q:es.bm25.hit1}} | {{q:es.bm25.hit3}} | {{q:es.bm25.mrr}} |
 | Significado (MiniLM) | {{q:es.vector.hit1}} | {{q:es.vector.hit3}} | {{q:es.vector.mrr}} |
 | Híbrido (RRF) | {{q:es.hybrid.hit1}} | {{q:es.hybrid.hit3}} | {{q:es.hybrid.mrr}} |
+| Significado (E5 multilingüe) | {{q:es.e5.hit1}} | {{q:es.e5.hit3}} | {{q:es.e5.mrr}} |
+| Híbrido, E5 (RRF) | {{q:es.hybrid-e5.hit1}} | {{q:es.hybrid-e5.hit3}} | {{q:es.hybrid-e5.mrr}} |
 
-La compilación rellena estas tablas, así que son los números de la versión desplegada. all-MiniLM-L6-v2 se entrenó en inglés. En inglés, la búsqueda por significado encuentra lo que las palabras clave no ven; en español el mismo modelo es débil y combinarlo puede quedar por debajo de las palabras clave solas. Por eso las palabras clave son el modo por defecto, y por eso el siguiente paso de abajo es un modelo multilingüe medido con las mismas preguntas.
+La compilación rellena estas tablas, así que son los números de la versión desplegada. all-MiniLM-L6-v2 se entrenó en inglés; multilingual-e5-small se basa en un codificador multilingüe. Ejecutar E5 en el navegador exigió otra pieza: un tokenizador SentencePiece Unigram en Python puro, comprobado token a token contra Hugging Face en la CI, y un vocabulario recortado a piezas de escritura latina para que la descarga siga siendo razonable. Para cada idioma, la compilación publica el modelo con mejor MRR híbrido cuya versión de navegador pasó su control de precisión, y solo sus vectores: {{q:en.shipped}} en inglés y {{q:es.shipped}} en español. Las palabras clave siguen siendo el modo por defecto; el significado está a un toque.
 
 ## Funciones de aprendizaje que usan la misma maquinaria
 
@@ -77,5 +81,5 @@ La compilación rellena estas tablas, así que son los números de la versión d
 ## Lo que haría después
 
 - Ampliar el conjunto de evaluación con preguntas reales de lectores, con un paso de revisión antes de que una pregunta se convierta en etiqueta.
-- Añadir un modelo de embeddings multilingüe como tercer modo y dejar que la página de calidad decida si merece su descarga.
+- Reordenar los primeros resultados con un cross-encoder pequeño y dejar que la página de calidad decida si merece su latencia.
 - Sustituir el paquete de Mermaid en tiempo de ejecución por diagramas generados al compilar.

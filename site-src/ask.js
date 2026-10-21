@@ -25,6 +25,7 @@ function start() {
   const modeButtons = [...root.querySelectorAll("[data-ask-mode]")];
   const base = P.rel + "search/";
   let index = null;
+  let model = null;
   let loading = null;
   let mode = "bm25";
   let py = null;
@@ -45,6 +46,7 @@ function start() {
           } catch (e) {}
         }
         index = makeIndex(data, vectors);
+        model = data.model;
         if (!vectors) {
           modeButtons.find((b) => b.dataset.askMode === "hybrid").disabled = true;
           if (mode === "hybrid") setMode("bm25", true);
@@ -63,7 +65,8 @@ function start() {
     mode = m;
     paintMode();
     if (!quiet) try { A.set("pref:ask", m); } catch (e) {}
-    status.textContent = mode === "hybrid" && !modelReady ? t("ask.hybrid.hint", { size: P.askSize || "" }) : "";
+    status.textContent = "";
+    if (mode === "hybrid" && !modelReady) load().then(() => { if (mode === "hybrid" && !modelReady && model) status.textContent = t("ask.hybrid.hint", { model: model.label, size: window.aiaFormatMB ? window.aiaFormatMB(model.bytes) : "" }); });
     if (input.value.trim().length > 1) run();
   }
 
@@ -79,12 +82,12 @@ function start() {
         if (m.type === "progress") { status.textContent = t("runner.assets", { name: m.label, size: window.aiaFormatMB(m.received) + " / " + window.aiaFormatMB(m.total) }); bar.hidden = false; bar.classList.remove("is-indeterminate"); fill.style.width = Math.round(100 * m.received / m.total) + "%"; }
       });
     }
-    return py.eval("from sentence_transformers import SentenceTransformer\nif '_ask_model' not in globals():\n    _ask_model = SentenceTransformer('all-MiniLM-L6-v2')\n__result__ = True", { persist: true }).then(() => { modelReady = true; bar.hidden = true; });
+    return py.eval(`import numpy\nimport importlib\nif '_ask_model' not in globals():\n    _ask_model = importlib.import_module('sentence_transformers').SentenceTransformer(${JSON.stringify(model.name)})\n__result__ = True`, { persist: true, assets: model.assets }).then(() => { modelReady = true; bar.hidden = true; });
   }
 
   async function embed(q) {
     await ensureModel();
-    const r = await py.eval(`import json\n__result__ = [round(float(x), 6) for x in _ask_model.encode([json.loads(${JSON.stringify(JSON.stringify(q))})], normalize_embeddings=True)[0]]`, { persist: true });
+    const r = await py.eval(`import json\n__result__ = [round(float(x), 6) for x in _ask_model.encode([json.loads(${JSON.stringify(JSON.stringify(model.query + q))})], normalize_embeddings=True)[0]]`, { persist: true });
     return { vec: r.value, ms: r.ms };
   }
 
@@ -117,7 +120,7 @@ function start() {
       ])]));
     });
     if (!r.results.length) list.appendChild(el("li", { class: "empty", text: t("ask.none") }));
-    status.textContent = r.results.length ? t(r.mode === "hybrid" ? "ask.done.hybrid" : "ask.done.bm25", { ms: Math.max(1, Math.round(ms)) }) : "";
+    status.textContent = r.results.length ? t(r.mode === "hybrid" ? "ask.done.hybrid" : "ask.done.bm25", { ms: Math.max(1, Math.round(ms)), model: model ? model.label : "" }) : "";
   }
 
   async function run() {

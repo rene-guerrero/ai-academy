@@ -314,6 +314,7 @@ function assembleRuntime() {
     outputsDir,
     outputsMeta,
     minilm: existsSync(join(assetDir, "minilm.json")) ? JSON.parse(readFileSync(join(assetDir, "minilm.json"), "utf8")) : null,
+    e5: existsSync(join(assetDir, "e5.json")) ? JSON.parse(readFileSync(join(assetDir, "e5.json"), "utf8")) : null,
     estimate(code) {
       const imports = new Set([...code.matchAll(/^\s*(?:from|import)\s+([A-Za-z_][\w]*)/gm)].map((m) => m[1]));
       let bytes = core;
@@ -678,9 +679,8 @@ ${noteList}
 
 function askRuntime(lang) {
   if (!runtime) return null;
-  const est = runtime.estimate("from sentence_transformers import SentenceTransformer");
-  if (est.missing.length) return null;
-  return { askSize: (est.bytes / 1048576).toFixed(0) + " MB", runtime: { base: rel_(lang, "index.html") + runtime.base, version: runtime.version, missing: [] } };
+  if (runtime.estimate("import numpy").missing.length) return null;
+  return { runtime: { base: rel_(lang, "index.html") + runtime.base, version: runtime.version, missing: [] } };
 }
 
 for (const lang of LANGS) {
@@ -717,57 +717,80 @@ const searchCache = join(root, "runtime-cache", "search");
 const readJson = (f) => (existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null);
 const queryVectors = readJson(join(searchCache, "queries.json"));
 const requireSemantic = env.AIA_REQUIRE_SEARCH === "1";
-const quality = { date: new Date().toISOString().slice(0, 10), model: "all-MiniLM-L6-v2", queries: evalSet.queries.length, languages: {} };
+const SEARCH_MODELS = [
+  { key: "minilm", name: "all-MiniLM-L6-v2", label: "MiniLM", query: "", assets: ["minilm.npz", "minilm-vocab.txt", "minilm.json"], vector: "vector", hybrid: "hybrid" },
+  { key: "e5", name: "intfloat/multilingual-e5-small", label: "multilingual E5", query: "query: ", assets: ["e5.npz", "e5-vocab.json", "e5.json"], vector: "e5", hybrid: "hybrid-e5" },
+];
+const quality = { date: new Date().toISOString().slice(0, 10), models: Object.fromEntries(SEARCH_MODELS.map((m) => [m.key, m.name])), queries: evalSet.queries.length, languages: {} };
 const searchFailures = [];
 mkdirSync(join(out, "search"), { recursive: true });
+const browserBytes = (model) => {
+  if (!runtime || model.assets.some((x) => runtime.manifest.assets[x] === undefined)) return null;
+  return runtime.estimate("import numpy").bytes + model.assets.reduce((n, x) => n + runtime.manifest.assets[x], 0);
+};
 for (const lang of LANGS) {
   const chunks = askChunks[lang];
   const hash = createHash("sha1").update(JSON.stringify(chunks.map((c) => `${c.title}. ${c.heading}\n${c.text}`))).digest("hex").slice(0, 12);
-  const meta = readJson(join(searchCache, `${lang}-vectors.json`));
-  let vectors = null;
-  let vectorFile = null;
-  if (meta && meta.hash === hash) {
-    vectorFile = `search/${lang}-vectors-${hash}.bin`;
-    copyFileSync(join(searchCache, `${lang}-vectors.bin`), join(out, vectorFile));
-    files.push(vectorFile);
-    const buf = readFileSync(join(out, vectorFile));
-    vectors = decodeF16(new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2));
-  } else if (requireSemantic) searchFailures.push(`${lang}: chunk vectors are ${meta ? "stale" : "missing"}; run python3 tools/embed_search.py after a build`);
-  const data = { hash, dim: meta ? meta.dim : 384, model: quality.model, vectors: vectorFile ? vectorFile.replace("search/", "") : null, chunks: chunks.map(({ section, url, title, heading, text }) => ({ section, url, title, heading, text })) };
-  emit(`search/${lang}-chunks.json`, JSON.stringify(data));
-
-  const index = makeIndex(data, vectors);
-  const qv = queryVectors && queryVectors[lang];
-  const semantic = Boolean(vectors && qv && evalSet.queries.every((q) => qv[q[lang]]));
-  if (vectors && !semantic && requireSemantic) searchFailures.push(`${lang}: query vectors are missing for the evaluation set`);
+  const lexicalIndex = makeIndex({ chunks }, null);
+  const expectFor = (q) => new Set(q.expect.map(([key, heading]) => {
+    const enList = askSections[DEFAULT_LANG].get(key);
+    if (!enList) throw new Error(`search-eval: unknown page ${key}`);
+    const i = enList.findIndex((x) => x.heading === heading);
+    if (i < 0) throw new Error(`search-eval: ${key} has no section "${heading}"`);
+    const list = askSections[lang].get(key);
+    if (list.length !== enList.length) throw new Error(`search-eval: ${lang}/${key} has ${list.length} sections, English has ${enList.length}`);
+    return list[i].section;
+  }));
+  const rankOf = (list, expect) => list.slice(0, 10).findIndex((x) => expect.has(x.section)) + 1;
+  const top = (list) => (list && list[0] ? chunks[list[0].chunk].heading : "");
   const rows = evalSet.queries.map((q) => {
-    const expect = new Set(q.expect.map(([key, heading]) => {
-      const enList = askSections[DEFAULT_LANG].get(key);
-      if (!enList) throw new Error(`search-eval: unknown page ${key}`);
-      const i = enList.findIndex((x) => x.heading === heading);
-      if (i < 0) throw new Error(`search-eval: ${key} has no section "${heading}"`);
-      const list = askSections[lang].get(key);
-      if (list.length !== enList.length) throw new Error(`search-eval: ${lang}/${key} has ${list.length} sections, English has ${enList.length}`);
-      return list[i].section;
-    }));
-    const r = search(index, q[lang], semantic ? qv[q[lang]] : null);
-    const rankOf = (list) => (list ? list.slice(0, 10).findIndex((x) => expect.has(x.section)) + 1 : null);
-    const ranks = semantic ? { bm25: rankOf(r.lexical), vector: rankOf(r.semantic), hybrid: rankOf(r.results) } : { bm25: rankOf(r.results) };
-    const top = (list) => list && list[0] ? chunks[list[0].chunk].heading : "";
-    return { query: q[lang], expect: [...expect].map((sec) => { const c = chunks.find((x) => x.section === sec); return `${c.title} › ${c.heading}`; }), ranks, top: semantic ? { bm25: top(r.lexical), vector: top(r.semantic), hybrid: top(r.results) } : { bm25: top(r.results) } };
+    const expect = expectFor(q);
+    const r = search(lexicalIndex, q[lang]);
+    return { query: q[lang], expectSet: expect, expect: [...expect].map((sec) => { const c = chunks.find((x) => x.section === sec); return `${c.title} › ${c.heading}`; }), ranks: { bm25: rankOf(r.results, expect) }, top: { bm25: top(r.results) } };
   });
+  const loaded = [];
+  for (const model of SEARCH_MODELS) {
+    const meta = readJson(join(searchCache, `${lang}-${model.key}-vectors.json`));
+    const qv = queryVectors && queryVectors[model.key] && queryVectors[model.key][lang];
+    if (!meta || meta.hash !== hash || !qv || !evalSet.queries.every((q) => qv[q[lang]])) {
+      if (requireSemantic) searchFailures.push(`${lang} ${model.key}: chunk or query vectors are ${meta ? "stale" : "missing"}; run python3 tools/embed_search.py after a build`);
+      continue;
+    }
+    const buf = readFileSync(join(searchCache, `${lang}-${model.key}-vectors.bin`));
+    const vectors = decodeF16(new Uint16Array(buf.buffer, buf.byteOffset, buf.length / 2));
+    const index = makeIndex({ chunks, dim: meta.dim }, vectors);
+    evalSet.queries.forEach((q, i) => {
+      const r = search(index, q[lang], qv[q[lang]]);
+      rows[i].ranks[model.vector] = rankOf(r.semantic, rows[i].expectSet);
+      rows[i].ranks[model.hybrid] = rankOf(r.results, rows[i].expectSet);
+      rows[i].top[model.vector] = top(r.semantic);
+      rows[i].top[model.hybrid] = top(r.results);
+    });
+    loaded.push({ model, meta, buf });
+  }
+  rows.forEach((r) => delete r.expectSet);
   const modes = Object.keys(rows[0] ? rows[0].ranks : { bm25: 0 });
   const result = Object.fromEntries(modes.map((m) => [m, metrics(rows.map((x) => x.ranks[m]))]));
-  quality.languages[lang] = { chunks: chunks.length, sections: new Set(chunks.map((c) => c.section)).size, semantic, metrics: result, rows };
+  const shippable = loaded.filter((x) => browserBytes(x.model) !== null);
+  const chosen = shippable.reduce((best, x) => (!best || result[x.model.hybrid].mrr > result[best.model.hybrid].mrr + 1e-9 ? x : best), null);
+  let vectorFile = null;
+  if (chosen) {
+    vectorFile = `search/${lang}-${chosen.model.key}-${hash}.bin`;
+    writeFileSync(join(out, vectorFile), chosen.buf);
+    files.push(vectorFile);
+  }
+  const data = { hash, dim: chosen ? chosen.meta.dim : 384, vectors: vectorFile ? vectorFile.replace("search/", "") : null, model: chosen ? { key: chosen.model.key, name: chosen.model.name, label: chosen.model.label, query: chosen.model.query, assets: chosen.model.assets, bytes: browserBytes(chosen.model) } : null, chunks: chunks.map(({ section, url, title, heading, text }) => ({ section, url, title, heading, text })) };
+  emit(`search/${lang}-chunks.json`, JSON.stringify(data));
+  quality.languages[lang] = { chunks: chunks.length, sections: new Set(chunks.map((c) => c.section)).size, semantic: loaded.length > 0, shipped: chosen ? chosen.model.key : null, shippedMode: chosen ? chosen.model.hybrid : "bm25", metrics: result, rows };
   const limits = (evalSet.thresholds || {})[lang] || {};
   for (const [mode, lim] of Object.entries(limits)) {
     if (!result[mode]) continue;
     for (const [k, v] of Object.entries(lim)) if (result[mode][k] + 1e-9 < v) searchFailures.push(`${lang} ${mode} ${k} = ${result[mode][k].toFixed(3)}, below the threshold ${v}`);
   }
-  console.log(`Ask the course (${lang}): ${chunks.length} chunks, ${modes.map((m) => `${m} hit@1 ${result[m].hit1.toFixed(2)} hit@3 ${result[m].hit3.toFixed(2)} MRR ${result[m].mrr.toFixed(2)}`).join("; ")}`);
+  console.log(`Ask the course (${lang}): ${chunks.length} chunks, ${modes.map((m) => `${m} hit@1 ${result[m].hit1.toFixed(2)} hit@3 ${result[m].hit3.toFixed(2)} MRR ${result[m].mrr.toFixed(2)}`).join("; ")}${chosen ? `; ships ${chosen.model.key}` : ""}`);
 }
 quality.claims = { verified: claimTotals.ok, lessons: claimTotals.lessons };
-quality.runtime = runtime && runtime.outputsMeta ? { date: runtime.outputsMeta.date, python: runtime.outputsMeta.python, checks: runtime.outputsMeta.checks, minilm: runtime.minilm } : null;
+quality.runtime = runtime && runtime.outputsMeta ? { date: runtime.outputsMeta.date, python: runtime.outputsMeta.python, checks: runtime.outputsMeta.checks, minilm: runtime.minilm, e5: runtime.e5 } : null;
 emit("quality.json", JSON.stringify(quality));
 const pct = (x) => (x * 100).toFixed(0) + "%";
 const qval = (path) => {
@@ -785,7 +808,7 @@ for (const lang of LANGS) {
     const modes = Object.keys(q.metrics);
     const rows = modes.map((m) => `<tr><th scope="row">${modeName(m)}</th>${["hit1", "hit3", "mrr"].map((k) => `<td><span class="qcell">${k === "mrr" ? q.metrics[m][k].toFixed(2) : pct(q.metrics[m][k])}${bar(q.metrics[m][k])}</span></td>`).join("")}</tr>`).join("");
     const detail = q.rows.map((r) => `<tr><td>${esc(r.query)}</td><td>${r.expect.map(esc).join("<br>")}</td>${modes.map((m) => `<td class="num">${r.ranks[m] ? r.ranks[m] : "—"}</td>`).join("")}</tr>`).join("");
-    return `<section class="group-card" aria-labelledby="q-${l}-h"><h3 id="q-${l}-h">${dict[l]["lang.name"]}</h3><p class="hint">${t(L, "q.search.counts", { chunks: q.chunks, sections: q.sections })}${q.semantic ? "" : " " + t(L, "q.search.noSemantic")}</p>
+    return `<section class="group-card" aria-labelledby="q-${l}-h"><h3 id="q-${l}-h">${dict[l]["lang.name"]}</h3><p class="hint">${t(L, "q.search.counts", { chunks: q.chunks, sections: q.sections })}${q.semantic ? "" : " " + t(L, "q.search.noSemantic")}${q.shipped ? " " + t(L, "q.search.shipped", { mode: modeName(q.shippedMode) }) : ""}</p>
 <div class="table-wrap" tabindex="0"><table class="qtable"><thead><tr><th scope="col">${t(L, "q.mode")}</th><th scope="col">hit@1</th><th scope="col">hit@3</th><th scope="col">MRR</th></tr></thead><tbody>${rows}</tbody></table></div>
 <details class="qdetail"><summary>${t(L, "q.search.perQuery", { n: q.rows.length })}</summary><div class="table-wrap" tabindex="0"><table><thead><tr><th scope="col">${t(L, "q.query")}</th><th scope="col">${t(L, "q.expected")}</th>${modes.map((m) => `<th scope="col" class="num">${modeName(m)}</th>`).join("")}</tr></thead><tbody>${detail}</tbody></table></div><p class="hint">${t(L, "q.rankHint")}</p></details></section>`;
   }).join("");
@@ -797,19 +820,19 @@ for (const lang of LANGS) {
 <h1>${t(L, "q.title")}</h1>
 <p class="lede">${t(L, "q.lede")}</p>
 <div class="stat-row">
-<div class="card stat"><span>${t(L, "q.stat.search")}</span><strong>${qval(`${lang}.${quality.languages[lang].semantic ? "hybrid" : "bm25"}.hit3`)}</strong><small>${t(L, "q.stat.search.hint", { mode: modeName(quality.languages[lang].semantic ? "hybrid" : "bm25"), n: quality.queries })}</small></div>
+<div class="card stat"><span>${t(L, "q.stat.search")}</span><strong>${qval(`${lang}.${quality.languages[lang].shippedMode}.hit3`)}</strong><small>${t(L, "q.stat.search.hint", { mode: modeName(quality.languages[lang].shippedMode), n: quality.queries })}</small></div>
 <div class="card stat"><span>${t(L, "q.stat.claims")}</span><strong>${quality.claims.verified}</strong><small>${t(L, "q.stat.claims.hint", { n: quality.claims.lessons })}</small></div>
 ${rt && rt.minilm ? `<div class="card stat"><span>${t(L, "q.stat.minilm")}</span><strong>${rt.minilm.max_cosine_difference.toFixed(4)}</strong><small>${t(L, "q.stat.minilm.hint")}</small></div>` : ""}
 </div>
 <section id="search-quality" aria-labelledby="sq-h"><h2 id="sq-h">${t(L, "q.search")}</h2><p>${t(L, "q.search.body")}</p>${langBlocks}<p class="hint">${t(L, "q.search.gate")}</p></section>
 <section id="claims" aria-labelledby="cl-h"><h2 id="cl-h">${t(L, "q.claims")}</h2><p>${t(L, "q.claims.body", { n: quality.claims.verified, lessons: quality.claims.lessons })}</p></section>
-${rt ? `<section id="parity" aria-labelledby="pa-h"><h2 id="pa-h">${t(L, "q.parity")}</h2><p>${t(L, "q.parity.body", { python: rt.python, date: rt.date })}</p><div class="table-wrap" tabindex="0"><table><thead><tr><th scope="col">${t(L, "q.parity.script")}</th><th scope="col">${t(L, "q.parity.result")}</th></tr></thead><tbody>${parity}</tbody></table></div>${rt.minilm ? `<p>${t(L, "q.minilm.body", { d: rt.minilm.max_cosine_difference.toFixed(5), w: rt.minilm.weights })}</p>` : ""}</section>` : `<p class="notice">${t(L, "q.noRuntime")}</p>`}
+${rt ? `<section id="parity" aria-labelledby="pa-h"><h2 id="pa-h">${t(L, "q.parity")}</h2><p>${t(L, "q.parity.body", { python: rt.python, date: rt.date })}</p><div class="table-wrap" tabindex="0"><table><thead><tr><th scope="col">${t(L, "q.parity.script")}</th><th scope="col">${t(L, "q.parity.result")}</th></tr></thead><tbody>${parity}</tbody></table></div>${rt.minilm ? `<p>${t(L, "q.minilm.body", { d: rt.minilm.max_cosine_difference.toFixed(5), w: rt.minilm.weights })}</p>` : ""}${rt.e5 ? `<p>${t(L, "q.e5.body", { d: rt.e5.max_cosine_difference.toFixed(5), w: rt.e5.weights, v: rt.e5.vocab_size, exact: rt.e5.tokenizer_exact, n: rt.e5.tokenizer_checked })}</p>` : ""}</section>` : `<p class="notice">${t(L, "q.noRuntime")}</p>`}
 <p><a href="case-study.html">${t(L, "q.caseStudy")}</a> · <a href="${REPO}/blob/${BRANCH}/tests/search-eval.json" rel="noopener">${t(L, "q.evalSet")}</a></p>
 </main>`;
   emit(outPath(lang, name), page({ lang, name, title: t(L, "q.title"), desc: t(L, "q.lede"), body, kind: "quality", ogType: "website" }));
 
   const csFile = join(src, "pages", lang === DEFAULT_LANG ? "case-study.md" : `${lang}/case-study.md`);
-  const cs = parseFront(readFileSync(csFile, "utf8").replace(/\{\{q:([\w.]+)\}\}/g, (_, k) => k === "claims" ? String(quality.claims.verified) : k === "minilm" ? (rt && rt.minilm ? rt.minilm.max_cosine_difference.toFixed(4) : "n/a") : k === "queries" ? String(quality.queries) : qval(k)), csFile);
+  const cs = parseFront(readFileSync(csFile, "utf8").replace(/\{\{q:([\w.-]+)\}\}/g, (_, k) => k === "claims" ? String(quality.claims.verified) : k === "minilm" ? (rt && rt.minilm ? rt.minilm.max_cosine_difference.toFixed(4) : "n/a") : k === "queries" ? String(quality.queries) : /\.shipped$/.test(k) ? (quality.languages[k.split(".")[0]].shipped ? modeName(quality.languages[k.split(".")[0]].shippedMode) : modeName("bm25")) : qval(k)), csFile);
   const { html: csHtml, toc: csToc } = render(cs.body, L);
   const csName = "case-study.html";
   const csBody = `<div class="layout"><aside class="side">${tocHtml(csToc, L)}</aside><main id="content" class="main lesson note case-study" tabindex="-1">

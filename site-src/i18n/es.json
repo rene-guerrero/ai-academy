@@ -291,8 +291,8 @@
   "ask.try": "Prueba:",
   "ask.none": "Ninguna sección coincide. Prueba otras palabras o añade significado.",
   "ask.done.bm25": "Búsqueda por palabras clave (BM25), {ms} ms.",
-  "ask.done.hybrid": "BM25 y MiniLM combinados con fusión por rango recíproco, {ms} ms.",
-  "ask.hybrid.hint": "La búsqueda por significado descarga el modelo MiniLM una vez ({size}) y luego funciona sin conexión.",
+  "ask.done.hybrid": "BM25 y {model} combinados con fusión por rango recíproco, {ms} ms.",
+  "ask.hybrid.hint": "La búsqueda por significado descarga el modelo {model} una vez ({size}) y luego funciona sin conexión.",
   "ask.hybrid.unavailable": "La búsqueda por significado no está disponible en este navegador o compilación. Se muestran resultados por palabras clave.",
   "ask.hybrid.failed": "No se pudo cargar el modelo. Se muestran resultados por palabras clave.",
   "ask.why.keywords": "palabras #{n}",
@@ -312,9 +312,9 @@
   "q.mode": "Modo",
   "q.mode.bm25": "Palabras clave (BM25)",
   "q.mode.vector": "Significado (MiniLM)",
-  "q.mode.hybrid": "Híbrido (RRF)",
+  "q.mode.hybrid": "Híbrido, MiniLM",
   "q.search": "Pregunta al curso",
-  "q.search.body": "Un conjunto etiquetado de preguntas reales, cada una asociada a la sección que la responde. La recuperación se puntúa por sección: hit@1 es la proporción de preguntas cuya respuesta queda primera, hit@3 entre las tres primeras y MRR la media de 1/rango (0 por debajo del puesto 10). En español se usan las mismas preguntas traducidas, contra las lecciones en español.",
+  "q.search.body": "Un conjunto etiquetado de preguntas reales, cada una asociada a la sección que la responde. La recuperación se puntúa por sección: hit@1 es la proporción de preguntas cuya respuesta queda primera, hit@3 entre las tres primeras y MRR la media de 1/rango (0 por debajo del puesto 10). En español se usan las mismas preguntas traducidas, contra las lecciones en español. Se miden dos modelos de embeddings: all-MiniLM-L6-v2, entrenado en inglés, y multilingual-e5-small.",
   "q.search.counts": "{chunks} fragmentos en {sections} secciones.",
   "q.search.noSemantic": "Los modos de significado e híbrido no se midieron en esta compilación (sin embeddings).",
   "q.search.perQuery": "Todas las preguntas ({n})",
@@ -343,5 +343,9 @@
   "home.built.q": "Calidad medida",
   "home.built.q.sum": "Métricas de búsqueda, afirmaciones verificadas y paridad entre el navegador y Python.",
   "q.parity.zero": "Cada número impreso coincide con Python real",
-  "home.map": "Cada sección del curso, colocada según su significado. Arrástralo para girarlo; pulsa un punto para abrir esa sección."
+  "home.map": "Cada sección del curso, colocada según su significado. Arrástralo para girarlo; pulsa un punto para abrir esa sección.",
+  "q.mode.e5": "Significado (E5 multilingüe)",
+  "q.mode.hybrid-e5": "Híbrido, E5",
+  "q.search.shipped": "El sitio publica {mode}, el mejor MRR híbrido cuyo modelo funciona en el navegador.",
+  "q.e5.body": "Para la búsqueda por significado el navegador también puede ejecutar una implementación en NumPy de multilingual-e5-small (pesos {w}, vocabulario recortado a {v} piezas de escritura latina). Su tokenizador SentencePiece coincidió exactamente con Hugging Face en {exact} de {n} frases de control, y su mayor diferencia de similitud coseno frente a PyTorch es {d}; la CI falla por encima de 0,01."
 }

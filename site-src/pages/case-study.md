@@ -58,14 +58,18 @@ It has a labeled set of {{q:queries}} questions per language, each mapped to the
 | Keywords (BM25) | {{q:en.bm25.hit1}} | {{q:en.bm25.hit3}} | {{q:en.bm25.mrr}} |
 | Meaning (MiniLM) | {{q:en.vector.hit1}} | {{q:en.vector.hit3}} | {{q:en.vector.mrr}} |
 | Hybrid (RRF) | {{q:en.hybrid.hit1}} | {{q:en.hybrid.hit3}} | {{q:en.hybrid.mrr}} |
+| Meaning (multilingual E5) | {{q:en.e5.hit1}} | {{q:en.e5.hit3}} | {{q:en.e5.mrr}} |
+| Hybrid, E5 (RRF) | {{q:en.hybrid-e5.hit1}} | {{q:en.hybrid-e5.hit3}} | {{q:en.hybrid-e5.mrr}} |
 
 | Spanish | hit@1 | hit@3 | MRR |
 |---|---|---|---|
 | Keywords (BM25) | {{q:es.bm25.hit1}} | {{q:es.bm25.hit3}} | {{q:es.bm25.mrr}} |
 | Meaning (MiniLM) | {{q:es.vector.hit1}} | {{q:es.vector.hit3}} | {{q:es.vector.mrr}} |
 | Hybrid (RRF) | {{q:es.hybrid.hit1}} | {{q:es.hybrid.hit3}} | {{q:es.hybrid.mrr}} |
+| Meaning (multilingual E5) | {{q:es.e5.hit1}} | {{q:es.e5.hit3}} | {{q:es.e5.mrr}} |
+| Hybrid, E5 (RRF) | {{q:es.hybrid-e5.hit1}} | {{q:es.hybrid-e5.hit3}} | {{q:es.hybrid-e5.mrr}} |
 
-These tables are filled by the build, so they are the numbers of the deployed version. all-MiniLM-L6-v2 was trained on English. In English, meaning search finds what keywords miss; in Spanish the same model is weak, and fusing it in can rank below keywords alone. That is why keywords stay the default, and why the next step below is a multilingual model measured against the same questions.
+These tables are filled by the build, so they are the numbers of the deployed version. all-MiniLM-L6-v2 was trained on English; multilingual-e5-small is built on a multilingual encoder. Running E5 in the browser needed a second piece of work: a SentencePiece Unigram tokenizer in pure Python, checked token for token against Hugging Face in CI, and a vocabulary trimmed to Latin-script pieces so the download stays reasonable. For each language the build ships the model with the best hybrid MRR whose browser version passed its accuracy check, and only that model's vectors: {{q:en.shipped}} in English, {{q:es.shipped}} in Spanish. Keywords stay the default mode; meaning is one tap away.
 
 ## Learning features that use the same machinery
 
@@ -77,5 +81,5 @@ These tables are filled by the build, so they are the numbers of the deployed ve
 ## What I would do next
 
 - Grow the evaluation set from real reader questions, with a review step before a question becomes a label.
-- Add a multilingual embedding model as a third mode and let the quality page decide whether it earns its download.
+- Rerank the top results with a small cross-encoder and let the quality page decide whether it earns its latency.
 - Replace the runtime Mermaid bundle with diagrams rendered at build time.

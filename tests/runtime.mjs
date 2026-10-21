@@ -107,6 +107,20 @@ if (chunks.vectors) {
   check("hybrid search finds a training section", top.some((h) => /^ai-engineering\/(05-training-and-generation|16-small-network-from-scratch)\.html#/.test(h)), top.join(", "));
   check("hybrid results explain both rankings", /meaning #/.test(await page.textContent("#ask-results")));
 } else check("search vectors shipped in this build", false, "dist/search/en-chunks.json has no vectors");
+const chunksEs = JSON.parse(readFileSync(join(dist, "search", "es-chunks.json"), "utf8"));
+if (chunksEs.vectors) {
+  const fresh = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const es = await fresh.newPage();
+  es.on("pageerror", (e) => errors.push(String(e)));
+  await es.goto(`${base}es/index.html`);
+  await es.click('[data-ask-mode="hybrid"]');
+  await es.fill("#ask-input", "por qué la pérdida nunca llega a cero");
+  await es.waitForFunction(() => /rango recíproco|no está disponible|No se pudo/.test(document.querySelector(".ask-status").textContent), null, { timeout: 240000 });
+  check(`Spanish hybrid search runs ${chunksEs.model.label} in the browser`, /rango recíproco/.test(await es.textContent(".ask-status")), await es.textContent(".ask-status"));
+  check("Spanish hybrid results explain both rankings", /significado #/.test(await es.textContent("#ask-results")));
+  console.log(`runtime: Spanish meaning search ships ${chunksEs.model.key}`);
+  await fresh.close();
+}
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 server.close();

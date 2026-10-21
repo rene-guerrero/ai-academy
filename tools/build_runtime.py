@@ -15,6 +15,8 @@ SHIMS = ROOT / "site-src" / "runtime" / "shims"
 PYODIDE = ROOT / "node_modules" / "pyodide"
 NEEDED = ["numpy", "regex"]
 MINILM_TOLERANCE = 0.005
+E5_TOLERANCE = 0.01
+E5_MODEL = "intfloat/multilingual-e5-small"
 
 
 def log(msg):
@@ -148,6 +150,98 @@ def minilm():
     (assets / "minilm.json").write_text(json.dumps(meta))
 
 
+def latin(piece):
+    return all(ord(ch) < 0x250 or 0x2000 <= ord(ch) <= 0x206F or 0x20A0 <= ord(ch) <= 0x20CF or ch == "\u2581" for ch in piece)
+
+
+def e5_sentences():
+    found = list(sentences_for_check())
+    for md in sorted((ROOT / "courses").glob("*/lessons-md/**/*.md")):
+        text = md.read_text(encoding="utf-8").split("\n---", 2)[-1]
+        paragraphs = [p.strip().replace("\n", " ") for p in text.split("\n\n") if p.strip() and not p.startswith(("```", "|", "#", ":::", "<", "P:", "Q:", "A:"))]
+        found.extend("passage: " + p[:400] for p in paragraphs[:4])
+    queries = json.loads((ROOT / "tests" / "search-eval.json").read_text(encoding="utf-8"))["queries"]
+    for q in queries:
+        found.extend(["query: " + q["en"], "query: " + q["es"]])
+    seen = []
+    for s in found:
+        if s not in seen:
+            seen.append(s)
+    return seen
+
+
+def e5():
+    import numpy as np
+    from sentence_transformers import SentenceTransformer as RealModel
+
+    real = RealModel(E5_MODEL, device="cpu")
+    model = real[0].auto_model
+    config = model.config
+    weights = {k: v.detach().cpu().float().numpy() for k, v in model.state_dict().items() if not k.startswith("pooler.") and v.is_floating_point()}
+    weights = {k.removeprefix("roberta.").removeprefix("bert."): v for k, v in weights.items()}
+    tok = real.tokenizer
+    spec = json.loads(tok.backend_tokenizer.to_str())["model"]
+    vocab = spec["vocab"]
+    special = {tok.bos_token_id, tok.eos_token_id, tok.pad_token_id, tok.unk_token_id}
+    assets = OUT / "assets"
+    assets.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "hidden_size": config.hidden_size,
+        "num_hidden_layers": config.num_hidden_layers,
+        "num_attention_heads": config.num_attention_heads,
+        "intermediate_size": config.intermediate_size,
+        "layer_norm_eps": config.layer_norm_eps,
+        "max_seq_length": min(512, real.max_seq_length),
+        "normalize": True,
+        "tokenizer": "unigram",
+        "position_offset": int(config.pad_token_id) + 1,
+    }
+    sentences = e5_sentences()
+    reference = real.encode(sentences, normalize_embeddings=True, batch_size=32)
+    sims_ref = reference @ reference.T
+    os.environ["AIA_ASSETS"] = str(assets)
+    import importlib.util
+
+    spec_mod = importlib.util.spec_from_file_location("aia_sentence_transformers_e5", SHIMS / "sentence_transformers.py")
+    shim = importlib.util.module_from_spec(spec_mod)
+    spec_mod.loader.exec_module(shim)
+    latin_ids = [i for i, (piece, _) in enumerate(vocab) if i not in special and latin(piece)]
+    by_score = sorted(latin_ids, key=lambda i: -vocab[i][1])
+    short = {i for i in latin_ids if len(vocab[i][0]) <= 2}
+    log(f"multilingual-e5-small: {len(vocab)} pieces, {len(latin_ids)} Latin-script")
+
+    def write(keep, mode):
+        keep = sorted(set(keep) | special)
+        remap = {old: new for new, old in enumerate(keep)}
+        pruned = dict(weights)
+        pruned["embeddings.word_embeddings.weight"] = weights["embeddings.word_embeddings.weight"][keep]
+        (assets / "e5-vocab.json").write_text(json.dumps({"vocab": [vocab[i] for i in keep], "unk": remap[tok.unk_token_id], "bos": remap[tok.bos_token_id], "eos": remap[tok.eos_token_id], "pad": remap[tok.pad_token_id]}, ensure_ascii=False), encoding="utf-8")
+        (assets / "e5.json").write_text(json.dumps(meta))
+        np.savez_compressed(assets / "e5.npz", **quantize(pruned, mode))
+        return len(keep), sum((assets / f).stat().st_size for f in ("e5.npz", "e5-vocab.json"))
+
+    write(range(len(vocab)), "fp16")
+    full = shim._Unigram(str(assets / "e5-vocab.json"))
+    mismatched = [s for s in sentences if full.encode(s, meta["max_seq_length"]) != tok(s, truncation=True, max_length=meta["max_seq_length"])["input_ids"]]
+    log(f"Unigram tokenizer: {len(sentences) - len(mismatched)}/{len(sentences)} sentences tokenized exactly like Hugging Face")
+    for s in mismatched[:3]:
+        log(f"  mismatch: {s[:80]!r}")
+    best = None
+    for limit, mode in ((30000, "int8"), (30000, "mixed"), (60000, "mixed"), (None, "mixed"), (None, "fp16")):
+        keep = set(by_score[:limit] if limit else latin_ids) | short
+        count, size = write(keep, mode)
+        ours = shim.SentenceTransformer(E5_MODEL).encode(sentences, normalize_embeddings=True, batch_size=32)
+        diff = float(np.abs(sims_ref - ours @ ours.T).max())
+        log(f"e5 {mode}, {count} pieces: {size // 1024} KB, max cosine difference {diff:.5f} over {len(sentences)} sentences")
+        best = (mode, count, diff)
+        if diff <= E5_TOLERANCE:
+            break
+    if best[2] > E5_TOLERANCE:
+        raise SystemExit(f"The NumPy multilingual-e5-small differs from PyTorch by {best[2]:.4f}, above {E5_TOLERANCE}")
+    meta.update({"weights": best[0], "vocab_size": best[1], "max_cosine_difference": round(best[2], 6), "tokenizer_exact": len(sentences) - len(mismatched), "tokenizer_checked": len(sentences)})
+    (assets / "e5.json").write_text(json.dumps(meta))
+
+
 def sentences_for_check():
     found = []
     for script in sorted((ROOT / "courses").glob("*/exercises/*.py")):
@@ -211,13 +305,15 @@ def record_outputs():
 
 
 def main():
-    steps = sys.argv[1:] or ["wheels", "vocab", "minilm", "outputs"]
+    steps = sys.argv[1:] or ["wheels", "vocab", "minilm", "e5", "outputs"]
     if "wheels" in steps:
         pyodide_wheels()
     if "vocab" in steps:
         tiktoken_vocab()
     if "minilm" in steps:
         minilm()
+    if "e5" in steps:
+        e5()
     if "outputs" in steps:
         record_outputs()
     log("done")

@@ -39,7 +39,7 @@
     var id = ++this.seq;
     return new Promise(function (resolve, reject) {
       self.pending[id] = { resolve: resolve, reject: reject };
-      self._ensure().postMessage({ type: "eval", id: id, code: code, persist: Boolean(opts && opts.persist) });
+      self._ensure().postMessage({ type: "eval", id: id, code: code, persist: Boolean(opts && opts.persist), assets: (opts && opts.assets) || [] });
     });
   };
   Client.prototype.stop = function () {

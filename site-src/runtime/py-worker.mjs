@@ -69,7 +69,7 @@ function findImports(code) {
   return list;
 }
 
-async function prepare(code) {
+async function prepare(code, extra = []) {
   const m = await getManifest();
   const imports = findImports(code);
   const packages = new Set();
@@ -86,6 +86,10 @@ async function prepare(code) {
   }
   for (const name of imports) {
     if (SHIMS[name] && SHIMS[name].assets.some((a) => !m.assets[a])) throw new Error(`MISSING:${name}`);
+  }
+  for (const a of extra) {
+    if (!m.assets[a]) throw new Error(`MISSING:${a}`);
+    assets.push(a);
   }
   if (packages.size) {
     post("phase", { phase: "packages", names: [...packages].join(", ") });
@@ -111,7 +115,7 @@ self.onmessage = async (event) => {
   if (msg.type === "eval") {
     try {
       await ensurePyodide();
-      await prepare(msg.code);
+      await prepare(msg.code, msg.assets || []);
       pyodide.setStdout({ batched: (text) => post("stdout", { text, id: msg.id }) });
       pyodide.setStderr({ batched: (text) => post("stderr", { text, id: msg.id }) });
       const globals = msg.persist ? pyodide.globals : pyodide.globals.get("dict")();
