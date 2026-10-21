@@ -361,7 +361,28 @@ const ICON = {
   bookmark: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.4-6 4.4z"/></svg>',
   chevron: '<svg aria-hidden="true" viewBox="0 0 24 24" class="chev"><path d="m9 6 6 6-6 6"/></svg>',
   back: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+  bell: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
+  sidebar: '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>',
 };
+
+function courseNav(lang, name, currentKey) {
+  const L = lang;
+  const base = relPrefix(lang, name) + langPrefix(lang);
+  const inLesson = Boolean(currentKey) && courses.some((c) => c.lessons.some((l) => l.key === currentKey));
+  const item = (href, label, num, key, current) => `<li><a class="nav-item" href="${href}"${key ? ` data-key="${key}"` : ""}${current ? ' aria-current="page"' : ""}><span class="nav-state" aria-hidden="true"></span>${num !== null ? `<span class="nav-n">${num}</span>` : ""}<span class="nav-t">${esc(label)}</span></a></li>`;
+  const groups = courses.map((c) => {
+    const title = c.meta.title[lang] || c.meta.title.en;
+    const tracks = c.meta.tracks.filter((tr) => c.lessons.some((l) => l.track === tr.key)).map((tr) => {
+      const items = c.lessons.filter((l) => l.track === tr.key);
+      const open = !inLesson || items.some((l) => l.key === currentKey);
+      return `<details class="nav-group"${open ? " open" : ""}><summary><span class="nav-letter" aria-hidden="true">${tr.key}</span><span class="nav-group-title">${esc(tr.name[lang])}</span><span class="nav-count" data-track-count="${c.id}:${tr.key}">${items.length}</span></summary><ol>${items.map((l) => item(`${base}${c.id}/${l.slug}.html`, pick(l, lang).data.title, l.n, l.key, l.key === currentKey)).join("")}</ol></details>`;
+    }).join("");
+    const extras = [...(c.meta.labs || []).map((lab) => item(`${base}${c.id}/lab-${lab.id}.html`, lab.title[lang], null, "", currentKey === `${c.id}/lab-${lab.id}`)), ...c.notes.map((nt) => item(`${base}${c.id}/note-${nt.slug}.html`, pick(nt, lang).data.title, null, "", currentKey === nt.key))];
+    const more = extras.length ? `<details class="nav-group"${!inLesson ? " open" : ""}><summary><span class="nav-letter" aria-hidden="true">+</span><span class="nav-group-title">${t(L, "nav.more")}</span></summary><ol>${extras.join("")}</ol></details>` : "";
+    return `<div class="nav-course"><a class="nav-course-title" href="${base}${c.id}/index.html">${esc(title)}</a><p class="nav-progress" data-nav-progress="${c.id}"></p>${tracks}${more}</div>`;
+  }).join("");
+  return `<nav class="course-nav" id="course-nav" aria-label="${attr(t(L, "nav.outline"))}"><div class="nav-head"><a class="nav-home" href="${base}index.html">${t(L, "nav.home")}</a><button type="button" class="nav-hide" data-nav-toggle aria-controls="course-nav" aria-expanded="true" aria-label="${attr(t(L, "nav.hide"))}" title="${attr(t(L, "nav.hide"))}">${ICON.sidebar}</button></div>${groups}</nav>`;
+}
 
 function ring(key, size = 44) {
   const r = (size - 6) / 2;
@@ -376,7 +397,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
   const L = lang;
   const pageData = { lang, kind, slug, course, name, rel, alt, ...extra };
   const tools = `<nav class="tools" aria-label="${attr(t(L, "nav.settings"))}">
-<a class="tool" href="${rel}${langPrefix(lang)}index.html#search" aria-label="${attr(t(L, "nav.search"))}">${ICON.search}</a>
+<button type="button" class="tool" id="remind-btn" hidden aria-label="${attr(t(L, "remind.label"))}" title="${attr(t(L, "remind.label"))}">${ICON.bell}</button><a class="tool" href="${rel}${langPrefix(lang)}index.html#search" aria-label="${attr(t(L, "nav.search"))}">${ICON.search}</a>
 <a class="tool lang" href="${alt}" hreflang="${other}" lang="${other}" data-set-lang="${other}" title="${attr(t(L, "lang.switch"))}" aria-label="${attr(t(L, "lang.switch"))}"><span class="lang-code">${other.toUpperCase()}</span></a>
 <button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" title="${attr(t(L, "nav.settings"))}">${ICON.cloud}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sr" id="sync-label">${t(L, "sync.local")}</span></button>
 </nav>`;
@@ -386,7 +407,9 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
 <form method="dialog" class="sheet-head"><h2 id="account-title">${t(L, "account.title")}</h2><button type="submit" class="sheet-done">${t(L, "sheet.done")}</button></form>
 <div class="sheet-body">
 <section class="group" aria-labelledby="appearance-h"><h3 id="appearance-h">${t(L, "settings.appearance")}</h3><div class="segmented" role="radiogroup" aria-labelledby="appearance-h">${themeButtons}</div><p class="hint">${t(L, "settings.appearance.hint")}</p></section>
+<section class="group" aria-labelledby="textsize-h"><h3 id="textsize-h">${t(L, "settings.textSize")}</h3><div class="segmented" role="radiogroup" aria-labelledby="textsize-h">${["s", "m", "l", "xl"].map((c) => `<button type="button" role="radio" data-font-choice="${c}" aria-checked="${c === "m" ? "true" : "false"}" aria-label="${attr(t(L, `textSize.${c}`))}"><span class="font-sample font-${c}" aria-hidden="true">A</span></button>`).join("")}</div><p class="hint">${t(L, "settings.textSize.hint")}</p></section>
 <section class="group" aria-labelledby="language-h"><h3 id="language-h">${t(L, "settings.language")}</h3><div class="segmented" role="radiogroup" aria-labelledby="language-h">${LANGS.map((l) => l === lang ? `<span role="radio" aria-checked="true" class="seg-on">${dict[l]["lang.name"]}</span>` : `<a role="radio" aria-checked="false" href="${rel + outPath(l, name)}" data-set-lang="${l}" lang="${l}">${dict[l]["lang.name"]}</a>`).join("")}</div></section>
+<section class="group" aria-labelledby="offline-h"><h3 id="offline-h">${t(L, "offline.title")}</h3><div id="offline-body"><p class="hint">${t(L, "offline.unsupported")}</p></div></section>
 <section class="group" aria-labelledby="sync-h"><h3 id="sync-h">${t(L, "settings.sync")}</h3><div id="account-body"></div></section>
 </div>
 </dialog>
@@ -416,12 +439,13 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
     .replace("{{DICT}}", () => JSON.stringify(dict[lang]))
     .replace("{{KIND}}", () => kind)
     .replace("{{SKIP}}", () => t(L, "nav.skip"))
+    .replace("{{NAVSHOW}}", () => `<button type="button" class="tool nav-show" data-nav-toggle aria-controls="course-nav" aria-expanded="true" aria-label="${attr(t(L, "nav.show"))}" title="${attr(t(L, "nav.show"))}">${ICON.sidebar}</button>`)
     .replace("{{TOOLS}}", () => tools)
     .replace("{{DIALOGS}}", () => dialogs)
     .replace("{{FOOTER}}", () => t(L, "site.footer"))
     .replace("{{MERMAID}}", () => hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
     .replace("{{RUNNER}}", () => extra.ask ? `${extra.runtime ? `<script src="${rel}pyclient.js" defer></script>` : ""}<script type="module" src="${rel}ask.js"></script>` : extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
-    .replace("{{BODY}}", () => body);
+    .replace("{{BODY}}", () => (kind === "redirect" ? body : `<div class="app has-nav">${courseNav(lang, name, slug)}<div class="app-content">${body}</div></div>`));
 }
 
 function provenanceHtml(lesson, d, claims, L, lang, course) {
@@ -657,15 +681,19 @@ ${tpl}
 
     const lessonMeta = course.lessons.map((l) => ({ key: l.key, url: `${l.slug}.html`, n: l.n, title: pick(l, lang).data.title, minutes: Number(pick(l, lang).data.minutes || 25), quiz: extractQuiz(pick(l, lang).body).questions.length }));
     const totalMinutes = lessonMeta.reduce((s, l) => s + l.minutes, 0);
-    const courseBody = `<main id="content" class="main home course-page" tabindex="-1">
+    const courseBody = `<main id="content" class="main home course-page has-rail" tabindex="-1">
 <a class="crumb" href="../index.html">${ICON.back}<span>${t(L, "nav.courses")}</span></a>
 <header class="hero course-hero">${ring(C, 64)}<div><p class="eyebrow"><span>${t(L, "course.label")}</span></p><h1>${esc(courseTitle)}</h1><p class="lede">${esc(course.meta.summary[lang])}</p></div></header>
+<div class="rail">
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h" class="sr">${t(L, "home.continue")}</h2>
 <div class="card continue-card"><p class="progress"><span id="progress-text">${t(L, "home.progress", { done: 0, total: lessonMeta.length })}</span><span class="bar" aria-hidden="true"><span id="progress-fill" style="width:0%"></span></span><span class="muted" id="progress-time">${t(L, "home.progress.time", { minutes: totalMinutes })}</span></p><div id="continue-body"></div></div></section>
-<section class="catalog" id="catalog" aria-labelledby="catalog-h"><h2 id="catalog-h">${t(L, "home.catalog")}</h2>
-<div class="catalog-tools"><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
+<section class="catalog-tools-wrap" aria-label="${attr(t(L, "home.search.label"))}"><div class="catalog-tools"><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
 <div class="segmented filters" role="group" aria-label="${attr(t(L, "home.catalog"))}"><button type="button" data-filter="all" aria-pressed="true">${t(L, "home.filter.all")}</button><button type="button" data-filter="todo" aria-pressed="false">${t(L, "home.filter.todo")}</button><button type="button" data-filter="progress" aria-pressed="false">${t(L, "home.filter.progress")}</button><button type="button" data-filter="done" aria-pressed="false">${t(L, "home.filter.done")}</button><button type="button" data-filter="saved" aria-pressed="false">${t(L, "home.filter.saved")}</button></div></div>
 <div class="search-results card" id="search-results" hidden><h3>${t(L, "home.search.sections")}</h3><ul id="search-hits"></ul></div>
+</section>
+</div>
+
+<section class="catalog" id="catalog" aria-labelledby="catalog-h"><h2 id="catalog-h">${t(L, "home.catalog")}</h2>
 <p class="empty" id="filter-empty" hidden>${t(L, "home.filter.empty")}</p>
 ${trackSections}
 </section>
@@ -691,13 +719,11 @@ for (const lang of LANGS) {
     return `<li><a class="row course-row" href="${c.id}/index.html" data-course="${c.id}" data-total="${c.lessons.length}">${ring(c.id, 52)}<span class="txt"><span class="row-title">${esc(title)}</span><span class="row-sum">${esc(c.meta.summary[lang])}</span><span class="row-meta" data-course-progress="${c.id}">${t(L, "course.lessons", { n: c.lessons.length })}${tracks.length ? `<span class="dot" aria-hidden="true"></span>${esc(tracks.join(", "))}` : ""}</span></span>${ICON.chevron}</a></li>`;
   }).join("");
   const first = courses[0] && courses[0].lessons[0];
-  const home = `<main id="content" class="main home" tabindex="-1">
+  const home = `<main id="content" class="main home has-rail" tabindex="-1">
 <header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p>
 <figure class="visual-figure"><div class="visual visual-map" data-visual="cloud" data-map role="group" aria-label="${attr(t(L, "home.map.label"))}"><span class="visual-tip" hidden></span></div><figcaption class="hint">${t(L, "home.map")}</figcaption></figure></header>
+<div class="rail">
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
-<section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
-<section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
-<section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
 <section class="ask" id="ask" aria-labelledby="search-h"><span id="search" class="anchor-target"></span><h2 id="search-h">${t(L, "ask.title")}</h2><p class="hint">${t(L, "ask.hint")}</p>
 <form class="ask-form" role="search"><div class="search"><label for="ask-input" class="sr">${t(L, "ask.label")}</label>${ICON.search}<input id="ask-input" type="search" placeholder="${attr(t(L, "ask.placeholder"))}" autocomplete="off" enterkeyhint="search"></div></form>
 <div class="ask-tools"><div class="segmented" role="radiogroup" aria-label="${attr(t(L, "ask.mode"))}"><button type="button" role="radio" data-ask-mode="bm25" aria-checked="true">${t(L, "ask.mode.bm25")}</button><button type="button" role="radio" data-ask-mode="hybrid" aria-checked="false">${t(L, "ask.mode.hybrid")}</button></div></div>
@@ -706,6 +732,11 @@ for (const lang of LANGS) {
 <div class="runner-progress" hidden><span></span></div>
 <ol class="list ask-results" id="ask-results" aria-live="polite"></ol>
 <p class="hint"><a href="quality.html">${t(L, "ask.quality")}</a></p></section>
+<section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
+</div>
+
+<section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
+<section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="built" id="built" aria-labelledby="built-h"><h2 id="built-h">${t(L, "home.built")}</h2><p class="hint">${t(L, "home.built.hint")}</p><ul class="list"><li><a class="row" href="case-study.html"><span class="txt"><span class="row-title">${t(L, "home.built.cs")}</span><span class="row-sum">${t(L, "home.built.cs.sum")}</span></span>${ICON.chevron}</a></li><li class="get-app"><a class="row" href="${REPO}/releases/latest/download/ai-academy.apk" rel="noopener"><span class="txt"><span class="row-title">${t(L, "home.app")}</span><span class="row-sum">${t(L, "home.app.sum")}</span></span>${ICON.chevron}</a></li><li><a class="row" href="quality.html"><span class="txt"><span class="row-title">${t(L, "home.built.q")}</span><span class="row-sum">${t(L, "home.built.q.sum")}</span></span>${ICON.chevron}</a></li></ul></section>
 <section class="data" id="data" aria-labelledby="data-h"><h2 id="data-h">${t(L, "home.data")}</h2><p class="hint">${t(L, "home.data.hint")}</p><div class="data-actions"><button type="button" class="btn" id="open-account">${t(L, "account.title")}</button><button type="button" class="btn" data-action="export">${t(L, "account.export")}</button><button type="button" class="btn" data-action="export-md">${t(L, "account.exportMd")}</button><label class="btn file"><input type="file" accept="application/json,.json" id="import-file" class="sr">${t(L, "account.import")}</label></div><p class="status" id="data-status" aria-live="polite"></p></section>
 </main>`;
@@ -880,6 +911,8 @@ copyFileSync(join(root, "node_modules/mermaid/dist/mermaid.min.js"), join(out, "
 files.push("vendor/mermaid.min.js");
 buildSync({ entryPoints: [join(src, "visuals", "scenes.mjs")], bundle: true, format: "esm", minify: true, target: "es2020", outfile: join(out, "visuals.js"), legalComments: "none", logLevel: "warning" });
 files.push("visuals.js");
+buildSync({ entryPoints: [join(src, "native", "bridge.mjs")], bundle: true, format: "esm", minify: true, target: "es2020", outfile: join(out, "native.js"), legalComments: "none", logLevel: "warning" });
+files.push("native.js");
 
 const publicConfigFile = join(src, "public-config.json");
 const publicConfig = existsSync(publicConfigFile) ? JSON.parse(readFileSync(publicConfigFile, "utf8")) : {};

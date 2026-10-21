@@ -172,16 +172,166 @@
     $$("[data-theme-choice]").forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-theme-choice") === choice ? "true" : "false"); });
     renderMermaid();
   }
+  function initNav() {
+    var nav = $("#course-nav");
+    if (!nav) return;
+    function apply(hidden) {
+      document.documentElement.classList.toggle("nav-hidden", hidden);
+      $$("[data-nav-toggle]").forEach(function (b) { b.setAttribute("aria-expanded", hidden ? "false" : "true"); });
+    }
+    apply(ls("get", "aia:nav") === "hidden");
+    $$("[data-nav-toggle]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var hidden = !document.documentElement.classList.contains("nav-hidden");
+        if (hidden) ls("set", "aia:nav", "hidden"); else ls("del", "aia:nav");
+        apply(hidden);
+        if (!hidden) { var first = $(".nav-hide"); if (first) first.focus(); } else { var show = $(".nav-show"); if (show) show.focus(); }
+      });
+    });
+    function paint() {
+      var done = {};
+      $$(".nav-item[data-key]", nav).forEach(function (a) {
+        var key = a.getAttribute("data-key");
+        var st = lessonStatus(key, 0);
+        a.setAttribute("data-state", st);
+        var c = key.split("/")[0];
+        done[c] = done[c] || { d: 0, n: 0 };
+        done[c].n++;
+        if (st === "done") done[c].d++;
+      });
+      Object.keys(done).forEach(function (c) {
+        var pEl = nav.querySelector('[data-nav-progress="' + c + '"]');
+        if (pEl) pEl.textContent = t("home.progress", { done: done[c].d, total: done[c].n });
+      });
+    }
+    paint();
+    onChange(paint);
+    var cur = nav.querySelector('[aria-current="page"]');
+    if (cur) nav.scrollTop = Math.max(0, cur.offsetTop - nav.clientHeight / 2);
+  }
+
+  function initOfflineSettings() {
+    var body = $("#offline-body");
+    if (!body || !("caches" in window) || !("serviceWorker" in navigator)) return;
+    var langRoot = new URL(P.rel + (P.lang === "es" ? "es/" : ""), location.href).href;
+    var rt = P.runtime ? new URL(P.runtime.base, location.href).href : null;
+    var pages = null;
+    function pageCache() {
+      return caches.keys().then(function (keys) {
+        var k = keys.filter(function (x) { return x.indexOf("aia-") === 0 && x.indexOf("aia-rt-") !== 0; });
+        return caches.open(k.length ? k[k.length - 1] : "aia-pages");
+      });
+    }
+    function pageList() {
+      if (pages) return Promise.resolve(pages);
+      return fetch(langRoot + "search.json").then(function (r) { return r.json(); }).then(function (j) {
+        var urls = j.map(function (d) { return langRoot + d.url; });
+        var courses = {};
+        j.forEach(function (d) { if (d.course) courses[langRoot + d.course + "/index.html"] = 1; });
+        pages = [langRoot + "index.html"].concat(Object.keys(courses), urls);
+        return pages;
+      });
+    }
+    function runtimeList() {
+      if (!rt) return Promise.resolve([]);
+      return Promise.all([fetch(rt + "manifest.json").then(function (r) { return r.json(); }), fetch(rt + "pyodide/pyodide-lock.json").then(function (r) { return r.json(); })]).then(function (res) {
+        var m = res[0], lock = res[1];
+        var list = ["manifest.json", "py-worker.mjs", "shims/tiktoken.py", "shims/sentence_transformers.py", "pyodide/pyodide.mjs", "pyodide/pyodide.asm.mjs", "pyodide/pyodide.asm.wasm", "pyodide/python_stdlib.zip", "pyodide/pyodide-lock.json"];
+        var seen = {};
+        function addPkg(name) {
+          if (seen[name] || !lock.packages[name]) return;
+          seen[name] = 1;
+          list.push("pyodide/" + lock.packages[name].file_name);
+          (lock.packages[name].depends || []).forEach(addPkg);
+        }
+        m.packages.forEach(addPkg);
+        Object.keys(m.assets).forEach(function (a) { list.push("assets/" + a); });
+        var bytes = m.core + Object.keys(m.assets).reduce(function (n, a) { return n + m.assets[a]; }, 0);
+        return { urls: list.map(function (f) { return rt + f; }), bytes: bytes };
+      });
+    }
+    function countCached(urls, cache) {
+      return Promise.all(urls.map(function (u) { return cache.match(u, { ignoreSearch: true }).then(function (h) { return h ? 1 : 0; }); })).then(function (r) { return r.reduce(function (a, b) { return a + b; }, 0); });
+    }
+    var pagesLine = el("p", { class: "offline-line" });
+    var pagesBtn = el("button", { type: "button", class: "btn", text: t("offline.savePages") });
+    var rtLine = el("p", { class: "offline-line" });
+    var rtBtn = el("button", { type: "button", class: "btn", text: t("offline.saveRuntime") });
+    var bar = el("div", { class: "runner-progress", hidden: "" }, [el("span")]);
+    function paint() {
+      pageList().then(function (urls) {
+        return pageCache().then(function (c) { return countCached(urls, c); }).then(function (n) {
+          var lessonsTotal = urls.length;
+          pagesLine.textContent = n >= lessonsTotal ? t("offline.pagesReady", { n: lessonsTotal }) : t("offline.pagesPartial", { n: n, total: lessonsTotal });
+          pagesLine.setAttribute("data-ready", n >= lessonsTotal ? "1" : "0");
+          pagesBtn.hidden = n >= lessonsTotal;
+        });
+      }).catch(function () { pagesLine.textContent = t("offline.offlineNow"); pagesBtn.hidden = true; });
+      if (!rt) { rtLine.textContent = t("offline.runtimeHere"); rtBtn.hidden = true; return; }
+      runtimeList().then(function (info) {
+        return caches.keys().then(function (keys) {
+          var k = keys.filter(function (x) { return x.indexOf("aia-rt-") === 0; });
+          return k.length ? caches.open(k[k.length - 1]).then(function (c) { return countCached(info.urls, c); }) : 0;
+        }).then(function (n) {
+          var ready = n >= info.urls.length;
+          rtLine.textContent = ready ? t("offline.runtimeReady") : t("offline.runtimeMissing", { size: (info.bytes / 1048576).toFixed(0) + " MB" });
+          rtLine.setAttribute("data-ready", ready ? "1" : "0");
+          rtBtn.hidden = ready;
+        });
+      }).catch(function () { rtLine.textContent = t("offline.offlineNow"); rtBtn.hidden = true; });
+    }
+    function fetchAll(urls, label, store) {
+      bar.hidden = false;
+      var fill = bar.firstChild;
+      var done = 0;
+      return urls.reduce(function (chain, u) {
+        return chain.then(function () {
+          return (store ? store.add(new Request(u, { cache: "reload" })) : fetch(u)).catch(function () {}).then(function () {
+            done++;
+            fill.style.width = Math.round(100 * done / urls.length) + "%";
+            label.textContent = t("offline.saving", { n: done, total: urls.length });
+          });
+        });
+      }, Promise.resolve()).then(function () { bar.hidden = true; paint(); });
+    }
+    pagesBtn.addEventListener("click", function () {
+      pagesBtn.disabled = true;
+      navigator.serviceWorker.ready.then(function () { return Promise.all([pageList(), pageCache()]); }).then(function (r) { return fetchAll(r[0], pagesLine, r[1]); }).catch(function () {}).then(function () { pagesBtn.disabled = false; });
+    });
+    rtBtn.addEventListener("click", function () {
+      rtBtn.disabled = true;
+      navigator.serviceWorker.ready.then(runtimeList).then(function (info) { return fetchAll(info.urls, rtLine, null); }).catch(function () {}).then(function () { rtBtn.disabled = false; });
+    });
+    body.innerHTML = "";
+    body.appendChild(el("p", { class: "hint", text: t("offline.hint") }));
+    body.appendChild(el("div", { class: "offline-row" }, [pagesLine, pagesBtn]));
+    body.appendChild(el("div", { class: "offline-row" }, [rtLine, rtBtn]));
+    body.appendChild(bar);
+    var dlg = $("#account-dialog");
+    if (dlg) {
+      var observer = new MutationObserver(function () { if (dlg.open) paint(); });
+      observer.observe(dlg, { attributes: true, attributeFilter: ["open"] });
+    }
+  }
+
   function initNative() {
-    var C = window.Capacitor;
-    if (!C || typeof C.isNativePlatform !== "function" || !C.isNativePlatform()) return;
+    if (!window.Capacitor && !window.androidBridge) return;
+    import(new URL(P.rel + "native.js", location.href).href).then(function (m) {
+      if (m.isNative) setupNative(m.notifications);
+    }).catch(function () {});
+  }
+
+  function setupNative(LN) {
     document.documentElement.classList.add("in-app");
-    var LN = C.Plugins && C.Plugins.LocalNotifications;
-    if (!LN) return;
     var root = new URL(P.rel + (P.lang === "es" ? "es/" : ""), location.href).href;
     var lessons = null;
     var timer;
-    function pref() { var v = get("pref:remind"); return v && typeof v === "object" ? v : { on: false, time: "19:00" }; }
+    var ALL = [1, 2, 3, 4, 5, 6, 0];
+    function pref() {
+      var v = get("pref:remind");
+      v = v && typeof v === "object" ? v : {};
+      return { on: Boolean(v.on), time: v.time || "19:00", days: Array.isArray(v.days) && v.days.length ? v.days : ALL.slice() };
+    }
     function loadLessons() {
       if (lessons) return Promise.resolve(lessons);
       return fetch(root + "search.json").then(function (r) { return r.json(); }).then(function (j) {
@@ -194,6 +344,7 @@
       return Object.keys(state.items).some(function (k) { return /^(done|pred|predq|quiz|code):/.test(k) && state.items[k].v !== null && state.items[k].t >= start.getTime(); });
     }
     function schedule() {
+      if (!LN) return Promise.resolve();
       var p = pref();
       return LN.getPending().then(function (res) {
         var ids = (res.notifications || []).map(function (x) { return { id: x.id }; });
@@ -202,12 +353,13 @@
         if (!p.on) return null;
         return loadLessons().then(function (list) {
           var next = list.find(function (l) { return !get("done:" + l.key); });
-          var parts = String(p.time || "19:00").split(":");
+          var parts = String(p.time).split(":");
           var out = [];
-          for (var d = 0; d < 7; d++) {
+          for (var d = 0; d < 21 && out.length < 10; d++) {
             var at = new Date();
             at.setDate(at.getDate() + d);
-            at.setHours(+parts[0] || 19, +parts[1] || 0, 0, 0);
+            at.setHours(+parts[0] || 0, +parts[1] || 0, 0, 0);
+            if (p.days.indexOf(at.getDay()) < 0) continue;
             if (at.getTime() <= Date.now() + 60000) continue;
             if (d === 0 && studiedToday()) continue;
             out.push({
@@ -223,37 +375,65 @@
         });
       }).catch(function () {});
     }
-    LN.addListener("localNotificationActionPerformed", function (a) {
+    if (LN) LN.addListener("localNotificationActionPerformed", function (a) {
       var u = a && a.notification && a.notification.extra && a.notification.extra.url;
       if (u) location.href = u;
     });
     var dialogBody = $("#account-dialog .sheet-body");
-    if (dialogBody) {
+    if (dialogBody && !$("#remind-h")) {
       var p0 = pref();
       var toggle = el("button", { type: "button", role: "switch", class: "switch", "aria-checked": p0.on ? "true" : "false", "aria-labelledby": "remind-h" });
-      var time = el("input", { type: "time", id: "remind-time", value: p0.time || "19:00" });
-      var note = el("p", { class: "hint", text: t("remind.hint") });
+      var time = el("input", { type: "time", id: "remind-time", value: p0.time });
+      var fmt = new Intl.DateTimeFormat(P.lang === "es" ? "es" : "en", { weekday: "short" });
+      var dayButtons = ALL.map(function (d) {
+        var ref = new Date(2024, 0, 7 + d);
+        return el("button", { type: "button", class: "chip day", "data-day": String(d), "aria-pressed": p0.days.indexOf(d) >= 0 ? "true" : "false", text: fmt.format(ref).replace(".", "") });
+      });
       var status = el("p", { class: "status", "aria-live": "polite" });
-      function save(on) {
-        set("pref:remind", { on: on, time: time.value || "19:00" });
-        toggle.setAttribute("aria-checked", on ? "true" : "false");
-        schedule().then(function () { status.textContent = on ? t("remind.saved", { time: time.value }) : t("remind.off"); });
+      function current() {
+        var days = dayButtons.filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).map(function (b) { return +b.getAttribute("data-day"); });
+        return { on: toggle.getAttribute("aria-checked") === "true", time: time.value || "19:00", days: days };
+      }
+      function summary(v) {
+        if (!v.on) return t("remind.off");
+        var names = v.days.length === 7 ? t("remind.everyDay") : dayButtons.filter(function (b) { return b.getAttribute("aria-pressed") === "true"; }).map(function (b) { return b.textContent; }).join(", ");
+        return t("remind.saved", { time: v.time, days: names });
+      }
+      function save() {
+        var v = current();
+        if (!v.days.length) { status.textContent = t("remind.noDays"); return; }
+        set("pref:remind", v);
+        schedule().then(function () { status.textContent = summary(v); });
       }
       toggle.addEventListener("click", function () {
         var on = toggle.getAttribute("aria-checked") !== "true";
-        if (!on) { save(false); return; }
+        if (!on) { toggle.setAttribute("aria-checked", "false"); save(); return; }
+        if (!LN) { status.textContent = t("remind.update"); return; }
         LN.checkPermissions().then(function (r) { return r.display === "granted" ? r : LN.requestPermissions(); }).then(function (r) {
-          if (r.display === "granted") save(true);
+          if (r.display === "granted") { toggle.setAttribute("aria-checked", "true"); save(); }
           else status.textContent = t("remind.denied");
         }).catch(function () { status.textContent = t("remind.denied"); });
       });
-      time.addEventListener("change", function () { if (pref().on) save(true); else set("pref:remind", { on: false, time: time.value || "19:00" }); });
-      var group = el("section", { class: "group", "aria-labelledby": "remind-h" }, [
+      time.addEventListener("change", save);
+      dayButtons.forEach(function (b) { b.addEventListener("click", function () { b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true"); save(); }); });
+      var group = el("section", { class: "group reminders", id: "reminders", "aria-labelledby": "remind-h" }, [
         el("div", { class: "switch-row" }, [el("h3", { id: "remind-h", text: t("remind.label") }), toggle]),
         el("div", { class: "time-row" }, [el("label", { for: "remind-time", text: t("remind.time") }), time]),
-        note, status
+        el("div", { class: "days-row", role: "group", "aria-label": t("remind.days") }, dayButtons),
+        el("p", { class: "hint", text: t("remind.hint") }),
+        status
       ]);
-      dialogBody.insertBefore(group, dialogBody.querySelector('[aria-labelledby="sync-h"]'));
+      status.textContent = LN ? summary(p0) : t("remind.update");
+      var first = dialogBody.querySelector(".group");
+      dialogBody.insertBefore(group, first);
+    }
+    var bell = $("#remind-btn");
+    if (bell) {
+      bell.hidden = false;
+      bell.addEventListener("click", function () {
+        openAccount();
+        setTimeout(function () { var g = $("#reminders"); if (g) { g.scrollIntoView({ block: "start" }); var sw = $(".reminders .switch"); if (sw) sw.focus(); } }, 50);
+      });
     }
     schedule();
     onChange(function () { clearTimeout(timer); timer = setTimeout(schedule, 1500); });
@@ -283,6 +463,23 @@
       });
     }, { rootMargin: "120px" });
     slots.forEach(function (el) { io.observe(el); });
+  }
+
+  function initFontSize() {
+    var SIZES = { s: "90%", m: "", l: "112.5%", xl: "125%" };
+    function apply(c) {
+      document.documentElement.style.fontSize = SIZES[c] || "";
+      $$("[data-font-choice]").forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-font-choice") === c ? "true" : "false"); });
+    }
+    var saved = ls("get", "aia:font");
+    apply(SIZES[saved] !== undefined ? saved : "m");
+    $$("[data-font-choice]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = b.getAttribute("data-font-choice");
+        if (c === "m") ls("del", "aia:font"); else ls("set", "aia:font", c);
+        apply(c);
+      });
+    });
   }
 
   function initTheme() {
@@ -1069,6 +1266,6 @@
   window.__aia = { get: get, set: set, onChange: onChange, t: t };
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initVisuals(); initNative(); initMermaid(); initOffline(); initSync();
+    initTheme(); initFontSize(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initNav(); initVisuals(); initNative(); initOfflineSettings(); initMermaid(); initOffline(); initSync();
   });
 })();

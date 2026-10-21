@@ -49,7 +49,7 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
     const m = await page.evaluate(() => ({
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       main: document.querySelectorAll("main").length,
-      small: [...document.querySelectorAll("a,button,summary,input")].filter((el) => { const r = el.getBoundingClientRect(); const inline = getComputedStyle(el).display === "inline" && el.closest("p,li,td"); return r.width > 0 && r.height > 0 && (r.height < 24 || r.width < 24) && !el.classList.contains("anchor") && !el.classList.contains("sr") && !inline; }).map((el) => (el.className || el.tagName) + "@" + Math.round(r.width) + "x" + Math.round(r.height)),
+      small: [...document.querySelectorAll("a,button,summary,input")].filter((el) => { const r = el.getBoundingClientRect(); const inline = getComputedStyle(el).display === "inline" && el.closest("p,li,td"); return r.width > 0 && r.height > 0 && (r.height < 24 || r.width < 24) && !el.classList.contains("anchor") && !el.classList.contains("sr") && !inline; }).map((el) => { const r = el.getBoundingClientRect(); return (el.className || el.tagName) + "@" + Math.round(r.width) + "x" + Math.round(r.height); }),
     }));
     check(`${w}px ${url} no overflow`, !m.overflow);
     check(`${w}px ${url} has main`, m.main === 1);

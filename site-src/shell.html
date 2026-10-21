@@ -26,11 +26,11 @@
 <meta name="apple-mobile-web-app-title" content="{{SITE}}">
 <link rel="stylesheet" href="{{REL}}style.css">
 <script>window.__PAGE={{PAGEDATA}};window.__T={{DICT}};</script>
-<script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("aia:theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t);}catch(e){}try{var p=window.__PAGE;var l=localStorage.getItem("aia:lang");if(!l){l=(navigator.language||"").slice(0,2)==="es"?"es":"en";localStorage.setItem("aia:lang",l);if(l!==p.lang&&p.alt){location.replace(p.alt+location.hash);}}}catch(e){}})();</script>
+<script>(function(){var d=document.documentElement;try{var t=localStorage.getItem("aia:theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t);if(localStorage.getItem("aia:nav")==="hidden")d.classList.add("nav-hidden");var f={s:"90%",l:"112.5%",xl:"125%"}[localStorage.getItem("aia:font")];if(f)d.style.fontSize=f;}catch(e){}try{var p=window.__PAGE;var l=localStorage.getItem("aia:lang");if(!l){l=(navigator.language||"").slice(0,2)==="es"?"es":"en";localStorage.setItem("aia:lang",l);if(l!==p.lang&&p.alt){location.replace(p.alt+location.hash);}}}catch(e){}})();</script>
 </head>
 <body data-kind="{{KIND}}">
 <a class="skip" href="#content">{{SKIP}}</a>
-<header class="topbar"><a class="brand" href="{{HOME}}"><span class="logo" aria-hidden="true"></span><span>{{SITE}}</span></a><span class="spacer"></span><span class="offline" id="offline" hidden></span>{{TOOLS}}</header>
+<header class="topbar">{{NAVSHOW}}<a class="brand" href="{{HOME}}"><span class="logo" aria-hidden="true"></span><span>{{SITE}}</span></a><span class="spacer"></span><span class="offline" id="offline" hidden></span>{{TOOLS}}</header>
 {{BODY}}
 <footer class="foot"><p>{{FOOTER}}</p></footer>
 {{DIALOGS}}
