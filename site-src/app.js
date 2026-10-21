@@ -172,6 +172,31 @@
     $$("[data-theme-choice]").forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-theme-choice") === choice ? "true" : "false"); });
     renderMermaid();
   }
+  function initVisuals() {
+    var slots = $$("[data-visual]");
+    if (!slots.length || !("IntersectionObserver" in window)) return;
+    var conn = navigator.connection;
+    if (conn && conn.saveData) return;
+    var probe = document.createElement("canvas");
+    var gl = null;
+    try { gl = probe.getContext("webgl2") || probe.getContext("webgl"); } catch (e) {}
+    if (!gl) return;
+    var mod = null;
+    function load() { if (!mod) mod = import(new URL(P.rel + "visuals.js", location.href).href); return mod; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        io.unobserve(entry.target);
+        var el = entry.target;
+        load().then(function (m) {
+          if (el.hasAttribute("data-map")) return m.courseMap(P.rel, P.lang).then(function (data) { m.mount(el, "cloud", data); });
+          m.mount(el, el.getAttribute("data-visual"));
+        }).catch(function () {});
+      });
+    }, { rootMargin: "120px" });
+    slots.forEach(function (el) { io.observe(el); });
+  }
+
   function initTheme() {
     var saved = ls("get", "aia:theme");
     applyTheme(saved === "light" || saved === "dark" ? saved : "system");
@@ -941,6 +966,6 @@
   window.__aia = { get: get, set: set, onChange: onChange, t: t };
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initMermaid(); initOffline(); initSync();
+    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initVisuals(); initMermaid(); initOffline(); initSync();
   });
 })();

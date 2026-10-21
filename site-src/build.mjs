@@ -4,6 +4,7 @@ import { join, dirname, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
 import hljs from "highlight.js";
+import { buildSync } from "esbuild";
 import { makeIndex, search, metrics, decodeF16 } from "./search-core.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,6 +18,9 @@ const BRANCH = env.REPO_BRANCH || "master";
 const LANGS = ["en", "es"];
 const DEFAULT_LANG = "en";
 const LEGACY_COURSE = "ai-engineering";
+const VISUALS = { "01": "tokens", "02": "cloud", "03": "attention", "04": "layers", "05": "layers", "06": "cloud", "07": "cloud", "08": "tokens", "09": "attention", "10": "layers", "11": "quant", "12": "orbit", "13": "orbit", "14": "orbit", "15": "orbit", "16": "layers", "17": "layers", "18": "quant", "19": "tokens", "20": "quant", "21": "attention", "22": "cloud" };
+const TRACK_VISUALS = { A: "attention", B: "cloud", C: "orbit", D: "layers", E: "quant", F: "cloud" };
+const visualSlot = (kind) => `<div class="visual" data-visual="${kind}" aria-hidden="true"></div>`;
 
 const dict = Object.fromEntries(LANGS.map((l) => [l, JSON.parse(readFileSync(join(src, "i18n", `${l}.json`), "utf8"))]));
 const shell = readFileSync(join(src, "shell.html"), "utf8");
@@ -396,27 +400,27 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
   const canonical = SITE_URL + outPath(lang, name);
   const altLinks = LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="${SITE_URL + outPath(l, name)}">`).join("\n") + `\n<link rel="alternate" hreflang="x-default" href="${SITE_URL + outPath(DEFAULT_LANG, name)}">`;
   return shell
-    .replace(/{{LANG}}/g, lang)
-    .replace(/{{TITLE}}/g, esc(title))
-    .replace(/{{SITE}}/g, esc(t(L, "site.name")))
-    .replace(/{{DESC}}/g, esc(desc))
-    .replace(/{{REL}}/g, rel)
-    .replace(/{{HOME}}/g, rel + langPrefix(lang) + "index.html")
-    .replace(/{{CANONICAL}}/g, canonical)
-    .replace("{{ALTLINKS}}", altLinks)
-    .replace("{{OGTYPE}}", ogType)
-    .replace("{{OGLOCALE}}", lang === "es" ? "es_ES" : "en_US")
-    .replace("{{OGIMAGE}}", SITE_URL + "icons/icon-512.png")
-    .replace("{{PAGEDATA}}", JSON.stringify(pageData))
-    .replace("{{DICT}}", JSON.stringify(dict[lang]))
-    .replace("{{KIND}}", kind)
-    .replace("{{SKIP}}", t(L, "nav.skip"))
-    .replace("{{TOOLS}}", tools)
-    .replace("{{DIALOGS}}", dialogs)
-    .replace("{{FOOTER}}", t(L, "site.footer"))
-    .replace("{{MERMAID}}", hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
-    .replace("{{RUNNER}}", extra.ask ? `${extra.runtime ? `<script src="${rel}pyclient.js" defer></script>` : ""}<script type="module" src="${rel}ask.js"></script>` : extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
-    .replace("{{BODY}}", body);
+    .replace(/{{LANG}}/g, () => lang)
+    .replace(/{{TITLE}}/g, () => esc(title))
+    .replace(/{{SITE}}/g, () => esc(t(L, "site.name")))
+    .replace(/{{DESC}}/g, () => esc(desc))
+    .replace(/{{REL}}/g, () => rel)
+    .replace(/{{HOME}}/g, () => rel + langPrefix(lang) + "index.html")
+    .replace(/{{CANONICAL}}/g, () => canonical)
+    .replace("{{ALTLINKS}}", () => altLinks)
+    .replace("{{OGTYPE}}", () => ogType)
+    .replace("{{OGLOCALE}}", () => lang === "es" ? "es_ES" : "en_US")
+    .replace("{{OGIMAGE}}", () => SITE_URL + "icons/icon-512.png")
+    .replace("{{PAGEDATA}}", () => JSON.stringify(pageData))
+    .replace("{{DICT}}", () => JSON.stringify(dict[lang]))
+    .replace("{{KIND}}", () => kind)
+    .replace("{{SKIP}}", () => t(L, "nav.skip"))
+    .replace("{{TOOLS}}", () => tools)
+    .replace("{{DIALOGS}}", () => dialogs)
+    .replace("{{FOOTER}}", () => t(L, "site.footer"))
+    .replace("{{MERMAID}}", () => hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
+    .replace("{{RUNNER}}", () => extra.ask ? `${extra.runtime ? `<script src="${rel}pyclient.js" defer></script>` : ""}<script type="module" src="${rel}ask.js"></script>` : extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
+    .replace("{{BODY}}", () => body);
 }
 
 function provenanceHtml(lesson, d, claims, L, lang, course) {
@@ -450,7 +454,7 @@ function chunkSections(html, key, url, title) {
   for (const part of parts) {
     const m = part.match(/^<h([23]) id="([^"]+)">([\s\S]*?)<\/h\1>/);
     const heading = m ? decodeEntities(m[3].replace(/<[^>]+>/g, "")).trim() : title;
-    if (/^(references|referencias)$/i.test(heading)) continue;
+    if (/^(references|referencias|takeaways|ideas clave)$/i.test(heading)) continue;
     const anchor = m ? m[2] : "";
     const paras = decodeEntities((m ? part.slice(m[0].length) : part).replace(/<\/(p|li|tr|h4|blockquote)>/g, "\n").replace(/<[^>]+>/g, " ")).split("\n").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
     const windows = [];
@@ -496,7 +500,7 @@ for (const course of courses) {
       const { stripped, questions } = extractQuiz(pred.stripped);
       let { html, toc } = render(stripped, L);
       const proseHtml = html;
-      html = html.replace(/<!--PREDICT-->/, predictHtml(pred.items, claims.values, L, lesson.key));
+      html = html.replace(/<!--PREDICT-->/, () => predictHtml(pred.items, claims.values, L, lesson.key));
       const prev = course.lessons[i - 1];
       const next = course.lessons[i + 1];
       const track = course.tracks.get(lesson.track);
@@ -569,6 +573,7 @@ ${crumb}
 <p class="eyebrow"><span>${t(L, "lesson.label", { n: lesson.n })}</span><span class="dot" aria-hidden="true"></span><span>${esc(track.name[lang])}</span><span class="dot" aria-hidden="true"></span><span>${t(L, "lesson.minutes", { n: d.minutes || 25 })}</span><span class="dot" aria-hidden="true"></span><span>${t(L, `lesson.level.${level}`)}</span></p>
 <h1>${esc(d.title)}</h1>
 <p class="lede">${esc(d.summary)}</p>
+${visualSlot(d.visual || VISUALS[lesson.slug.slice(0, 2)] || TRACK_VISUALS[lesson.track] || "cloud")}
 <div class="lesson-actions">
 <button type="button" class="act" id="done-btn" aria-pressed="false"><span class="box" aria-hidden="true"></span><span class="label">${t(L, "lesson.done")}</span></button>
 <button type="button" class="act" id="bookmark-btn" aria-pressed="false">${ICON.bookmark}<span class="label">${t(L, "lesson.bookmark")}</span></button>
@@ -687,7 +692,8 @@ for (const lang of LANGS) {
   }).join("");
   const first = courses[0] && courses[0].lessons[0];
   const home = `<main id="content" class="main home" tabindex="-1">
-<header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p></header>
+<header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p>
+<figure class="visual-figure"><div class="visual visual-map" data-visual="cloud" data-map aria-hidden="true"><span class="visual-tip" hidden></span></div><figcaption class="hint">${t(L, "home.map")}</figcaption></figure></header>
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
 <section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
@@ -849,6 +855,8 @@ for (const f of readdirSync(join(src, "icons"))) {
 mkdirSync(join(out, "vendor"), { recursive: true });
 copyFileSync(join(root, "node_modules/mermaid/dist/mermaid.min.js"), join(out, "vendor/mermaid.min.js"));
 files.push("vendor/mermaid.min.js");
+buildSync({ entryPoints: [join(src, "visuals", "scenes.mjs")], bundle: true, format: "esm", minify: true, target: "es2020", outfile: join(out, "visuals.js"), legalComments: "none", logLevel: "warning" });
+files.push("visuals.js");
 
 const publicConfigFile = join(src, "public-config.json");
 const publicConfig = existsSync(publicConfigFile) ? JSON.parse(readFileSync(publicConfigFile, "utf8")) : {};

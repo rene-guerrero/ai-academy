@@ -58,6 +58,7 @@ Body conventions:
       :::
 
   Readers lock an answer and a confidence before running, then check it. Results are stored as `predq:<lesson key>:<id>` and feed the calibration chart on the home page.
+- `visual:` (optional) picks the lesson's concept scene: `tokens`, `cloud`, `attention`, `layers`, `orbit` or `quant`. Without it the build picks one from the lesson number, then the track.
 - English front matter may carry provenance: `author`, `drafted` (date) and `reviewed` (date, empty until a person has reviewed the lesson).
 - Code blocks must be byte-identical between the English and Spanish versions; `npm run check` enforces this.
 

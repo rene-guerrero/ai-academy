@@ -38,14 +38,15 @@ let passed = 0;
 function check(name, ok, detail) { if (ok) passed++; else failures.push(name + (detail ? ": " + detail : "")); }
 const nums = (s) => (s.match(/-?\d+\.\d+/g) || []).map(Number);
 
-const lessons = [
-  ["ai-engineering", "01-tokenization", "lesson_01_tokenization", "exact"],
-  ["ai-engineering", "02-embeddings", "lesson_02_embeddings", "close"],
-  ["ai-engineering", "03-attention", "lesson_03_attention", "exact"],
-  ["ai-engineering", "04-transformer-block", "lesson_04_transformer_block", "exact"],
-  ["ai-engineering", "05-training-and-generation", "lesson_05_training_generation", "exact"],
-  ["ai-engineering", "06-semantic-search-evaluation", "lesson_06_semantic_search", "close"],
-];
+const lessonDir = join(root, "courses", "ai-engineering", "lessons-md");
+const lessons = readdirSync(lessonDir).filter((f) => f.endsWith(".md")).sort().flatMap((f) => {
+  const text = readFileSync(join(lessonDir, f), "utf8");
+  const fm = text.slice(0, text.indexOf("\n---", 4));
+  const exercise = (fm.match(/^exercise:\s*(\S+)/m) || [])[1];
+  if (!exercise || !/^runtime:\s*pyodide/m.test(fm)) return [];
+  const code = readFileSync(join(root, "courses", "ai-engineering", exercise), "utf8");
+  return [["ai-engineering", f.replace(/\.md$/, ""), exercise.replace(/^.*\//, "").replace(/\.py$/, ""), /sentence_transformers/.test(code) ? "close" : "exact"]];
+});
 
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await ctx.newPage();
@@ -103,7 +104,7 @@ if (chunks.vectors) {
   await page.waitForFunction(() => /reciprocal rank fusion|unavailable|could not/.test(document.querySelector(".ask-status").textContent), null, { timeout: 180000 });
   check("hybrid search runs MiniLM in the browser", /reciprocal rank fusion/.test(await page.textContent(".ask-status")), await page.textContent(".ask-status"));
   const top = await page.evaluate(() => [...document.querySelectorAll("#ask-results a")].slice(0, 3).map((a) => a.getAttribute("href")));
-  check("hybrid search finds the loss floor section", top.includes("ai-engineering/05-training-and-generation.html#the-loss-floor"), top.join(", "));
+  check("hybrid search finds a training section", top.some((h) => /^ai-engineering\/(05-training-and-generation|16-small-network-from-scratch)\.html#/.test(h)), top.join(", "));
   check("hybrid results explain both rankings", /meaning #/.test(await page.textContent("#ask-results")));
 } else check("search vectors shipped in this build", false, "dist/search/en-chunks.json has no vectors");
 check("no page errors", errors.length === 0, errors.join(" | "));

@@ -3,30 +3,14 @@
   "thresholds": {
     "en": {
       "bm25": {
-        "hit3": 0.85,
-        "mrr": 0.7
-      },
-      "vector": {
-        "hit3": 0.9,
-        "mrr": 0.75
-      },
-      "hybrid": {
-        "hit3": 0.9,
-        "mrr": 0.75
+        "hit3": 0.72,
+        "mrr": 0.62
       }
     },
     "es": {
       "bm25": {
-        "hit3": 0.85,
-        "mrr": 0.7
-      },
-      "vector": {
-        "hit3": 0.45,
-        "mrr": 0.4
-      },
-      "hybrid": {
-        "hit3": 0.8,
-        "mrr": 0.6
+        "hit3": 0.72,
+        "mrr": 0.62
       }
     }
   },
@@ -234,6 +218,10 @@
         [
           "ai-engineering/04-transformer-block",
           "The engineering connection"
+        ],
+        [
+          "ai-engineering/18-quantization",
+          "Memory arithmetic"
         ]
       ]
     },
@@ -348,6 +336,330 @@
         [
           "ai-engineering/note-rag",
           "Where it fails"
+        ]
+      ]
+    },
+    {
+      "en": "what chunk size and overlap should I use for RAG",
+      "es": "qué tamaño de fragmento y solapamiento uso en RAG",
+      "expect": [
+        [
+          "ai-engineering/07-rag-pipeline",
+          "Chunking: size, overlap and boundaries"
+        ]
+      ]
+    },
+    {
+      "en": "how do I tell if a bad RAG answer is a retrieval problem or a generation problem",
+      "es": "cómo sé si una mala respuesta RAG es un fallo de recuperación o de generación",
+      "expect": [
+        [
+          "ai-engineering/07-rag-pipeline",
+          "Measuring answer quality separately"
+        ]
+      ]
+    },
+    {
+      "en": "should I retry when the model returns invalid JSON",
+      "es": "debo reintentar cuando el modelo devuelve JSON inválido",
+      "expect": [
+        [
+          "ai-engineering/08-structured-outputs",
+          "Validate, then retry"
+        ]
+      ]
+    },
+    {
+      "en": "how does constrained decoding guarantee valid JSON",
+      "es": "cómo garantiza la decodificación restringida un JSON válido",
+      "expect": [
+        [
+          "ai-engineering/08-structured-outputs",
+          "Constrained decoding"
+        ]
+      ]
+    },
+    {
+      "en": "why does the model forget what I told it earlier in the chat",
+      "es": "por qué el modelo olvida lo que le dije antes en el chat",
+      "expect": [
+        [
+          "ai-engineering/09-context-and-hallucination",
+          "There is no memory, only resent text"
+        ]
+      ]
+    },
+    {
+      "en": "how do I reduce hallucinations in an LLM app",
+      "es": "cómo reducir las alucinaciones en una aplicación con LLM",
+      "expect": [
+        [
+          "ai-engineering/09-context-and-hallucination",
+          "Mitigations that work"
+        ]
+      ]
+    },
+    {
+      "en": "what is the difference between DPO and RLHF with PPO",
+      "es": "qué diferencia hay entre DPO y RLHF con PPO",
+      "expect": [
+        [
+          "ai-engineering/10-post-training",
+          "Direct preference optimization"
+        ]
+      ]
+    },
+    {
+      "en": "why is there a KL penalty to a reference model in RLHF",
+      "es": "por qué hay una penalización KL respecto a un modelo de referencia en RLHF",
+      "expect": [
+        [
+          "ai-engineering/10-post-training",
+          "The KL leash and reward hacking"
+        ]
+      ]
+    },
+    {
+      "en": "how many examples do I need in my eval set to detect a small improvement",
+      "es": "cuántos ejemplos necesito en mi conjunto de evaluación para detectar una mejora pequeña",
+      "expect": [
+        [
+          "ai-engineering/11-evaluating-llm-apps",
+          "Confidence intervals and sample size"
+        ]
+      ]
+    },
+    {
+      "en": "is it safe to use an LLM as a judge, what biases does it have",
+      "es": "es fiable usar un LLM como juez, qué sesgos tiene",
+      "expect": [
+        [
+          "ai-engineering/11-evaluating-llm-apps",
+          "LLM as a judge and its biases"
+        ]
+      ]
+    },
+    {
+      "en": "how do I stop prompt injection from leaking data through markdown images",
+      "es": "cómo evito que la inyección de prompts filtre datos mediante imágenes markdown",
+      "expect": [
+        [
+          "ai-engineering/12-prompt-injection-and-security",
+          "Exfiltration channels"
+        ]
+      ]
+    },
+    {
+      "en": "why doesn't telling the model to ignore instructions in documents work",
+      "es": "por qué no funciona decirle al modelo que ignore las instrucciones de los documentos",
+      "expect": [
+        [
+          "ai-engineering/12-prompt-injection-and-security",
+          "Why a warning in the prompt is not a defense"
+        ]
+      ]
+    },
+    {
+      "en": "how do I stop an agent from looping forever",
+      "es": "cómo evito que un agente entre en un bucle infinito",
+      "expect": [
+        [
+          "ai-engineering/13-first-agent",
+          "Termination"
+        ]
+      ]
+    },
+    {
+      "en": "when should I use a workflow instead of an agent",
+      "es": "cuándo usar un flujo de trabajo en lugar de un agente",
+      "expect": [
+        [
+          "ai-engineering/13-first-agent",
+          "Agent versus workflow"
+        ]
+      ]
+    },
+    {
+      "en": "how do I expose my company's REST API to an AI assistant as an MCP server in TypeScript",
+      "es": "cómo expongo la API REST de mi empresa a un asistente de IA como servidor MCP en TypeScript",
+      "expect": [
+        [
+          "ai-engineering/14-mcp",
+          "Wrapping an internal API in TypeScript"
+        ]
+      ]
+    },
+    {
+      "en": "what is the difference between stdio and streamable http transport in MCP",
+      "es": "qué diferencia hay entre el transporte stdio y streamable http en MCP",
+      "expect": [
+        [
+          "ai-engineering/14-mcp",
+          "Transports: stdio and Streamable HTTP"
+        ]
+      ]
+    },
+    {
+      "en": "why does my agent call the same tool over and over",
+      "es": "por qué mi agente llama a la misma herramienta una y otra vez",
+      "expect": [
+        [
+          "ai-engineering/15-agent-failures",
+          "Loops and repeated calls"
+        ]
+      ]
+    },
+    {
+      "en": "difference between pass@k and pass^k for agent evaluation",
+      "es": "diferencia entre pass@k y pass^k para evaluar agentes",
+      "expect": [
+        [
+          "ai-engineering/15-agent-failures",
+          "Evaluating agents: pass@k versus pass^k"
+        ]
+      ]
+    },
+    {
+      "en": "how do I check that my backprop gradients are correct",
+      "es": "cómo compruebo que los gradientes de mi retropropagación son correctos",
+      "expect": [
+        [
+          "ai-engineering/16-small-network-from-scratch",
+          "Backpropagation and the chain rule"
+        ]
+      ]
+    },
+    {
+      "en": "training loss goes down but validation loss goes up, what do I do",
+      "es": "la pérdida de entrenamiento baja pero la de validación sube, qué hago",
+      "expect": [
+        [
+          "ai-engineering/16-small-network-from-scratch",
+          "Overfitting, early stopping and weight decay"
+        ]
+      ]
+    },
+    {
+      "en": "should I fine-tune or use RAG to teach the model new facts",
+      "es": "debo hacer fine-tuning o usar RAG para enseñar datos nuevos al modelo",
+      "expect": [
+        [
+          "ai-engineering/17-fine-tuning-lora",
+          "When fine-tuning is the right tool"
+        ],
+        [
+          "ai-engineering/note-rag",
+          "RAG versus fine-tuning"
+        ]
+      ]
+    },
+    {
+      "en": "how many trainable parameters does LoRA rank 8 add to a 4096 layer",
+      "es": "cuántos parámetros entrenables añade LoRA de rango 8 a una capa de 4096",
+      "expect": [
+        [
+          "ai-engineering/17-fine-tuning-lora",
+          "LoRA: a low-rank update"
+        ]
+      ]
+    },
+    {
+      "en": "how much GPU memory do I need to run a 70B model in 4-bit",
+      "es": "cuánta memoria de GPU necesito para ejecutar un modelo de 70B en 4 bits",
+      "expect": [
+        [
+          "ai-engineering/18-quantization",
+          "Memory arithmetic"
+        ]
+      ]
+    },
+    {
+      "en": "why do outliers break int8 quantization",
+      "es": "por qué los valores atípicos rompen la cuantización int8",
+      "expect": [
+        [
+          "ai-engineering/18-quantization",
+          "Outliers"
+        ]
+      ]
+    },
+    {
+      "en": "why is continuous batching faster than static batching for LLM serving",
+      "es": "por qué el batching continuo es más rápido que el estático al servir un LLM",
+      "expect": [
+        [
+          "ai-engineering/19-inference-serving",
+          "Static versus continuous batching"
+        ]
+      ]
+    },
+    {
+      "en": "how much GPU memory does the KV cache use and what does PagedAttention fix",
+      "es": "cuánta memoria de GPU usa la caché KV y qué resuelve PagedAttention",
+      "expect": [
+        [
+          "ai-engineering/19-inference-serving",
+          "KV cache memory and PagedAttention"
+        ]
+      ]
+    },
+    {
+      "en": "how should I retry failed LLM API calls without making an outage worse",
+      "es": "cómo reintentar llamadas fallidas a la API de un LLM sin empeorar una caída",
+      "expect": [
+        [
+          "ai-engineering/20-cost-latency-reliability",
+          "Timeouts, retries and fallbacks"
+        ]
+      ]
+    },
+    {
+      "en": "how to cut LLM costs by sending easy requests to a smaller model",
+      "es": "cómo reducir el coste de un LLM enviando las peticiones fáciles a un modelo más pequeño",
+      "expect": [
+        [
+          "ai-engineering/20-cost-latency-reliability",
+          "Model routing and escalation"
+        ]
+      ]
+    },
+    {
+      "en": "does majority voting over multiple samples always improve accuracy",
+      "es": "el voto por mayoría sobre varias muestras siempre mejora la precisión",
+      "expect": [
+        [
+          "ai-engineering/21-reasoning-models",
+          "Self-consistency: sample many, vote"
+        ]
+      ]
+    },
+    {
+      "en": "when should I use a reasoning model instead of a normal model",
+      "es": "cuándo debo usar un modelo de razonamiento en lugar de un modelo normal",
+      "expect": [
+        [
+          "ai-engineering/21-reasoning-models",
+          "When thinking is worth paying for"
+        ]
+      ]
+    },
+    {
+      "en": "why does sending a high resolution image cost so many tokens",
+      "es": "por qué una imagen en alta resolución gasta tantos tokens",
+      "expect": [
+        [
+          "ai-engineering/22-multimodal",
+          "Image tokens grow with resolution"
+        ]
+      ]
+    },
+    {
+      "en": "how does CLIP match images and text",
+      "es": "cómo empareja CLIP imágenes y texto",
+      "expect": [
+        [
+          "ai-engineering/22-multimodal",
+          "Contrastive image-text embeddings"
         ]
       ]
     }

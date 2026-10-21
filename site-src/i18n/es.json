@@ -342,5 +342,6 @@
   "home.built.cs.sum": "Problema, arquitectura, decisiones y lo que haría después.",
   "home.built.q": "Calidad medida",
   "home.built.q.sum": "Métricas de búsqueda, afirmaciones verificadas y paridad entre el navegador y Python.",
-  "q.parity.zero": "Cada número impreso coincide con Python real"
+  "q.parity.zero": "Cada número impreso coincide con Python real",
+  "home.map": "Cada sección del curso, colocada según su significado. Arrástralo para girarlo; pulsa un punto para abrir esa sección."
 }

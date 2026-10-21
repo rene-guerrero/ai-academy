@@ -504,3 +504,14 @@ svg .marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .qdetail > summary { padding: 10px 0; font-weight: 600; color: var(--accent); min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .qdetail td.num, .qdetail th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (forced-colors: active) { .qbar span, .calib-fill { background: CanvasText; } }
+.visual { position: relative; height: 148px; margin: 1.1rem 0 .25rem; border-radius: var(--r-l); overflow: hidden; background: radial-gradient(120% 90% at 50% 40%, var(--accent-soft), transparent 70%), var(--surface); box-shadow: inset 0 0 0 .5px var(--separator); }
+.visual canvas { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .6s ease; }
+.visual.is-ready canvas { opacity: 1; }
+.visual-figure { margin: 1.25rem 0 0; }
+.visual-figure figcaption { margin-top: 6px; }
+.visual-map { height: 240px; margin: 0; }
+.visual-map canvas { cursor: grab; touch-action: pan-y; }
+.visual-tip { position: absolute; z-index: 1; transform: translate(-50%, calc(-100% - 14px)); max-width: min(22rem, 80%); padding: 6px 10px; border-radius: var(--r-s); background: var(--material); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 2px 12px rgba(0, 0, 0, .16), 0 0 0 .5px var(--separator); font-size: .8125rem; font-weight: 500; color: var(--text); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 62rem) { .visual { height: 176px; } .visual-map { height: 280px; } }
+@media (prefers-reduced-motion: reduce) { .visual canvas { transition: none; } }
+@media (forced-colors: active) { .visual, .visual-figure { display: none; } }

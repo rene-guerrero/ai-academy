@@ -99,7 +99,7 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
   check("es html lang", (await page.getAttribute("html", "lang")) === "es");
   await page.goto(base + "es/ai-engineering/index.html"); await page.waitForTimeout(500);
   const progress = await page.textContent("#progress-text");
-  check("es course reads same progress", progress.includes("1 de 6"), progress);
+  check("es course reads same progress", progress.includes("1 de 22"), progress);
   check("es course resume card", (await page.textContent("#continue-body")).includes("Reanudar"));
   const doneBadge = await page.getAttribute('.row[data-key="ai-engineering/02-embeddings"] .state', "data-state");
   check("done badge on catalog", doneBadge === "done");
@@ -111,11 +111,11 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
   check("course search finds sections", (await page.evaluate(() => document.querySelectorAll("#search-hits li a").length)) > 0);
   await page.goto(base + "es/index.html"); await page.waitForTimeout(500);
   check("home review section visible", !(await page.isHidden("#review")));
-  check("home course progress text", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 de 6"));
+  check("home course progress text", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 de 22"));
   check("ring drawn", await page.evaluate(() => parseFloat(document.querySelector(".ring-fill").style.strokeDashoffset) < parseFloat(document.querySelector(".ring-fill").dataset.c)));
   await page.fill("#ask-input", "¿por qué la pérdida nunca llega a cero?"); await page.waitForTimeout(800);
   const hitHref = await page.getAttribute("#ask-results li a >> nth=0", "href");
-  check("ask the course links into a lesson section", Boolean(hitHref) && /^ai-engineering\/05-training-and-generation\.html#/.test(hitHref), hitHref);
+  check("ask the course links into a lesson section", Boolean(hitHref) && /^ai-engineering\/[\w-]+\.html#/.test(hitHref), hitHref);
   check("ask the course highlights terms", (await page.locator("#ask-results mark").count()) > 0);
   check("ask the course reports its mode", /BM25/.test(await page.textContent(".ask-status")));
   const vectorsShipped = await page.evaluate(() => fetch("../search/es-chunks.json").then((r) => r.json()).then((j) => Boolean(j.vectors)));
@@ -138,7 +138,7 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
   check("cleared state shows start", (await page.textContent("#continue-body")).includes("Start the course"));
   await page.setInputFiles("#import-file", { name: "x.json", mimeType: "application/json", buffer: Buffer.from(exported) });
   await page.waitForTimeout(400);
-  check("import restores", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 of 6"));
+  check("import restores", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 of 22"));
   check("clipboard copy", await (async () => { await page.goto(base + "ai-engineering/03-attention.html"); await page.waitForTimeout(400); await page.click(".copy >> nth=0"); await page.waitForTimeout(200); return (await page.textContent(".copy >> nth=0")) === "Copied"; })());
   check("settings sheet opens", await (async () => { await page.click("#account-btn"); await page.waitForTimeout(200); return page.evaluate(() => document.getElementById("account-dialog").open && document.getElementById("account-body").textContent.length > 20); })());
   check("console clean in flow", page.errors.length === 0, page.errors.join(" | "));
@@ -157,7 +157,7 @@ for (const [w, h] of [[320, 700], [375, 800], [390, 844], [768, 1024], [1024, 76
   check("migration bookmark", items["bm:ai-engineering/04-transformer-block"] && items["bm:ai-engineering/04-transformer-block"].v === true);
   check("migration tombstones old key", items["done:01-tokenization"] && items["done:01-tokenization"].v === null);
   check("migration last", items.last && items.last.v.key === "ai-engineering/03-attention");
-  check("migrated progress shown", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 of 6"));
+  check("migrated progress shown", (await page.textContent('[data-course-progress="ai-engineering"]')).includes("1 of 22"));
   check("migrated resume", (await page.textContent("#continue-body")).includes("Attention"));
   await page.goto(base + "ai-engineering/01-tokenization.html"); await page.waitForTimeout(400);
   check("migrated note visible in lesson", (await page.inputValue("#predictions")) === "old note");

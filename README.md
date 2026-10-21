@@ -1,6 +1,6 @@
 # AI Academy
 
-A bilingual (English and Spanish) AI engineering course that checks itself. Every exercise runs in the browser on real Python, every number a lesson quotes is verified against real output in CI, and the site's own semantic search ships with a labeled evaluation set and a quality gate.
+A bilingual (English and Spanish) AI engineering course of 22 lessons that checks itself, from tokenization to agents, MCP, serving and multimodal models. Every exercise runs in the browser on real Python, every number a lesson quotes is verified against real output in CI, and the site's own semantic search ships with a labeled evaluation set and a quality gate.
 
 Live: https://rene-guerrero.github.io/ai-academy/ · [Measured quality](https://rene-guerrero.github.io/ai-academy/quality.html) · [Engineering case study](https://rene-guerrero.github.io/ai-academy/case-study.html)
 
@@ -10,6 +10,7 @@ Live: https://rene-guerrero.github.io/ai-academy/ · [Measured quality](https://
 - **Claims as code.** Numbers and tables in lessons are placeholders (`{{claim:name}}`) with a pattern into the exercise's real output (`courses/<course>/claims.json`). CI runs the exercises; the build fails if a claim no longer matches.
 - **Ask the course.** Section-level hybrid retrieval over the lessons: BM25 in JavaScript, MiniLM embeddings computed by CI, the query embedded in the browser, fused with reciprocal rank fusion. `tests/search-eval.json` holds labeled questions per language; the build computes hit@1, hit@3 and MRR for each mode, publishes them on the quality page and fails below the stored thresholds.
 - **Predictions with calibration.** Readers commit to a numeric or multiple-choice prediction and a confidence before running; answers are scored against verified output and the home page shows a calibration chart.
+- **Concept scenes.** Each lesson opens with a small Three.js scene of its idea (tokens merging, attention arcs, signals through layers, an agent calling tools, values snapping to quantization levels), and the home page shows every section of the course as a 3D map placed by its embedding. Scenes are tree-shaken with esbuild, self-hosted, paused off-screen and frozen under Reduce Motion.
 - **Labs.** A model inspector (MiniLM attention per layer and head, residual norms, sentence similarity) and a training lab (train a bigram language model in the browser, scrub checkpoints, sample with temperature and top-p).
 - **Shareable experiments and provenance.** Edited exercises compress into a link. Each lesson shows how it was drafted, which claims are verified, its browser parity and its review status.
 - **Local-first sync.** Progress, notes and edits live in the browser and sync through Supabase with row-level security; two-sided note edits merge instead of overwriting. A daily GitHub Action keeps the free project awake.

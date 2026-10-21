@@ -6,7 +6,12 @@ import unicodedata
 import numpy as np
 
 ASSETS = os.environ.get("AIA_ASSETS", "/home/pyodide/assets")
-AVAILABLE = {"all-MiniLM-L6-v2": "minilm", "sentence-transformers/all-MiniLM-L6-v2": "minilm"}
+AVAILABLE = {
+    "all-MiniLM-L6-v2": "minilm",
+    "sentence-transformers/all-MiniLM-L6-v2": "minilm",
+    "intfloat/multilingual-e5-small": "e5",
+    "multilingual-e5-small": "e5",
+}
 
 
 def _is_whitespace(ch):
@@ -106,6 +111,76 @@ class _WordPiece:
         return [self.cls] + ids + [self.sep]
 
 
+class _Unigram:
+    def __init__(self, vocab_path):
+        with open(vocab_path, encoding="utf-8") as f:
+            data = json.load(f)
+        vocab = data["vocab"]
+        self.pieces = {p: (i, float(score)) for i, (p, score) in enumerate(vocab)}
+        self.ids_to_tokens = [p for p, _ in vocab]
+        self.unk = int(data["unk"])
+        self.cls = int(data["bos"])
+        self.sep = int(data["eos"])
+        self.pad = int(data["pad"])
+        self.special = {self.ids_to_tokens[i] for i in (self.unk, self.cls, self.sep, self.pad)}
+        self.max_piece = max(len(p) for p in self.pieces)
+        self.unk_score = min(score for _, score in vocab) - 10.0
+
+    def _words(self, text):
+        text = unicodedata.normalize("NFKC", text)
+        cleaned = []
+        for ch in text:
+            cp = ord(ch)
+            if cp == 0 or cp == 0xFFFD or _is_control(ch):
+                continue
+            cleaned.append(" " if _is_whitespace(ch) else ch)
+        joined = "".join(cleaned)
+        words = ["\u2581" + w for w in joined.split()]
+        if words and joined.endswith(" "):
+            words.append("\u2581")
+        return words
+
+    def _viterbi(self, word):
+        n = len(word)
+        best = [None] * (n + 1)
+        best[0] = (0.0, 0, -1)
+        for end in range(1, n + 1):
+            top = None
+            for start in range(max(0, end - self.max_piece), end):
+                prev = best[start]
+                if prev is None:
+                    continue
+                piece = word[start:end]
+                hit = self.pieces.get(piece)
+                if hit is not None and piece not in self.special:
+                    score = prev[0] + hit[1]
+                    token = hit[0]
+                elif end - start == 1:
+                    score = prev[0] + self.unk_score
+                    token = self.unk
+                else:
+                    continue
+                if top is None or score > top[0]:
+                    top = (score, start, token)
+            best[end] = top
+        ids = []
+        pos = n
+        while pos > 0:
+            _, start, token = best[pos]
+            if not (token == self.unk and ids and ids[-1] == self.unk):
+                ids.append(token)
+            pos = start
+        ids.reverse()
+        return ids
+
+    def encode(self, text, max_length):
+        ids = []
+        for word in self._words(text):
+            ids.extend(self._viterbi(word))
+        ids = ids[: max_length - 2]
+        return [self.cls] + ids + [self.sep]
+
+
 def _erf(x):
     sign = np.sign(x)
     a = np.abs(x)
@@ -130,10 +205,13 @@ class SentenceTransformer:
     def __init__(self, model_name_or_path="all-MiniLM-L6-v2", device=None, **kwargs):
         key = AVAILABLE.get(model_name_or_path)
         if key is None:
-            raise ValueError(f"Model {model_name_or_path!r} is not available in the browser. Available: all-MiniLM-L6-v2")
+            raise ValueError(f"Model {model_name_or_path!r} is not available in the browser. Available: all-MiniLM-L6-v2, intfloat/multilingual-e5-small")
         with open(os.path.join(ASSETS, f"{key}.json"), encoding="utf-8") as f:
             self.config = json.load(f)
-        self.tokenizer = _WordPiece(os.path.join(ASSETS, f"{key}-vocab.txt"), self.config.get("do_lower_case", True))
+        if self.config.get("tokenizer") == "unigram":
+            self.tokenizer = _Unigram(os.path.join(ASSETS, f"{key}-vocab.json"))
+        else:
+            self.tokenizer = _WordPiece(os.path.join(ASSETS, f"{key}-vocab.txt"), self.config.get("do_lower_case", True))
         data = np.load(os.path.join(ASSETS, f"{key}.npz"))
         self._q = {}
         self._w = {}
@@ -172,7 +250,8 @@ class SentenceTransformer:
         head_dim = hidden // heads
         batch, length = ids.shape
         w = self._w
-        x = self._word_embeddings(ids) + w["embeddings.position_embeddings.weight"][:length][None] + w["embeddings.token_type_embeddings.weight"][0][None, None]
+        offset = int(c.get("position_offset", 0))
+        x = self._word_embeddings(ids) + w["embeddings.position_embeddings.weight"][offset:offset + length][None] + w["embeddings.token_type_embeddings.weight"][0][None, None]
         x = _layer_norm(x, w["embeddings.LayerNorm.weight"], w["embeddings.LayerNorm.bias"], eps)
         bias = (1.0 - mask[:, None, None, :].astype(np.float32)) * np.float32(-1e9)
         if trace is not None:

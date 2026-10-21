@@ -342,5 +342,6 @@
   "home.built.cs.sum": "Problem, architecture, decisions and what I would do next.",
   "home.built.q": "Measured quality",
   "home.built.q.sum": "Search metrics, verified lesson claims and browser-versus-Python parity.",
-  "q.parity.zero": "Every printed number matches real Python"
+  "q.parity.zero": "Every printed number matches real Python",
+  "home.map": "Every section of the course, placed by meaning. Drag to turn it; click a dot to open that section."
 }

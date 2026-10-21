@@ -133,3 +133,10 @@ Not verified here: cloud sync against a real Supabase project (no credentials in
 - Shareable exercise edits as compressed links; per-lesson provenance panel.
 - Ask the course: hybrid retrieval with a labeled evaluation set, metrics on a public quality page and a quality gate in CI; case study page; portfolio README.
 - Daily Supabase keep-alive workflow.
+
+## 9. Iteration 5 (2026-10-21): the full course and concept scenes
+
+- Lessons 7 to 22 written in English and Spanish, each with a NumPy or standard-library exercise that runs in the browser, verified claims, predictions, a knowledge check and two labeled search questions. Every exercise was checked for determinism, imports, comments, claims and EN/ES code-block identity before merging.
+- Ask the course re-baselined: the corpus grew from 6 to 22 lessons and the labeled set from 30 to 62 questions. On the original 30 English questions keyword hit@3 stayed at 0.93. Recap sections ("Takeaways") are no longer indexed because they outranked the sections that answer the question. Keyword thresholds were reset to the new baseline; meaning and hybrid thresholds are re-set after CI measures them on the new corpus.
+- Fixed a build bug: template substitution used string replacements, so `$&` in lesson code (for example `"$"` before an `&quot;` entity) was expanded by `String.replace`.
+- Three.js concept scenes per lesson and an interactive 3D course map on the home page.

