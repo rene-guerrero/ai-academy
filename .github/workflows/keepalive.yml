@@ -16,3 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Query Supabase
         run: node tools/keepalive.mjs
+      - name: Keep the Android signing key cached
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/aia-signing/release.jks
+          key: android-release-keystore-v1

@@ -35,27 +35,56 @@ jobs:
       - name: Copy the web shell and plugins into the Android project
         working-directory: app
         run: npx cap sync android
-      - name: Reuse the signing key of earlier builds
-        uses: actions/cache@v4
+      - name: Restore the app signing key
+        id: key
+        uses: actions/cache/restore@v4
         with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
-      - name: Use the release key if the repository has one
+          path: ~/aia-signing/release.jks
+          key: android-release-keystore-v1
+      - name: Choose the signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            {
+              echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "Signing with the key from repository secrets"
+            exit 0
           fi
+          mkdir -p ~/aia-signing
+          if [ ! -f ~/aia-signing/release.jks ]; then
+            keytool -genkeypair -noprompt -keystore ~/aia-signing/release.jks -alias aia -keyalg RSA -keysize 2048 -validity 10000 -storepass aia-release -keypass aia-release -dname "CN=AI Academy, O=rene-guerrero"
+            echo "NEW_KEY=1" >> "$GITHUB_ENV"
+            echo "Created a new signing key"
+          else
+            echo "Reusing the cached signing key"
+          fi
+          keytool -list -v -keystore ~/aia-signing/release.jks -storepass aia-release | grep -m1 "SHA256:"
+          {
+            echo "ANDROID_KEYSTORE_PATH=$HOME/aia-signing/release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=aia-release"
+            echo "ANDROID_KEY_ALIAS=aia"
+            echo "ANDROID_KEY_PASSWORD=aia-release"
+          } >> "$GITHUB_ENV"
+      - name: Save a newly created signing key
+        if: env.NEW_KEY == '1'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/aia-signing/release.jks
+          key: android-release-keystore-v1
       - name: Build the APK
         working-directory: app/android
         env:
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: 1.0.${{ github.run_number }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
