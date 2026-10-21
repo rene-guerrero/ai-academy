@@ -159,7 +159,7 @@ def e5_sentences():
     for md in sorted((ROOT / "courses").glob("*/lessons-md/**/*.md")):
         text = md.read_text(encoding="utf-8").split("\n---", 2)[-1]
         paragraphs = [p.strip().replace("\n", " ") for p in text.split("\n\n") if p.strip() and not p.startswith(("```", "|", "#", ":::", "<", "P:", "Q:", "A:"))]
-        found.extend("passage: " + p[:400] for p in paragraphs[:4])
+        found.extend("passage: " + p[:400].rstrip() for p in paragraphs[:4])
     queries = json.loads((ROOT / "tests" / "search-eval.json").read_text(encoding="utf-8"))["queries"]
     for q in queries:
         found.extend(["query: " + q["en"], "query: " + q["es"]])
@@ -225,7 +225,10 @@ def e5():
     mismatched = [s for s in sentences if full.encode(s, meta["max_seq_length"]) != tok(s, truncation=True, max_length=meta["max_seq_length"])["input_ids"]]
     log(f"Unigram tokenizer: {len(sentences) - len(mismatched)}/{len(sentences)} sentences tokenized exactly like Hugging Face")
     for s in mismatched[:3]:
-        log(f"  mismatch: {s[:80]!r}")
+        want = tok.convert_ids_to_tokens(tok(s, truncation=True, max_length=meta["max_seq_length"])["input_ids"])
+        got = [vocab[i][0] for i in full.encode(s, meta["max_seq_length"])]
+        at = next((i for i, (a, b) in enumerate(zip(want, got)) if a != b), min(len(want), len(got)))
+        log(f"  mismatch in {s[:60]!r}: Hugging Face {want[max(0, at - 2):at + 4]} shim {got[max(0, at - 2):at + 4]}")
     best = None
     for limit, mode in ((30000, "int8"), (30000, "mixed"), (60000, "mixed"), (None, "mixed"), (None, "fp16")):
         keep = set(by_score[:limit] if limit else latin_ids) | short

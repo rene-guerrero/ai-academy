@@ -134,11 +134,7 @@ class _Unigram:
             if cp == 0 or cp == 0xFFFD or _is_control(ch):
                 continue
             cleaned.append(" " if _is_whitespace(ch) else ch)
-        joined = "".join(cleaned)
-        words = ["\u2581" + w for w in joined.split()]
-        if words and joined.endswith(" "):
-            words.append("\u2581")
-        return words
+        return ["\u2581" + w for w in "".join(cleaned).split()]
 
     def _viterbi(self, word):
         n = len(word)
