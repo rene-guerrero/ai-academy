@@ -90,7 +90,7 @@ def quantize(weights, mode):
             scale[scale == 0] = 1.0
             store[name] = np.round(value / scale[:, None]).astype(np.int8)
             store[name + ".scale"] = scale.astype(np.float32)
-        elif is_matrix:
+        elif is_matrix and mode != "fp32":
             store[name] = value.astype(np.float16)
         else:
             store[name] = value
@@ -230,6 +230,13 @@ def e5():
         got = [vocab[i][0] for i in full.encode(s, meta["max_seq_length"])]
         at = next((i for i, (a, b) in enumerate(zip(want, got)) if a != b), min(len(want), len(got)))
         log(f"  mismatch in {s[:60]!r}: Hugging Face {want[max(0, at - 2):at + 4]} shim {got[max(0, at - 2):at + 4]}")
+    count, size = write(set(latin_ids) | short, "fp32")
+    ours = shim.SentenceTransformer(E5_MODEL).encode(covered, normalize_embeddings=True, batch_size=32)
+    delta = np.abs(sims_ref - ours @ ours.T)
+    i, j = np.unravel_index(int(delta.argmax()), delta.shape)
+    log(f"e5 fp32 diagnostic, {count} pieces: max cosine difference {float(delta.max()):.5f}, median {float(np.median(delta)):.5f}; worst pair {covered[i][:50]!r} / {covered[j][:50]!r}")
+    single = np.abs((reference * ours).sum(axis=1) - 1)
+    log(f"e5 fp32 diagnostic: worst single-sentence cosine gap {float(single.max()):.5f} for {covered[int(single.argmax())][:70]!r}")
     best = None
     for limit, mode in ((30000, "int8"), (30000, "mixed"), (60000, "mixed"), (None, "mixed"), (None, "fp16")):
         keep = set(by_score[:limit] if limit else latin_ids) | short
