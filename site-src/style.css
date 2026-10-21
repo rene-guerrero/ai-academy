@@ -316,7 +316,7 @@ li.is-hidden { display: none; }
 
 .sheet {
   border: 0; padding: 0; color: var(--text); background: light-dark(#f2f2f7, #1c1c1e);
-  width: min(100vw, 34rem); max-height: min(88vh, 46rem); border-radius: 16px; box-shadow: var(--shadow-sheet); overflow: auto;
+  width: min(100vw, 34rem); max-height: min(88vh, 46rem); max-height: min(calc(100dvh - var(--kb, 0px) - 2rem), 46rem); border-radius: 16px; box-shadow: var(--shadow-sheet); overflow: auto; overscroll-behavior: contain;
 }
 .sheet::backdrop { background: rgba(0, 0, 0, .35); }
 .sheet-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--fill); margin: 6px auto 0; display: none; }
@@ -340,7 +340,7 @@ li.is-hidden { display: none; }
 .choice strong { color: var(--accent); }
 .choice span { font-weight: 400; font-size: .875rem; color: var(--muted); }
 @media (max-width: 40rem) {
-  .sheet { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .sheet { width: 100vw; max-width: 100vw; margin: auto 0 var(--kb, 0px); border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom); }
   .sheet-grabber { display: block; }
   @media (prefers-reduced-motion: no-preference) {
     .sheet[open] { animation: sheet-in .28s cubic-bezier(.2, .8, .2, 1); }

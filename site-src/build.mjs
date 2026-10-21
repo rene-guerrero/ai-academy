@@ -361,6 +361,7 @@ const ICON = {
   bookmark: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.4-6 4.4z"/></svg>',
   chevron: '<svg aria-hidden="true" viewBox="0 0 24 24" class="chev"><path d="m9 6 6 6-6 6"/></svg>',
   back: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+  gear: '<svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   bell: '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
   sidebar: '<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>',
 };
@@ -399,7 +400,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
   const tools = `<nav class="tools" aria-label="${attr(t(L, "nav.settings"))}">
 <button type="button" class="tool" id="remind-btn" hidden aria-label="${attr(t(L, "remind.label"))}" title="${attr(t(L, "remind.label"))}">${ICON.bell}</button><a class="tool" href="${rel}${langPrefix(lang)}index.html#search" aria-label="${attr(t(L, "nav.search"))}">${ICON.search}</a>
 <a class="tool lang" href="${alt}" hreflang="${other}" lang="${other}" data-set-lang="${other}" title="${attr(t(L, "lang.switch"))}" aria-label="${attr(t(L, "lang.switch"))}"><span class="lang-code">${other.toUpperCase()}</span></a>
-<button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" title="${attr(t(L, "nav.settings"))}">${ICON.cloud}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sr" id="sync-label">${t(L, "sync.local")}</span></button>
+<button type="button" class="tool sync" id="account-btn" aria-haspopup="dialog" title="${attr(t(L, "nav.settings"))}">${ICON.gear}<span class="sync-dot" id="sync-dot" data-sync="local" aria-hidden="true"></span><span class="sr" id="sync-label">${t(L, "sync.local")}</span></button>
 </nav>`;
   const themeButtons = ["system", "light", "dark"].map((c) => `<button type="button" role="radio" data-theme-choice="${c}" aria-checked="${c === "system" ? "true" : "false"}">${t(L, `theme.${c}`)}</button>`).join("");
   const dialogs = `<dialog id="account-dialog" class="sheet" aria-labelledby="account-title">

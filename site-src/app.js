@@ -465,6 +465,23 @@
     slots.forEach(function (el) { io.observe(el); });
   }
 
+  function initKeyboard() {
+    var vv = window.visualViewport;
+    if (vv) {
+      var update = function () {
+        var kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        document.documentElement.style.setProperty("--kb", (kb > 60 ? kb : 0) + "px");
+      };
+      vv.addEventListener("resize", update);
+      vv.addEventListener("scroll", update);
+    }
+    document.addEventListener("focusin", function (e) {
+      var target = e.target;
+      if (!target || !target.closest || !target.closest("dialog") || !/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      setTimeout(function () { target.scrollIntoView({ block: "center", behavior: "auto" }); }, 300);
+    });
+  }
+
   function initFontSize() {
     var SIZES = { s: "90%", m: "", l: "112.5%", xl: "125%" };
     function apply(c) {
@@ -1266,6 +1283,6 @@
   window.__aia = { get: get, set: set, onChange: onChange, t: t };
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initFontSize(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initNav(); initVisuals(); initNative(); initOfflineSettings(); initMermaid(); initOffline(); initSync();
+    initTheme(); initFontSize(); initKeyboard(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initNav(); initVisuals(); initNative(); initOfflineSettings(); initMermaid(); initOffline(); initSync();
   });
 })();
