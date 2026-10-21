@@ -189,7 +189,7 @@
         io.unobserve(entry.target);
         var el = entry.target;
         load().then(function (m) {
-          if (el.hasAttribute("data-map")) return m.courseMap(P.rel, P.lang).then(function (data) { m.mount(el, "cloud", data); });
+          if (el.hasAttribute("data-map")) return m.courseMap(P.rel, P.lang).then(function (data) { m.mountMap(el, data); });
           m.mount(el, el.getAttribute("data-visual"));
         }).catch(function () {});
       });

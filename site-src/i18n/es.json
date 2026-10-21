@@ -343,9 +343,13 @@
   "home.built.q": "Calidad medida",
   "home.built.q.sum": "Métricas de búsqueda, afirmaciones verificadas y paridad entre el navegador y Python.",
   "q.parity.zero": "Cada número impreso coincide con Python real",
-  "home.map": "Cada sección del curso, colocada según su significado. Arrástralo para girarlo; pulsa un punto para abrir esa sección.",
+  "home.map": "Cada sección del curso. Las líneas unen las secciones de una lección en orden de lectura; las líneas tenues enlazan las secciones más relacionadas entre lecciones. Los puntos grandes son secciones con las que muchas otras se relacionan, y los números marcan dónde empieza cada lección. Arrastra para girar, pellizca o usa + y − para hacer zoom, y elige un punto para abrirlo.",
   "q.mode.e5": "Significado (E5 multilingüe)",
   "q.mode.hybrid-e5": "Híbrido, E5",
   "q.search.shipped": "El sitio publica {mode}, el mejor MRR híbrido cuyo modelo funciona en el navegador.",
-  "q.e5.body": "Para la búsqueda por significado el navegador también puede ejecutar una implementación en NumPy de multilingual-e5-small (pesos {w}, vocabulario recortado a {v} piezas de escritura latina). Su tokenizador SentencePiece coincidió exactamente con Hugging Face en {exact} de {n} frases de control, y su mayor diferencia de similitud coseno frente a PyTorch en texto de escritura latina es {d}; la CI falla por encima de 0,01. El texto en otras escrituras se convierte en piezas desconocidas."
+  "q.e5.body": "Para la búsqueda por significado el navegador también puede ejecutar una implementación en NumPy de multilingual-e5-small (pesos {w}, vocabulario recortado a {v} piezas de escritura latina). Su tokenizador SentencePiece coincidió exactamente con Hugging Face en {exact} de {n} frases de control, y su mayor diferencia de similitud coseno frente a PyTorch en texto de escritura latina es {d}; la CI falla por encima de 0,01. El texto en otras escrituras se convierte en piezas desconocidas.",
+  "map.zoomIn": "Acercar",
+  "map.zoomOut": "Alejar",
+  "map.reset": "Restablecer vista",
+  "home.map.label": "Mapa del curso"
 }

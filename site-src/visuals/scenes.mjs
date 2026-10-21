@@ -5,8 +5,9 @@ import {
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { decodeF16, tokenize } from "../search-core.mjs";
+export { mountMap, courseMap } from "./map.mjs";
 
-function resolveColor(el, cssVar) {
+export function resolveColor(el, cssVar) {
   const probe = document.createElement("span");
   probe.style.color = `var(${cssVar})`;
   probe.style.display = "none";
@@ -16,7 +17,7 @@ function resolveColor(el, cssVar) {
   return new Color(value);
 }
 
-function palette(el) {
+export function palette(el) {
   const accent = resolveColor(el, "--accent");
   const text = resolveColor(el, "--text");
   const muted = resolveColor(el, "--muted");
@@ -395,105 +396,7 @@ export function mount(el, kind, data) {
   const rebuild = () => { build(); kick(); };
   new MutationObserver(rebuild).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rebuild);
-  if (kind === "cloud" && data && data.points) interact(el, renderer, () => ({ camera, world }), data, kick);
   el.classList.add("is-ready");
   return { kick };
 }
 
-function interact(el, renderer, get, data, kick) {
-  const ray = new Raycaster();
-  ray.params.Points.threshold = 0.14;
-  const ndc = new Vector2();
-  const tip = el.querySelector(".visual-tip");
-  let down = null;
-  let moved = false;
-  let hit = -1;
-  function pick(e) {
-    const r = renderer.domElement.getBoundingClientRect();
-    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    const { camera, world } = get();
-    ray.setFromCamera(ndc, camera);
-    const found = ray.intersectObject(world.points)[0];
-    hit = found ? found.index : -1;
-    world.highlight.material.opacity = hit >= 0 ? 0.9 : 0;
-    if (hit >= 0) {
-      const attr = world.points.geometry.attributes.position;
-      world.highlight.position.set(attr.getX(hit), attr.getY(hit), attr.getZ(hit));
-      if (tip) {
-        tip.textContent = data.labels[hit];
-        tip.hidden = false;
-        tip.style.left = Math.min(r.width - 12, Math.max(12, e.clientX - r.left)) + "px";
-        tip.style.top = e.clientY - r.top + "px";
-      }
-    } else if (tip) tip.hidden = true;
-    renderer.domElement.style.cursor = hit >= 0 ? "pointer" : "grab";
-    kick();
-  }
-  renderer.domElement.addEventListener("pointerdown", (e) => { down = e.clientX; moved = false; });
-  renderer.domElement.addEventListener("pointermove", (e) => {
-    if (down !== null && Math.abs(e.clientX - down) > 3) {
-      moved = true;
-      get().world.rotate((e.clientX - down) * 0.01);
-      down = e.clientX;
-      kick();
-    }
-    if (e.pointerType === "mouse") pick(e);
-  });
-  renderer.domElement.addEventListener("pointerup", (e) => {
-    down = null;
-    if (moved) return;
-    pick(e);
-    if (hit >= 0 && data.urls[hit]) location.href = data.urls[hit];
-  });
-  renderer.domElement.addEventListener("pointerleave", () => { down = null; hit = -1; get().world.highlight.material.opacity = 0; if (tip) tip.hidden = true; kick(); });
-}
-
-export async function courseMap(base, lang) {
-  const data = await (await fetch(`${base}search/${lang}-chunks.json`)).json();
-  const chunks = data.chunks;
-  let dim;
-  let rows;
-  if (data.vectors) {
-    const buf = await (await fetch(base + "search/" + data.vectors)).arrayBuffer();
-    const v = decodeF16(new Uint16Array(buf));
-    dim = v.length / chunks.length;
-    rows = chunks.map((_, i) => v.subarray(i * dim, (i + 1) * dim));
-  } else {
-    const docs = chunks.map((c) => tokenize(`${c.heading} ${c.text}`));
-    const df = new Map();
-    docs.forEach((d) => new Set(d).forEach((w) => df.set(w, (df.get(w) || 0) + 1)));
-    const vocab = [...df.keys()].filter((w) => df.get(w) > 1).sort();
-    const index = new Map(vocab.map((w, i) => [w, i]));
-    dim = vocab.length;
-    rows = docs.map((d) => {
-      const r = new Float32Array(dim);
-      d.forEach((w) => { if (index.has(w)) r[index.get(w)] += Math.log(chunks.length / df.get(w)); });
-      const norm = Math.hypot(...r) || 1;
-      return r.map((x) => x / norm);
-    });
-  }
-  const n = rows.length;
-  const mean = new Float32Array(dim);
-  rows.forEach((r) => r.forEach((x, j) => { mean[j] += x / n; }));
-  const X = rows.map((r) => r.map((x, j) => x - mean[j]));
-  const comps = [];
-  for (let c = 0; c < 3; c++) {
-    let v = new Float32Array(dim).map((_, j) => Math.sin(j * 12.9898 + c * 78.233));
-    for (let it = 0; it < 60; it++) {
-      const xv = X.map((r) => r.reduce((s, x, j) => s + x * v[j], 0));
-      const next = new Float32Array(dim);
-      X.forEach((r, i) => r.forEach((x, j) => { next[j] += x * xv[i]; }));
-      comps.forEach((u) => { const d = next.reduce((s, x, j) => s + x * u[j], 0); next.forEach((_, j) => { next[j] -= d * u[j]; }); });
-      const norm = Math.hypot(...next) || 1;
-      v = next.map((x) => x / norm);
-    }
-    comps.push(v);
-  }
-  const coords = X.map((r) => comps.map((u) => r.reduce((s, x, j) => s + x * u[j], 0)));
-  const std = [0, 1, 2].map((a) => Math.sqrt(coords.reduce((acc, q) => acc + q[a] * q[a], 0) / n) || 1);
-  const spread = [1.55, 0.8, 1.2];
-  const clamp = (x, m) => Math.max(-m, Math.min(m, x));
-  const lessons = [...new Set(chunks.map((c) => c.url.split("#")[0]))];
-  const points = coords.map((q, i) => [clamp(q[0] / std[0] * spread[0], 3), clamp(q[1] / std[1] * spread[1], 1.6), clamp(q[2] / std[2] * spread[2], 2.6), lessons.indexOf(chunks[i].url.split("#")[0]) / Math.max(1, lessons.length - 1)]);
-  return { points, labels: chunks.map((c) => `${c.title} · ${c.heading}`), urls: chunks.map((c) => c.url), semantic: Boolean(data.vectors) };
-}

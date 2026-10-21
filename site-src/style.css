@@ -515,3 +515,13 @@ svg .marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 @media (min-width: 62rem) { .visual { height: 176px; } .visual-map { height: 280px; } }
 @media (prefers-reduced-motion: reduce) { .visual canvas { transition: none; } }
 @media (forced-colors: active) { .visual, .visual-figure { display: none; } }
+.map-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.map-label { position: absolute; left: 0; top: 0; margin: -9px 0 0 8px; padding: 1px 6px; border-radius: 999px; background: var(--material); box-shadow: 0 0 0 .5px var(--separator); font-size: .6875rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; transition: opacity .2s; will-change: transform; }
+.map-label.is-hot { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+.map-controls { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 2px; padding: 2px; border-radius: 12px; background: var(--material); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 1px 6px rgba(0, 0, 0, .12), 0 0 0 .5px var(--separator); }
+.map-btn { width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--text); font: 600 1.125rem/1 var(--sans); cursor: pointer; display: grid; place-items: center; }
+.map-btn:hover { background: var(--fill-2); }
+.map-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (pointer: coarse) { .map-btn { width: 44px; height: 44px; } }
+.visual-map { height: 300px; }
+@media (min-width: 62rem) { .visual-map { height: 380px; } }

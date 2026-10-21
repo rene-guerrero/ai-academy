@@ -693,7 +693,7 @@ for (const lang of LANGS) {
   const first = courses[0] && courses[0].lessons[0];
   const home = `<main id="content" class="main home" tabindex="-1">
 <header class="hero"><h1>${t(L, "site.name")}</h1><p class="lede">${t(L, "home.intro")}</p>
-<figure class="visual-figure"><div class="visual visual-map" data-visual="cloud" data-map aria-hidden="true"><span class="visual-tip" hidden></span></div><figcaption class="hint">${t(L, "home.map")}</figcaption></figure></header>
+<figure class="visual-figure"><div class="visual visual-map" data-visual="cloud" data-map role="group" aria-label="${attr(t(L, "home.map.label"))}"><span class="visual-tip" hidden></span></div><figcaption class="hint">${t(L, "home.map")}</figcaption></figure></header>
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
 <section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
