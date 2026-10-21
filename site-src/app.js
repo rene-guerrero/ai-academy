@@ -172,6 +172,94 @@
     $$("[data-theme-choice]").forEach(function (b) { b.setAttribute("aria-checked", b.getAttribute("data-theme-choice") === choice ? "true" : "false"); });
     renderMermaid();
   }
+  function initNative() {
+    var C = window.Capacitor;
+    if (!C || typeof C.isNativePlatform !== "function" || !C.isNativePlatform()) return;
+    document.documentElement.classList.add("in-app");
+    var LN = C.Plugins && C.Plugins.LocalNotifications;
+    if (!LN) return;
+    var root = new URL(P.rel + (P.lang === "es" ? "es/" : ""), location.href).href;
+    var lessons = null;
+    var timer;
+    function pref() { var v = get("pref:remind"); return v && typeof v === "object" ? v : { on: false, time: "19:00" }; }
+    function loadLessons() {
+      if (lessons) return Promise.resolve(lessons);
+      return fetch(root + "search.json").then(function (r) { return r.json(); }).then(function (j) {
+        lessons = j.filter(function (d) { return d.kind === "lesson"; }).sort(function (a, b) { return a.n - b.n; });
+        return lessons;
+      });
+    }
+    function studiedToday() {
+      var start = new Date(); start.setHours(0, 0, 0, 0);
+      return Object.keys(state.items).some(function (k) { return /^(done|pred|predq|quiz|code):/.test(k) && state.items[k].v !== null && state.items[k].t >= start.getTime(); });
+    }
+    function schedule() {
+      var p = pref();
+      return LN.getPending().then(function (res) {
+        var ids = (res.notifications || []).map(function (x) { return { id: x.id }; });
+        return ids.length ? LN.cancel({ notifications: ids }) : null;
+      }).then(function () {
+        if (!p.on) return null;
+        return loadLessons().then(function (list) {
+          var next = list.find(function (l) { return !get("done:" + l.key); });
+          var parts = String(p.time || "19:00").split(":");
+          var out = [];
+          for (var d = 0; d < 7; d++) {
+            var at = new Date();
+            at.setDate(at.getDate() + d);
+            at.setHours(+parts[0] || 19, +parts[1] || 0, 0, 0);
+            if (at.getTime() <= Date.now() + 60000) continue;
+            if (d === 0 && studiedToday()) continue;
+            out.push({
+              id: 1001 + d,
+              title: next ? t("remind.title", { n: next.n, title: next.title }) : t("remind.allDone"),
+              body: next ? t("remind.body") : t("remind.allDone.body"),
+              schedule: { at: at, allowWhileIdle: true },
+              smallIcon: "ic_stat_aia",
+              extra: { url: root + (next ? next.url : "index.html#review") }
+            });
+          }
+          return out.length ? LN.schedule({ notifications: out }) : null;
+        });
+      }).catch(function () {});
+    }
+    LN.addListener("localNotificationActionPerformed", function (a) {
+      var u = a && a.notification && a.notification.extra && a.notification.extra.url;
+      if (u) location.href = u;
+    });
+    var dialogBody = $("#account-dialog .sheet-body");
+    if (dialogBody) {
+      var p0 = pref();
+      var toggle = el("button", { type: "button", role: "switch", class: "switch", "aria-checked": p0.on ? "true" : "false", "aria-labelledby": "remind-h" });
+      var time = el("input", { type: "time", id: "remind-time", value: p0.time || "19:00" });
+      var note = el("p", { class: "hint", text: t("remind.hint") });
+      var status = el("p", { class: "status", "aria-live": "polite" });
+      function save(on) {
+        set("pref:remind", { on: on, time: time.value || "19:00" });
+        toggle.setAttribute("aria-checked", on ? "true" : "false");
+        schedule().then(function () { status.textContent = on ? t("remind.saved", { time: time.value }) : t("remind.off"); });
+      }
+      toggle.addEventListener("click", function () {
+        var on = toggle.getAttribute("aria-checked") !== "true";
+        if (!on) { save(false); return; }
+        LN.checkPermissions().then(function (r) { return r.display === "granted" ? r : LN.requestPermissions(); }).then(function (r) {
+          if (r.display === "granted") save(true);
+          else status.textContent = t("remind.denied");
+        }).catch(function () { status.textContent = t("remind.denied"); });
+      });
+      time.addEventListener("change", function () { if (pref().on) save(true); else set("pref:remind", { on: false, time: time.value || "19:00" }); });
+      var group = el("section", { class: "group", "aria-labelledby": "remind-h" }, [
+        el("div", { class: "switch-row" }, [el("h3", { id: "remind-h", text: t("remind.label") }), toggle]),
+        el("div", { class: "time-row" }, [el("label", { for: "remind-time", text: t("remind.time") }), time]),
+        note, status
+      ]);
+      dialogBody.insertBefore(group, dialogBody.querySelector('[aria-labelledby="sync-h"]'));
+    }
+    schedule();
+    onChange(function () { clearTimeout(timer); timer = setTimeout(schedule, 1500); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) schedule(); });
+  }
+
   function initVisuals() {
     var slots = $$("[data-visual]");
     if (!slots.length || !("IntersectionObserver" in window)) return;
@@ -789,9 +877,24 @@
         sync.client.auth.signInWithOtp({ email: input.value.trim(), options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
           if (r.error) throw r.error;
           msg.textContent = t("account.sent");
+          codeForm.hidden = false;
+          code.focus();
         }).catch(function (err) { msg.textContent = t("account.sendFailed", { error: err.message || String(err) }); }).then(function () { submit.disabled = false; submit.textContent = t("account.send"); });
       } }, [el("label", { for: "account-email", text: t("account.email") }), input, submit, msg]);
       body.appendChild(form);
+      var code = el("input", { type: "text", id: "account-code", inputmode: "numeric", autocomplete: "one-time-code", pattern: "[0-9]{6,10}", maxlength: "10", required: "", placeholder: "123456" });
+      var verify = el("button", { type: "submit", class: "btn primary", text: t("account.verify") });
+      var codeMsg = el("p", { class: "status", "aria-live": "polite" });
+      var codeForm = el("form", { class: "code-form", onsubmit: function (e) {
+        e.preventDefault();
+        verify.disabled = true;
+        sync.client.auth.verifyOtp({ email: input.value.trim(), token: code.value.trim(), type: "email" }).then(function (r) {
+          if (r.error) throw r.error;
+          codeMsg.textContent = t("account.verified");
+        }).catch(function (err) { codeMsg.textContent = t("account.verifyFailed", { error: err.message || String(err) }); }).then(function () { verify.disabled = false; });
+      } }, [el("label", { for: "account-code", text: t("account.code") }), el("p", { class: "hint", text: t("account.code.hint") }), code, verify, codeMsg]);
+      codeForm.hidden = true;
+      body.appendChild(codeForm);
     } else {
       body.appendChild(el("p", { text: t("account.signedInAs", { email: sync.session.user.email || "" }) }));
       var msg2 = el("p", { class: "status", "aria-live": "polite" });
@@ -966,6 +1069,6 @@
   window.__aia = { get: get, set: set, onChange: onChange, t: t };
 
   document.addEventListener("DOMContentLoaded", function () {
-    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initVisuals(); initMermaid(); initOffline(); initSync();
+    initTheme(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initVisuals(); initNative(); initMermaid(); initOffline(); initSync();
   });
 })();

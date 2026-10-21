@@ -1,0 +1,74 @@
+name: Android app
+
+on:
+  push:
+    branches: [master]
+    paths: ["app/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Install Capacitor
+        working-directory: app
+        run: npm ci
+      - name: Copy the web shell and plugins into the Android project
+        working-directory: app
+        run: npx cap sync android
+      - name: Reuse the signing key of earlier builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+      - name: Use the release key if the repository has one
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          fi
+      - name: Build the APK
+        working-directory: app/android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/ai-academy.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-academy-apk
+          path: ${{ runner.temp }}/ai-academy.apk
+      - name: Publish a release with the APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "android-v1.0.${{ github.run_number }}" "$RUNNER_TEMP/ai-academy.apk" \
+            --title "AI Academy for Android 1.0.${{ github.run_number }}" \
+            --notes "Install: open this page on your phone, download ai-academy.apk and allow installs from your browser. The app loads https://rene-guerrero.github.io/ai-academy/ and adds a daily lesson reminder (Settings, Daily reminder)." \
+            --latest

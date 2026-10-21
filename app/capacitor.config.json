@@ -1,0 +1,19 @@
+{
+  "appId": "io.github.reneguerrero.aiacademy",
+  "appName": "AI Academy",
+  "webDir": "www",
+  "server": {
+    "url": "https://rene-guerrero.github.io/ai-academy/",
+    "androidScheme": "https",
+    "allowNavigation": ["rene-guerrero.github.io"]
+  },
+  "android": {
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_aia",
+      "iconColor": "#4B48C9"
+    }
+  }
+}

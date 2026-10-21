@@ -147,3 +147,13 @@ The case study (`site-src/pages/case-study.md` and `es/`) can quote live numbers
 ## 9. Supabase keep-alive
 
 Free Supabase projects pause after a week without requests. `.github/workflows/keepalive.yml` runs `tools/keepalive.mjs` daily: it calls the optional `public.ping()` function from `supabase/schema.sql`, or, if that function does not exist, makes an anonymous read of `learning_items`, which row-level security rejects but which still counts as activity.
+
+## 10. Android app
+
+`app/` is a Capacitor 8 project. The app is a native shell around the live site (`server.url` in `app/capacitor.config.json`), so it always shows the deployed version, and adds what a website cannot do on Android: a daily local notification with the next unfinished lesson. Settings, Daily reminder, turns it on and asks for the notification permission at that moment. Reminders are scheduled on the phone for the next seven days, skip today once you have studied (marked a lesson done, wrote notes or predictions, graded a quiz or edited code), are refreshed whenever progress changes, and open the lesson when tapped. No push server is involved.
+
+`.github/workflows/android.yml` builds a release APK on every push that touches `app/` (or by hand from the Actions tab) and publishes it as a GitHub release; the home page links to `releases/latest/download/ai-academy.apk`. To install: open that link on the phone and allow installs from the browser.
+
+Signing: without secrets the APK is signed with a debug key kept in the Actions cache, so updates install over the previous version as long as the cache is alive (GitHub evicts caches unused for 7 days). For a permanent key, create one once (`keytool -genkeypair -v -keystore release.jks -alias aia -keyalg RSA -keysize 2048 -validity 10000`) and add the repository secrets `ANDROID_KEYSTORE_BASE64` (`base64 -w0 release.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. Switching keys requires uninstalling the app once.
+
+Sign-in inside the app: an email link opens the phone's browser, not the app, so the account sheet also accepts the code from the email. In Supabase, Authentication, Email Templates, Magic Link, add the code to the template, for example `<p>Or enter this code: {{ .Token }}</p>`.
