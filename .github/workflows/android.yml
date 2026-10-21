@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: android
@@ -36,17 +37,18 @@ jobs:
         working-directory: app
         run: npx cap sync android
       - name: Restore the app signing key
-        id: key
         uses: actions/cache/restore@v4
         with:
-          path: ~/aia-signing/release.jks
-          key: android-release-keystore-v1
+          path: ~/aia-signing
+          key: android-release-keystore-v2
+          restore-keys: android-release-keystore-v1
       - name: Choose the signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          LEGACY: ${{ format('{0}-{1}', 'aia', 'release') }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
@@ -59,27 +61,44 @@ jobs:
             echo "Signing with the key from repository secrets"
             exit 0
           fi
-          mkdir -p ~/aia-signing
-          if [ ! -f ~/aia-signing/release.jks ]; then
-            keytool -genkeypair -noprompt -keystore ~/aia-signing/release.jks -alias aia -keyalg RSA -keysize 2048 -validity 10000 -storepass aia-release -keypass aia-release -dname "CN=AI Academy, O=rene-guerrero"
-            echo "NEW_KEY=1" >> "$GITHUB_ENV"
-            echo "Created a new signing key"
+          dir="$HOME/aia-signing"
+          mkdir -p "$dir"
+          if [ ! -f "$dir/password" ]; then
+            pw="$(openssl rand -hex 24)"
+            echo "::add-mask::$pw"
+            if [ -f "$dir/release.jks" ]; then
+              keytool -storepasswd -new "$pw" -keystore "$dir/release.jks" -storepass "$LEGACY"
+              keytool -keypasswd -alias aia -keypass "$LEGACY" -new "$pw" -keystore "$dir/release.jks" -storepass "$pw"
+              echo "Moved the existing signing key to a private password"
+            else
+              keytool -genkeypair -noprompt -keystore "$dir/release.jks" -alias aia -keyalg RSA -keysize 2048 -validity 10000 -storepass "$pw" -keypass "$pw" -dname "CN=AI Academy, O=rene-guerrero"
+              echo "Created a new signing key"
+            fi
+            printf '%s' "$pw" > "$dir/password"
+            echo "SAVE_KEY=1" >> "$GITHUB_ENV"
           else
             echo "Reusing the cached signing key"
           fi
-          keytool -list -v -keystore ~/aia-signing/release.jks -storepass aia-release | grep -m1 "SHA256:"
+          pw="$(cat "$dir/password")"
+          echo "::add-mask::$pw"
+          keytool -list -v -keystore "$dir/release.jks" -storepass "$pw" | grep -m1 "SHA256:"
           {
-            echo "ANDROID_KEYSTORE_PATH=$HOME/aia-signing/release.jks"
-            echo "ANDROID_KEYSTORE_PASSWORD=aia-release"
+            echo "ANDROID_KEYSTORE_PATH=$dir/release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=$pw"
             echo "ANDROID_KEY_ALIAS=aia"
-            echo "ANDROID_KEY_PASSWORD=aia-release"
+            echo "ANDROID_KEY_PASSWORD=$pw"
           } >> "$GITHUB_ENV"
-      - name: Save a newly created signing key
-        if: env.NEW_KEY == '1'
+      - name: Save the signing key
+        if: env.SAVE_KEY == '1'
         uses: actions/cache/save@v4
         with:
-          path: ~/aia-signing/release.jks
-          key: android-release-keystore-v1
+          path: ~/aia-signing
+          key: android-release-keystore-v2
+      - name: Delete the old cache entry that used a public password
+        if: env.SAVE_KEY == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh cache delete android-release-keystore-v1 --repo "${{ github.repository }}" || true
       - name: Build the APK
         working-directory: app/android
         env:
