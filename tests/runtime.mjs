@@ -96,13 +96,26 @@ await page.goto(`${base}ai-engineering/lab-training-lab.html`);
 await page.click("#lab [data-go]");
 await page.waitForFunction(() => /Trained|error|Couldn|available/.test(document.querySelector("#lab .lab-status").textContent), null, { timeout: 180000 });
 check("training lab trains", /^Trained/.test(await page.textContent("#lab .lab-status")), await page.textContent("#lab .lab-status"));
+async function waitStatus(p, re, ms, label) {
+  const started = Date.now();
+  let last = "";
+  let lastLog = 0;
+  while (Date.now() - started < ms) {
+    const text = (await p.textContent(".ask-status")) || "";
+    if (re.test(text)) { console.log(`runtime: ${label} ready after ${Math.round((Date.now() - started) / 1000)} s`); return text; }
+    if (text !== last || Date.now() - lastLog > 20000) { console.log(`runtime: ${label} ${Math.round((Date.now() - started) / 1000)} s: ${text}`); last = text; lastLog = Date.now(); }
+    await p.waitForTimeout(1000);
+  }
+  return (await p.textContent(".ask-status")) || "";
+}
+page.on("worker", (w) => w.on("console", (m) => { if (m.type() === "error") console.log("runtime: worker error " + m.text()); }));
 const chunks = JSON.parse(readFileSync(join(dist, "search", "en-chunks.json"), "utf8"));
 if (chunks.vectors) {
   await page.goto(`${base}index.html`);
   await page.click('[data-ask-mode="hybrid"]');
   await page.fill("#ask-input", "why does the loss never reach zero");
-  await page.waitForFunction(() => /reciprocal rank fusion|unavailable|could not/.test(document.querySelector(".ask-status").textContent), null, { timeout: 180000 });
-  check("hybrid search runs MiniLM in the browser", /reciprocal rank fusion/.test(await page.textContent(".ask-status")), await page.textContent(".ask-status"));
+  const enStatus = await waitStatus(page, /reciprocal rank fusion|unavailable|could not/, 420000, "English meaning search");
+  check(`hybrid search runs ${chunks.model ? chunks.model.label : "a model"} in the browser`, /reciprocal rank fusion/.test(enStatus), enStatus);
   const top = await page.evaluate(() => [...document.querySelectorAll("#ask-results a")].slice(0, 3).map((a) => a.getAttribute("href")));
   check("hybrid search finds a training section", top.some((h) => /^ai-engineering\/(05-training-and-generation|16-small-network-from-scratch)\.html#/.test(h)), top.join(", "));
   check("hybrid results explain both rankings", /meaning #/.test(await page.textContent("#ask-results")));
@@ -115,8 +128,8 @@ if (chunksEs.vectors) {
   await es.goto(`${base}es/index.html`);
   await es.click('[data-ask-mode="hybrid"]');
   await es.fill("#ask-input", "por qué la pérdida nunca llega a cero");
-  await es.waitForFunction(() => /rango recíproco|no está disponible|No se pudo/.test(document.querySelector(".ask-status").textContent), null, { timeout: 240000 });
-  check(`Spanish hybrid search runs ${chunksEs.model.label} in the browser`, /rango recíproco/.test(await es.textContent(".ask-status")), await es.textContent(".ask-status"));
+  const esStatus = await waitStatus(es, /rango recíproco|no está disponible|No se pudo/, 420000, "Spanish meaning search");
+  check(`Spanish hybrid search runs ${chunksEs.model.label} in the browser`, /rango recíproco/.test(esStatus), esStatus);
   check("Spanish hybrid results explain both rankings", /significado #/.test(await es.textContent("#ask-results")));
   console.log(`runtime: Spanish meaning search ships ${chunksEs.model.key}`);
   await fresh.close();

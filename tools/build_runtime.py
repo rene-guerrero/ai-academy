@@ -209,6 +209,16 @@ def e5():
     latin_ids = [i for i, (piece, _) in enumerate(vocab) if i not in special and latin(piece)]
     by_score = sorted(latin_ids, key=lambda i: -vocab[i][1])
     short = {i for i in latin_ids if len(vocab[i][0]) <= 2}
+    corpus = []
+    for md in sorted((ROOT / "courses").glob("*/**/*.md")):
+        corpus.extend(line for line in md.read_text(encoding="utf-8").split("\n") if line.strip())
+    corpus.extend(sentences)
+    used = set()
+    for text in corpus:
+        used.update(tok(text, add_special_tokens=False)["input_ids"])
+    used = {i for i in used if i not in special and latin(vocab[i][0])}
+    short |= used
+    log(f"e5 keeps all {len(used)} Latin pieces the course text and questions use")
     log(f"multilingual-e5-small: {config.model_type} encoder, position offset {meta['position_offset']}, {len(vocab)} pieces, {len(latin_ids)} Latin-script")
 
     def write(keep, mode):
@@ -238,7 +248,7 @@ def e5():
     single = np.abs((reference * ours).sum(axis=1) - 1)
     log(f"e5 fp32 diagnostic: worst single-sentence cosine gap {float(single.max()):.5f} for {covered[int(single.argmax())][:70]!r}")
     best = None
-    for limit, mode in ((30000, "int8"), (30000, "mixed"), (60000, "mixed"), (None, "mixed"), (None, "fp16")):
+    for limit, mode in ((20000, "int8"), (20000, "mixed"), (40000, "mixed"), (None, "mixed"), (None, "fp16")):
         keep = set(by_score[:limit] if limit else latin_ids) | short
         count, size = write(keep, mode)
         ours = shim.SentenceTransformer(E5_MODEL).encode(covered, normalize_embeddings=True, batch_size=32)

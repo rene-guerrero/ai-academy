@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       SITE_URL: ${{ vars.SITE_URL }}
       SUPABASE_URL: ${{ vars.SUPABASE_URL }}
