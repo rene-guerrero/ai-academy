@@ -124,6 +124,7 @@ const chunksEs = JSON.parse(readFileSync(join(dist, "search", "es-chunks.json"),
 if (chunksEs.vectors) {
   const fresh = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const es = await fresh.newPage();
+  await es.addInitScript(() => { try { localStorage.setItem("aia:lang", "es"); } catch (e) {} });
   es.on("pageerror", (e) => errors.push(String(e)));
   await es.goto(`${base}es/index.html`);
   await es.click('[data-ask-mode="hybrid"]');
