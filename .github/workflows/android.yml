@@ -41,14 +41,12 @@ jobs:
         with:
           path: ~/aia-signing
           key: android-release-keystore-v2
-          restore-keys: android-release-keystore-v1
       - name: Choose the signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          LEGACY: ${{ format('{0}-{1}', 'aia', 'release') }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
@@ -66,14 +64,8 @@ jobs:
           if [ ! -f "$dir/password" ]; then
             pw="$(openssl rand -hex 24)"
             echo "::add-mask::$pw"
-            if [ -f "$dir/release.jks" ]; then
-              keytool -storepasswd -new "$pw" -keystore "$dir/release.jks" -storepass "$LEGACY"
-              keytool -keypasswd -alias aia -keypass "$LEGACY" -new "$pw" -keystore "$dir/release.jks" -storepass "$pw"
-              echo "Moved the existing signing key to a private password"
-            else
-              keytool -genkeypair -noprompt -keystore "$dir/release.jks" -alias aia -keyalg RSA -keysize 2048 -validity 10000 -storepass "$pw" -keypass "$pw" -dname "CN=AI Academy, O=rene-guerrero"
-              echo "Created a new signing key"
-            fi
+            keytool -genkeypair -noprompt -keystore "$dir/release.jks" -alias aia -keyalg RSA -keysize 2048 -validity 10000 -storepass "$pw" -keypass "$pw" -dname "CN=AI Academy, O=rene-guerrero"
+            echo "Created a new signing key"
             printf '%s' "$pw" > "$dir/password"
             echo "SAVE_KEY=1" >> "$GITHUB_ENV"
           else
@@ -94,11 +86,10 @@ jobs:
         with:
           path: ~/aia-signing
           key: android-release-keystore-v2
-      - name: Delete the old cache entry that used a public password
-        if: env.SAVE_KEY == '1'
+      - name: Remove the retired signing key
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh cache delete android-release-keystore-v1 --repo "${{ github.repository }}" || true
+        run: gh cache delete android-release-keystore-v1 --repo "${{ github.repository }}" && echo "Deleted the retired key" || echo "No retired key left"
       - name: Build the APK
         working-directory: app/android
         env:
