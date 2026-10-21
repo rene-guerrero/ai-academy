@@ -213,7 +213,7 @@
   function initOfflineSettings() {
     var body = $("#offline-body");
     if (!body || !("caches" in window) || !("serviceWorker" in navigator)) return;
-    var langRoot = new URL(P.rel + (P.lang === "es" ? "es/" : ""), location.href).href;
+    var langRoot = new URL((P.rel || "./") + (P.lang === "es" ? "es/" : ""), location.href).href;
     var rt = P.runtime ? new URL(P.runtime.base, location.href).href : null;
     var pages = null;
     function pageCache() {
@@ -323,7 +323,7 @@
 
   function setupNative(LN) {
     document.documentElement.classList.add("in-app");
-    var root = new URL(P.rel + (P.lang === "es" ? "es/" : ""), location.href).href;
+    var root = new URL((P.rel || "./") + (P.lang === "es" ? "es/" : ""), location.href).href;
     var lessons = null;
     var timer;
     var ALL = [1, 2, 3, 4, 5, 6, 0];
