@@ -197,7 +197,8 @@ def e5():
         "position_offset": int(config.pad_token_id) + 1,
     }
     sentences = e5_sentences()
-    reference = real.encode(sentences, normalize_embeddings=True, batch_size=32)
+    covered = [s for s in sentences if latin(s)]
+    reference = real.encode(covered, normalize_embeddings=True, batch_size=32)
     sims_ref = reference @ reference.T
     os.environ["AIA_ASSETS"] = str(assets)
     import importlib.util
@@ -233,15 +234,16 @@ def e5():
     for limit, mode in ((30000, "int8"), (30000, "mixed"), (60000, "mixed"), (None, "mixed"), (None, "fp16")):
         keep = set(by_score[:limit] if limit else latin_ids) | short
         count, size = write(keep, mode)
-        ours = shim.SentenceTransformer(E5_MODEL).encode(sentences, normalize_embeddings=True, batch_size=32)
-        diff = float(np.abs(sims_ref - ours @ ours.T).max())
-        log(f"e5 {mode}, {count} pieces: {size // 1024} KB, max cosine difference {diff:.5f} over {len(sentences)} sentences")
+        ours = shim.SentenceTransformer(E5_MODEL).encode(covered, normalize_embeddings=True, batch_size=32)
+        delta = np.abs(sims_ref - ours @ ours.T)
+        diff = float(delta.max())
+        log(f"e5 {mode}, {count} pieces: {size // 1024} KB, max cosine difference {diff:.5f}, median {float(np.median(delta)):.5f} over {len(covered)} Latin-script sentences")
         best = (mode, count, diff)
         if diff <= E5_TOLERANCE:
             break
     if best[2] > E5_TOLERANCE:
         raise SystemExit(f"The NumPy multilingual-e5-small differs from PyTorch by {best[2]:.4f}, above {E5_TOLERANCE}")
-    meta.update({"weights": best[0], "vocab_size": best[1], "max_cosine_difference": round(best[2], 6), "tokenizer_exact": len(sentences) - len(mismatched), "tokenizer_checked": len(sentences)})
+    meta.update({"weights": best[0], "vocab_size": best[1], "max_cosine_difference": round(best[2], 6), "tokenizer_exact": len(sentences) - len(mismatched), "tokenizer_checked": len(sentences), "checked_sentences": len(covered)})
     (assets / "e5.json").write_text(json.dumps(meta))
 
 

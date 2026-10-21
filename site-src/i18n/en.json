@@ -347,5 +347,5 @@
   "q.mode.e5": "Meaning (multilingual E5)",
   "q.mode.hybrid-e5": "Hybrid, E5",
   "q.search.shipped": "The site ships {mode}, the best hybrid MRR whose model runs in the browser.",
-  "q.e5.body": "For meaning search the browser can also run a NumPy implementation of multilingual-e5-small ({w} weights, vocabulary trimmed to {v} Latin-script pieces). Its SentencePiece tokenizer matched Hugging Face exactly on {exact} of {n} check sentences, and its largest cosine-similarity difference from PyTorch is {d}; CI fails above 0.01."
+  "q.e5.body": "For meaning search the browser can also run a NumPy implementation of multilingual-e5-small ({w} weights, vocabulary trimmed to {v} Latin-script pieces). Its SentencePiece tokenizer matched Hugging Face exactly on {exact} of {n} check sentences, and its largest cosine-similarity difference from PyTorch on Latin-script text is {d}; CI fails above 0.01. Text in other scripts falls back to unknown pieces."
 }
