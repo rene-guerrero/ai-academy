@@ -194,7 +194,7 @@ def e5():
         "max_seq_length": min(512, real.max_seq_length),
         "normalize": True,
         "tokenizer": "unigram",
-        "position_offset": int(config.pad_token_id) + 1,
+        "position_offset": int(config.pad_token_id) + 1 if config.model_type in ("xlm-roberta", "roberta", "camembert") else 0,
     }
     sentences = e5_sentences()
     covered = [s for s in sentences if latin(s)]
@@ -209,7 +209,7 @@ def e5():
     latin_ids = [i for i, (piece, _) in enumerate(vocab) if i not in special and latin(piece)]
     by_score = sorted(latin_ids, key=lambda i: -vocab[i][1])
     short = {i for i in latin_ids if len(vocab[i][0]) <= 2}
-    log(f"multilingual-e5-small: {len(vocab)} pieces, {len(latin_ids)} Latin-script")
+    log(f"multilingual-e5-small: {config.model_type} encoder, position offset {meta['position_offset']}, {len(vocab)} pieces, {len(latin_ids)} Latin-script")
 
     def write(keep, mode):
         keep = sorted(set(keep) | special)
