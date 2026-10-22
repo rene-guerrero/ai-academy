@@ -1,0 +1,23 @@
+{
+  "listen.listen": "Listen",
+  "listen.resume": "Resume listening",
+  "listen.pauseListening": "Pause listening",
+  "listen.resumeAt": "From paragraph {n} of {total}",
+  "listen.startOver": "Start over",
+  "listen.player": "Listen to this page",
+  "listen.play": "Play",
+  "listen.pause": "Pause",
+  "listen.prev": "Previous paragraph",
+  "listen.next": "Next paragraph",
+  "listen.progress": "Paragraph {n} of {total}",
+  "listen.options": "Speed and voice",
+  "listen.speed": "Speed",
+  "listen.rate": "{r}×",
+  "listen.voice": "Voice",
+  "listen.voiceAuto": "Automatic",
+  "listen.close": "Stop listening",
+  "listen.state.playing": "Playing",
+  "listen.state.paused": "Paused",
+  "listen.state.done": "Finished",
+  "listen.error": "Speech stopped. Press play to try again."
+}

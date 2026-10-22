@@ -1,0 +1,23 @@
+{
+  "listen.listen": "Escuchar",
+  "listen.resume": "Seguir escuchando",
+  "listen.pauseListening": "Pausar",
+  "listen.resumeAt": "Desde el párrafo {n} de {total}",
+  "listen.startOver": "Empezar de nuevo",
+  "listen.player": "Escuchar esta página",
+  "listen.play": "Reproducir",
+  "listen.pause": "Pausa",
+  "listen.prev": "Párrafo anterior",
+  "listen.next": "Párrafo siguiente",
+  "listen.progress": "Párrafo {n} de {total}",
+  "listen.options": "Velocidad y voz",
+  "listen.speed": "Velocidad",
+  "listen.rate": "{r}×",
+  "listen.voice": "Voz",
+  "listen.voiceAuto": "Automática",
+  "listen.close": "Dejar de escuchar",
+  "listen.state.playing": "Reproduciendo",
+  "listen.state.paused": "En pausa",
+  "listen.state.done": "Terminado",
+  "listen.error": "La lectura se detuvo. Pulsa reproducir para intentarlo de nuevo."
+}

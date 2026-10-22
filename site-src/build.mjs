@@ -620,7 +620,7 @@ ${tocHtml(toc, L, true)}
 ${provenanceHtml(lesson, d, claims, L, lang, course)}
 ${prereqs.length ? `<p class="prereqs"><span class="muted">${t(L, "lesson.prereqs")}:</span> ${prereqs.map(lessonLink).join(", ")}</p>` : ""}
 ${notices.join("\n")}
-<div class="prose">${html}</div>
+<div class="prose"${isTranslated(lesson, lang) ? "" : ' lang="en"'}>${html}</div>
 ${quiz}
 ${exercise}
 <section class="mine" id="my-notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "lesson.notes")}</h2>
@@ -650,7 +650,7 @@ ${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "les
       const { html, toc } = render(v.body, L);
       const notices = isTranslated(note, lang) ? "" : `<aside class="notice" role="note">${t(L, "lesson.untranslated")}</aside>`;
       const body = `<div class="layout"><aside class="side">${tocHtml(toc, L)}</aside><main id="content" class="main lesson note" tabindex="-1">
-${crumb}<p class="eyebrow"><span>${t(L, "note.label")}</span></p><h1>${esc(v.data.title)}</h1><p class="lede">${esc(v.data.summary)}</p>${tocHtml(toc, L, true)}${notices}<div class="prose">${html}</div>
+${crumb}<p class="eyebrow"><span>${t(L, "note.label")}</span></p><h1>${esc(v.data.title)}</h1><p class="lede">${esc(v.data.summary)}</p><div class="slot" id="slot-note"></div>${tocHtml(toc, L, true)}${notices}<div class="prose"${notices ? ' lang="en"' : ""}>${html}</div>
 <nav class="pager" aria-label="${attr(t(L, "nav.home"))}"><a class="prev" href="index.html"><small>${t(L, "lesson.back")}</small><span>${esc(courseTitle)}</span></a><span></span></nav></main></div>`;
       const name = `${C}/note-${note.slug}.html`;
       emit(outPath(lang, name), page({ lang, name, title: String(v.data.title), desc: String(v.data.summary), body, kind: "note", slug: note.key, course: C, hasMermaid: html.includes('class="mermaid"'), extra: { title: v.data.title } }));
