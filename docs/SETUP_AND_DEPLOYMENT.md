@@ -144,6 +144,19 @@ Chunk vectors come from `python tools/embed_search.py`, which reads the chunks o
 
 The case study (`site-src/pages/case-study.md` and `es/`) can quote live numbers with `{{q:<lang>.<mode>.<hit1|hit3|mrr>}}`, `{{q:claims}}`, `{{q:queries}}` and `{{q:minilm}}`.
 
+### Search feedback loop
+
+The labeled set grows from real use:
+
+1. **Vote.** Under the top three Ask the course results, readers answer "Was this the answer?" with a thumbs up or down, and can mark "None of these" for the whole question (`site-src/features/feedback.js`). One vote per question and result; pressing the same thumb again withdraws it, and the other thumb changes it. The browser posts one row per vote straight to the Supabase REST endpoint (`POST /rest/v1/search_feedback` with the publishable key, `Prefer: return=minimal`): language, search mode, the question (lowercased, at most 300 characters), the section id, its rank, the vote (1, -1, or 0 to withdraw; a row without a section and vote -1 is a "None of these") and a random token created for that one question, so a changed vote replaces the earlier one without linking questions to each other or to a person. Nothing else is sent. Offline votes wait in `localStorage` (`aia:fb:queue`) and are sent when the page is back online.
+2. **Store.** `public.search_feedback` in `supabase/schema.sql` accepts inserts from `anon` and `authenticated` and nothing else: row-level security has no select, update or delete policy. `public.search_feedback_summary(since)` is a `security definer` function, executable by `anon`, that keeps the latest vote per token, question and section and returns `lang, mode, query, section, ups, downs, misses`.
+3. **Mine.** `.github/workflows/feedback.yml` runs every Monday (and on demand) `node tools/mine_feedback.mjs`, which calls the summary function and writes `data/search-feedback.json`: total votes, the helpful rate (up votes over all votes, "None of these" included) per language and mode, the questions that fail most with their downvoted sections, and candidate questions. A candidate is a question that is not in `tests/search-eval.json` and whose best section has at least 2 up votes, at least 2 more up than down and at least three times as many up as down (`--min-ups` changes the 2). The workflow commits the file to `master` only when it changed and opens or updates one issue, "Search feedback: candidate questions to label", with each candidate as a JSON snippet for `tests/search-eval.json`. Spanish section ids are mapped to English headings by position, using `dist/search/<lang>-chunks.json` when a build exists or the deployed site otherwise (`--chunks <dir or URL>`). Translate the repeated field before pasting a snippet. The script exits cleanly, doing nothing, while the table or function does not exist.
+4. **Show.** When `data/search-feedback.json` exists, the build adds a "From real use" block to the Ask the course section of `quality.html` (votes, helpful rate per language and mode, candidates waiting). The bot's commit does not trigger a deploy, so the block refreshes with the next deploy.
+
+**One-time setup:** open the Supabase SQL editor and run `supabase/schema.sql` again (it is idempotent) to create the table, its policy and the summary function. Until then votes fail quietly in the browser and the weekly job does nothing.
+
+To try the miner without Supabase, pass rows in the shape the function returns: `node tools/mine_feedback.mjs --fixture rows.json --out /tmp/feedback.json --issue /tmp/issue.md`.
+
 ## 9. Supabase keep-alive
 
 Free Supabase projects pause after a week without requests. `.github/workflows/keepalive.yml` runs `tools/keepalive.mjs` daily: it calls the optional `public.ping()` function from `supabase/schema.sql`, or, if that function does not exist, makes an anonymous read of `learning_items`, which row-level security rejects but which still counts as activity.

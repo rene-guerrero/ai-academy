@@ -1,0 +1,25 @@
+.ask-results .fb-item { position: relative; }
+.fb-vote { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 0 14px 10px; margin-top: -4px; font-size: .8125rem; color: var(--muted); }
+.fb-ask { margin-right: 4px; }
+.fb-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+.fb-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fb-btn:hover { background: var(--fill-2); color: var(--text); }
+.fb-btn:active { opacity: .7; }
+.fb-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.fb-btn[aria-pressed="true"] svg { fill: currentColor; fill-opacity: .25; }
+.fb-thanks { font-weight: 600; color: var(--text); margin-left: 4px; }
+.fb-thanks:empty { display: none; }
+.fb-foot { margin: 8px 0 0; }
+.fb-foot[hidden] { display: none; }
+.fb-none-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.fb-none { border: 0; background: none; padding: 0 2px; min-height: 36px; color: var(--accent); font: inherit; font-size: .9375rem; cursor: pointer; border-radius: 6px; }
+.fb-none:hover { text-decoration: underline; }
+.fb-none-status { margin: 0; color: var(--muted); font-size: .8125rem; }
+.fb-none-status:empty { display: none; }
+.fb-note { margin: 2px 0 0; color: var(--muted); font-size: .75rem; line-height: 1.4; }
+.fb-note a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .15em; }
+@media (pointer: coarse) {
+  .fb-btn { width: 44px; height: 44px; }
+  .fb-none { min-height: 44px; }
+}
+.qtable .fb-n { text-align: right; font-variant-numeric: tabular-nums; }

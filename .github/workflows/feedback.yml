@@ -1,0 +1,56 @@
+name: Mine search feedback
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: search-feedback
+  cancel-in-progress: false
+
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ vars.SITE_URL }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ISSUE_TITLE: "Search feedback: candidate questions to label"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Summarize the votes
+        id: mine
+        run: node tools/mine_feedback.mjs --out data/search-feedback.json --issue "$RUNNER_TEMP/feedback-issue.md"
+      - name: Commit the summary if it changed
+        run: |
+          if [ ! -f data/search-feedback.json ]; then echo "No summary written."; exit 0; fi
+          git add data/search-feedback.json
+          if git diff --cached --quiet; then echo "Summary unchanged."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update search feedback summary"
+          git push origin HEAD:master
+      - name: Open or update the labeling issue
+        run: |
+          if [ ! -f "$RUNNER_TEMP/feedback-issue.md" ]; then echo "No issue body; nothing to do."; exit 0; fi
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$ISSUE_TITLE\" in:title" --json number,title --jq ".[] | select(.title == \"$ISSUE_TITLE\") | .number" | head -n 1)
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/feedback-issue.md"
+            echo "Updated issue #$number."
+          elif [ "${{ steps.mine.outputs.candidates }}" != "" ] && [ "${{ steps.mine.outputs.candidates }}" != "0" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file "$RUNNER_TEMP/feedback-issue.md"
+          else
+            echo "No candidate questions; no issue opened."
+          fi

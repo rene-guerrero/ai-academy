@@ -1,0 +1,19 @@
+{
+  "feedback.ask": "¿Era esta la respuesta?",
+  "feedback.group": "¿Era esta la respuesta? {title}",
+  "feedback.up": "Sí, esto la responde",
+  "feedback.down": "No, esta no",
+  "feedback.thanks": "Gracias",
+  "feedback.none": "Ninguno responde mi pregunta",
+  "feedback.none.done": "Gracias, anotamos que ninguno ayudó.",
+  "feedback.undo": "Deshacer",
+  "feedback.note": "Los votos guardan tu pregunta de forma anónima, sin cuenta ni identificador del dispositivo, para mejorar la búsqueda.",
+  "feedback.note.link": "Cómo se mide la búsqueda",
+  "feedback.q.title": "Del uso real",
+  "feedback.q.body": "Los lectores pueden votar los tres primeros resultados de Pregunta al curso. {votes} votos hasta ahora. La tasa de utilidad es la proporción de votos que marcaron un resultado como la respuesta; «Ninguno responde» cuenta como no útil.",
+  "feedback.q.lang": "Idioma",
+  "feedback.q.mode": "Modo",
+  "feedback.q.votes": "Votos",
+  "feedback.q.rate": "Útil",
+  "feedback.q.candidates": "{n} preguntas de lectores con una respuesta claramente votada esperan ser etiquetadas y añadidas al conjunto de evaluación."
+}

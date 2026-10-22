@@ -1,0 +1,19 @@
+{
+  "feedback.ask": "Was this the answer?",
+  "feedback.group": "Was this the answer? {title}",
+  "feedback.up": "Yes, this answers it",
+  "feedback.down": "No, not this one",
+  "feedback.thanks": "Thanks",
+  "feedback.none": "None of these answers my question",
+  "feedback.none.done": "Thanks, noted that none of these helped.",
+  "feedback.undo": "Undo",
+  "feedback.note": "Votes store your question anonymously, with no account or device ID, to improve search.",
+  "feedback.note.link": "How search is measured",
+  "feedback.q.title": "From real use",
+  "feedback.q.body": "Readers can vote on the top three results of Ask the course. {votes} votes so far. The helpful rate is the share of votes that marked a result as the answer; “None of these” counts as not helpful.",
+  "feedback.q.lang": "Language",
+  "feedback.q.mode": "Mode",
+  "feedback.q.votes": "Votes",
+  "feedback.q.rate": "Helpful",
+  "feedback.q.candidates": "{n} reader questions with a clearly upvoted answer are waiting to be labeled and added to the evaluation set."
+}

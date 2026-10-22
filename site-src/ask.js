@@ -115,18 +115,19 @@ function start() {
     r.results.slice(0, 6).forEach((x) => {
       const c = index.chunks[x.chunk];
       const why = r.mode === "hybrid" ? [lexRank.has(x.section) ? t("ask.why.keywords", { n: lexRank.get(x.section) }) : t("ask.why.noKeywords"), t("ask.why.meaning", { n: semRank.get(x.section) })].join(" · ") : "";
-      list.appendChild(el("li", {}, [el("a", { class: "row", href: c.url }, [
+      list.appendChild(el("li", { "data-section": x.section }, [el("a", { class: "row", href: c.url }, [
         el("span", { class: "txt" }, [el("span", { class: "row-title", text: c.heading }), snippet(c.text, qset), el("span", { class: "row-meta", text: c.title + (why ? " · " + why : "") })])
       ])]));
     });
     if (!r.results.length) list.appendChild(el("li", { class: "empty", text: t("ask.none") }));
+    root.dispatchEvent(new CustomEvent("aia:ask-results", { bubbles: true, detail: { query: q, mode: r.mode, lang: P.lang, sections: r.results.slice(0, 6).map((x) => x.section) } }));
     status.textContent = r.results.length ? t(r.mode === "hybrid" ? "ask.done.hybrid" : "ask.done.bm25", { ms: Math.max(1, Math.round(ms)), model: model ? model.label : "" }) : "";
   }
 
   async function run() {
     const q = input.value.trim();
     const my = ++seq;
-    if (q.length < 2) { list.innerHTML = ""; status.textContent = ""; return; }
+    if (q.length < 2) { list.innerHTML = ""; status.textContent = ""; root.dispatchEvent(new CustomEvent("aia:ask-results", { bubbles: true, detail: { query: q, mode, lang: P.lang, sections: [] } })); return; }
     await load();
     if (my !== seq) return;
     const t0 = performance.now();
