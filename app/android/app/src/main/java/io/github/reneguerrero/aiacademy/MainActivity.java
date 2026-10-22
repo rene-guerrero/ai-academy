@@ -26,6 +26,7 @@ public class MainActivity extends BridgeActivity {
             getIntent().removeExtra(AcademyWidget.EXTRA_URL);
         }
         registerPlugin(WidgetBridgePlugin.class);
+        registerPlugin(AppUpdaterPlugin.class);
         super.onCreate(savedInstanceState);
         View root = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
