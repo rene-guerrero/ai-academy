@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="appwidget_radius">16dp</dimen>
+    <dimen name="appwidget_padding">16dp</dimen>
+    <dimen name="appwidget_padding_tight">12dp</dimen>
+</resources>

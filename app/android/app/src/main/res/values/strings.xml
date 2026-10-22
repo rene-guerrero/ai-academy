@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">AI Academy</string>
-    <string name="title_activity_main">AI Academy</string>
-    <string name="package_name">io.github.reneguerrero.aiacademy</string>
-    <string name="custom_url_scheme">io.github.reneguerrero.aiacademy</string>
+    <string name="app_name" translatable="false">AI Academy</string>
+    <string name="title_activity_main" translatable="false">AI Academy</string>
+    <string name="package_name" translatable="false">io.github.reneguerrero.aiacademy</string>
+    <string name="custom_url_scheme" translatable="false">io.github.reneguerrero.aiacademy</string>
 </resources>

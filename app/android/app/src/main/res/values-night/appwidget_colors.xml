@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="appwidget_surface">#1C1C1E</color>
+    <color name="appwidget_on_surface">#F5F5F7</color>
+    <color name="appwidget_muted">#98989D</color>
+    <color name="appwidget_accent">#8E8CFF</color>
+    <color name="appwidget_accent_fill">#8E8CFF</color>
+    <color name="appwidget_on_accent">#0B0B1A</color>
+</resources>

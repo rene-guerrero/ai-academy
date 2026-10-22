@@ -24,6 +24,30 @@
 
         </activity>
 
+        <receiver
+            android:name=".AcademyWidgetSmall"
+            android:label="@string/appwidget_name_small"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/appwidget_small_info" />
+        </receiver>
+
+        <receiver
+            android:name=".AcademyWidgetMedium"
+            android:label="@string/appwidget_name_medium"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/appwidget_medium_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

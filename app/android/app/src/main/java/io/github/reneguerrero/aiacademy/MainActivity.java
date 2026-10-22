@@ -1,20 +1,30 @@
 package io.github.reneguerrero.aiacademy;
 
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    private static final String BACK_SCRIPT = "(function(){var d=document.querySelectorAll('dialog[open]');if(!d.length)return false;var x=d[d.length-1];if(x.dispatchEvent(new Event('cancel',{cancelable:true})))x.close();return true;})()";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        if (savedInstanceState != null && getIntent() != null) {
+            getIntent().removeExtra(AcademyWidget.EXTRA_URL);
+        }
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
         View root = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
@@ -23,6 +33,42 @@ public class MainActivity extends BridgeActivity {
             return WindowInsetsCompat.CONSUMED;
         });
         applyBarColors();
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBack();
+            }
+        });
+        openWidgetUrl(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        openWidgetUrl(intent);
+    }
+
+    private void openWidgetUrl(Intent intent) {
+        Bridge current = getBridge();
+        if (intent == null || current == null || current.getWebView() == null) return;
+        String url = intent.getStringExtra(AcademyWidget.EXTRA_URL);
+        if (url == null) return;
+        intent.removeExtra(AcademyWidget.EXTRA_URL);
+        if (AcademyWidget.isAllowedUrl(url)) current.getWebView().loadUrl(url);
+    }
+
+    private void handleBack() {
+        Bridge current = getBridge();
+        WebView web = current == null ? null : current.getWebView();
+        if (web == null) {
+            moveTaskToBack(true);
+            return;
+        }
+        web.evaluateJavascript(BACK_SCRIPT, value -> {
+            if ("true".equals(value)) return;
+            if (web.canGoBack()) web.goBack();
+            else moveTaskToBack(true);
+        });
     }
 
     @Override

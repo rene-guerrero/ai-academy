@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appwidget_name_small">Streak and next lesson</string>
+    <string name="appwidget_name_medium">Continue learning</string>
+    <string name="appwidget_description">See your study streak, your next lesson and the reviews you have due.</string>
+    <string name="appwidget_empty">Open AI Academy to sync your progress</string>
+    <string name="appwidget_open">Open</string>
+    <string name="appwidget_next_label">Up next</string>
+    <string name="appwidget_done_label">Course complete</string>
+    <string name="appwidget_all_done">Review the questions you marked</string>
+    <string name="appwidget_continue">Continue</string>
+    <string name="appwidget_review">Review</string>
+    <string name="appwidget_streak_label_default">day streak</string>
+    <string name="appwidget_reviews_label_default">reviews due</string>
+    <string name="appwidget_preview_streak">12</string>
+    <string name="appwidget_preview_reviews">3</string>
+    <string name="appwidget_preview_streak_line">12-day streak</string>
+    <string name="appwidget_preview_next">Lesson 8 · Structured outputs</string>
+    <plurals name="appwidget_streak_line">
+        <item quantity="one">%d-day streak</item>
+        <item quantity="other">%d-day streak</item>
+    </plurals>
+    <plurals name="appwidget_streak_label">
+        <item quantity="one">day streak</item>
+        <item quantity="other">day streak</item>
+    </plurals>
+    <plurals name="appwidget_reviews_line">
+        <item quantity="one">%d review due</item>
+        <item quantity="other">%d reviews due</item>
+    </plurals>
+    <plurals name="appwidget_reviews_label">
+        <item quantity="one">review due</item>
+        <item quantity="other">reviews due</item>
+    </plurals>
+</resources>

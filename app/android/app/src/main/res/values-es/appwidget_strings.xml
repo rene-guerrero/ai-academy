@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appwidget_name_small">Racha y siguiente lección</string>
+    <string name="appwidget_name_medium">Seguir aprendiendo</string>
+    <string name="appwidget_description">Consulta tu racha de estudio, tu siguiente lección y los repasos pendientes.</string>
+    <string name="appwidget_empty">Abre AI Academy para sincronizar tu progreso</string>
+    <string name="appwidget_open">Abrir</string>
+    <string name="appwidget_next_label">A continuación</string>
+    <string name="appwidget_done_label">Curso completado</string>
+    <string name="appwidget_all_done">Repasa las preguntas que marcaste</string>
+    <string name="appwidget_continue">Continuar</string>
+    <string name="appwidget_review">Repasar</string>
+    <string name="appwidget_streak_label_default">días de racha</string>
+    <string name="appwidget_reviews_label_default">repasos pendientes</string>
+    <string name="appwidget_preview_streak">12</string>
+    <string name="appwidget_preview_reviews">3</string>
+    <string name="appwidget_preview_streak_line">Racha de 12 días</string>
+    <string name="appwidget_preview_next">Lección 8 · Salidas estructuradas</string>
+    <plurals name="appwidget_streak_line">
+        <item quantity="one">Racha de %d día</item>
+        <item quantity="many">Racha de %d días</item>
+        <item quantity="other">Racha de %d días</item>
+    </plurals>
+    <plurals name="appwidget_streak_label">
+        <item quantity="one">día de racha</item>
+        <item quantity="many">días de racha</item>
+        <item quantity="other">días de racha</item>
+    </plurals>
+    <plurals name="appwidget_reviews_line">
+        <item quantity="one">%d repaso pendiente</item>
+        <item quantity="many">%d repasos pendientes</item>
+        <item quantity="other">%d repasos pendientes</item>
+    </plurals>
+    <plurals name="appwidget_reviews_label">
+        <item quantity="one">repaso pendiente</item>
+        <item quantity="many">repasos pendientes</item>
+        <item quantity="other">repasos pendientes</item>
+    </plurals>
+</resources>
