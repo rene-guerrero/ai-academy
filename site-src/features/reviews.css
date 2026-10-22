@@ -1,0 +1,49 @@
+.reviews-card .reviews-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.reviews-count { margin: 0; display: grid; gap: 2px; min-width: 0; }
+.reviews-count strong { font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
+.reviews-count .muted { font-size: .8125rem; }
+.reviews-card .hint { margin: 6px 0 0; font-size: .875rem; }
+.reviews-sheet { width: min(100vw, 36rem); }
+.reviews-sheet .sheet-head h2 { display: flex; align-items: baseline; gap: 10px; }
+.rv-progress { font-weight: 500; font-size: .875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rv-bar { height: 3px; margin: 2px 16px 10px; background: var(--fill); border-radius: 2px; overflow: hidden; }
+.rv-bar span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px; }
+@media (prefers-reduced-motion: no-preference) { .rv-bar span { transition: width .25s ease; } }
+.rv-body { gap: 14px; }
+.rv-card { background: light-dark(var(--surface), var(--surface-2)); border-radius: var(--r-l); padding: 16px; display: grid; gap: 14px; }
+.rv-q:focus, .rv-a:focus, .rv-done-title:focus { outline: none; }
+.rv-meta { margin: 0 0 6px; font-size: .8125rem; font-weight: 600; color: var(--muted); }
+.rv-q-text { font-size: 1.125rem; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.rv-a { border-top: .5px solid var(--separator); padding-top: 12px; }
+.rv-a h3 { margin: 0 0 4px; font-size: .8125rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.rv-a-text { color: var(--text-2); overflow-wrap: anywhere; }
+.rv-a-text p { margin: .4rem 0; }
+.rv-a-text pre { white-space: pre-wrap; }
+.rv-yours { margin: 8px 0 0; font-size: .875rem; color: var(--muted); }
+.rv-open { display: inline-flex; align-items: center; min-height: 44px; font-size: .9375rem; font-weight: 500; }
+.rv-actions { display: grid; gap: 8px; }
+.rv-reveal { justify-content: center; width: 100%; }
+.rv-gp { margin: 0 0 8px 4px; font-size: .8125rem; color: var(--muted); }
+.rv-grades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rv-grade { flex-direction: column; justify-content: center; gap: 0; min-height: 56px; padding: 8px 6px; color: var(--text); position: relative; }
+.rv-g-label { font-weight: 600; }
+.rv-g-iv { font-size: .8125rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rv-again .rv-g-label { color: var(--danger); }
+.rv-good { background: var(--accent); color: var(--accent-ink); }
+.rv-good:hover { background: color-mix(in srgb, var(--accent) 90%, #000 10%); }
+.rv-good .rv-g-iv { color: inherit; opacity: .85; }
+.reviews-sheet kbd { display: none; font: 600 .6875rem/1 var(--sans); border-radius: 4px; padding: 2px 5px; background: var(--fill-2); color: inherit; opacity: .75; }
+@media (hover: hover) and (pointer: fine) {
+  .reviews-sheet kbd { display: inline-block; }
+  .rv-grade kbd { position: absolute; top: 5px; right: 6px; }
+}
+@media (max-width: 22rem) { .rv-grades { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rv-done { display: grid; gap: 12px; }
+.rv-done p { margin: 0; }
+.rv-done-title { margin: 0; font-size: 1.25rem; }
+.rv-sum .row { min-height: 44px; padding: 10px 14px; justify-content: space-between; }
+.rv-sum { --sep-inset: 14px; list-style: none; margin: 0; padding: 0; background: light-dark(var(--surface), var(--surface-2)); border-radius: var(--r-l); overflow: hidden; }
+.rv-sum .row-title { font-weight: 500; }
+.rv-sum-n { font-weight: 600; font-variant-numeric: tabular-nums; }
+.rv-done .btn { justify-content: center; }
+.quiz-grade .chip.rv-add[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }

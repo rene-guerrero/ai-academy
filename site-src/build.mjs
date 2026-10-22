@@ -511,6 +511,7 @@ const askChunks = Object.fromEntries(LANGS.map((l) => [l, []]));
 const askSections = Object.fromEntries(LANGS.map((l) => [l, new Map()]));
 const searchIndex = Object.fromEntries(LANGS.map((l) => [l, []]));
 const allLessonMeta = Object.fromEntries(LANGS.map((l) => [l, []]));
+const reviewData = Object.fromEntries(LANGS.map((l) => [l, {}]));
 
 for (const course of courses) {
   const C = course.id;
@@ -640,6 +641,8 @@ ${next ? `<a class="next" href="${next.slug}.html" rel="next"><small>${t(L, "les
       askSections[lang].set(lesson.key, [...new Set(lessonChunks.map((c) => c.section))].map((sec) => ({ section: sec, heading: lessonChunks.find((c) => c.section === sec).heading })));
       searchIndex[lang].push({ key: lesson.key, url: name, course: C, courseTitle, kind: "lesson", n: lesson.n, title: d.title, summary: d.summary, headings: toc.map((x) => ({ id: x.id, text: x.text })) });
       allLessonMeta[lang].push({ key: lesson.key, course: C, url: name, n: lesson.n, title: d.title, minutes: Number(d.minutes || 25), quiz: questions.length });
+      const predAnswer = (it) => { const a = it.answer.startsWith("claim:") ? claims.values[it.answer.slice(6)] : it.answer; return it.kind === "choice" ? (it.options.find((o) => o.key === a) || {}).label || a : it.tolerance ? `${a} ± ${it.tolerance}` : String(a); };
+      if (questions.length || pred.items.length) reviewData[lang][lesson.key] = { n: lesson.n, title: d.title, url: name, quiz: questions.map((q) => ({ q: marked.parseInline(q.q.trim(), { gfm: true }), a: marked.parse(q.a, { gfm: true }) })), pred: pred.items.map((it) => ({ id: it.id, q: marked.parseInline(it.prompt, { gfm: true }), a: esc(predAnswer(it)), ...(it.kind === "choice" ? { o: Object.fromEntries(it.options.map((o) => [o.key, o.label])) } : {}) })) };
     });
 
     for (const note of course.notes) {
@@ -757,6 +760,7 @@ for (const lang of LANGS) {
 </main>`;
   emit(outPath(lang, "index.html"), page({ lang, name: "index.html", title: t(L, "site.name"), desc: t(L, "site.description"), body: home, kind: "home", ogType: "website", extra: { ask: true, ...(askRuntime(lang) || {}), lessons: allLessonMeta[lang], courses: courses.map((c) => ({ id: c.id, title: c.meta.title[lang] || c.meta.title.en, total: c.lessons.length })), firstUrl: first ? `${courses[0].id}/${first.slug}.html` : "" } }));
   emit(outPath(lang, "search.json"), JSON.stringify(searchIndex[lang]));
+  emit(`review/${lang}.json`, JSON.stringify(reviewData[lang]));
 }
 
 const searchCache = join(root, "runtime-cache", "search");

@@ -715,16 +715,10 @@
     if (!review || !list) return;
     list.innerHTML = "";
     lessons.forEach(function (l) {
-      var reviewCount = 0;
-      for (var i = 0; i < l.quiz; i++) if (get("quiz:" + l.key + ":" + i) === "review") reviewCount++;
-      var bm = Boolean(get("bm:" + l.key));
-      if (!reviewCount && !bm) return;
-      var labels = [];
-      if (bm) labels.push(t("home.review.bookmarked"));
-      if (reviewCount) labels.push(t("home.review.questions", { n: reviewCount }));
-      list.appendChild(el("li", {}, [el("a", { class: "row", href: prefix + l.url + (reviewCount ? "#knowledge-check" : "") }, [
+      if (!get("bm:" + l.key)) return;
+      list.appendChild(el("li", {}, [el("a", { class: "row", href: prefix + l.url }, [
         el("span", { class: "num", "aria-hidden": "true", text: String(l.n) }),
-        el("span", { class: "txt" }, [el("span", { class: "row-title", text: l.title }), el("span", { class: "row-sum", text: labels.join(" · ") })])
+        el("span", { class: "txt" }, [el("span", { class: "row-title", text: l.title }), el("span", { class: "row-sum", text: t("home.review.bookmarked") })])
       ])]));
     });
     review.hidden = !list.children.length;
