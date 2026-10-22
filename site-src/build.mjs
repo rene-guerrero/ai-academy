@@ -933,7 +933,7 @@ if (claimErrors.length) {
   throw new Error(`${claimErrors.length} lesson claims no longer match their exercises. Update the lesson text and courses/<course>/claims.json.`);
 }
 rmSync(join(out, "vendor"), { recursive: true, force: true });
-for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "ask.js", "search-core.mjs", "manifest.webmanifest"]) {
+for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "ask.js", "search-core.mjs", "manifest.webmanifest", "auth-app.html"]) {
   copyFileSync(join(src, f), join(out, f));
   files.push(f);
 }

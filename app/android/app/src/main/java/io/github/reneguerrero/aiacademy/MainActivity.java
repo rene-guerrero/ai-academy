@@ -2,6 +2,7 @@ package io.github.reneguerrero.aiacademy;
 
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
@@ -51,6 +52,17 @@ public class MainActivity extends BridgeActivity {
     private void openWidgetUrl(Intent intent) {
         Bridge current = getBridge();
         if (intent == null || current == null || current.getWebView() == null) return;
+        Uri data = intent.getData();
+        if (data != null && "aiacademy".equals(data.getScheme()) && "auth".equals(data.getHost())) {
+            intent.setData(null);
+            String query = data.getQueryParameter("q");
+            String hash = data.getQueryParameter("h");
+            StringBuilder target = new StringBuilder("https://rene-guerrero.github.io/ai-academy/index.html");
+            if (query != null && !query.isEmpty()) target.append('?').append(query);
+            if (hash != null && !hash.isEmpty()) target.append('#').append(hash);
+            current.getWebView().loadUrl(target.toString());
+            return;
+        }
         String url = intent.getStringExtra(AcademyWidget.EXTRA_URL);
         if (url == null) return;
         intent.removeExtra(AcademyWidget.EXTRA_URL);

@@ -1085,7 +1085,7 @@
       var form = el("form", { onsubmit: function (e) {
         e.preventDefault();
         submit.disabled = true; submit.textContent = t("account.sending");
-        sync.client.auth.signInWithOtp({ email: input.value.trim(), options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
+        sync.client.auth.signInWithOtp({ email: input.value.trim(), options: { emailRedirectTo: document.documentElement.classList.contains("in-app") ? new URL((P.rel || "./") + "auth-app.html", location.href).href : location.origin + location.pathname } }).then(function (r) {
           if (r.error) throw r.error;
           msg.textContent = t("account.sent");
           codeForm.hidden = false;
