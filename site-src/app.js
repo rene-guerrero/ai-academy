@@ -317,12 +317,13 @@
   function initNative() {
     if (!window.Capacitor && !window.androidBridge) return;
     import(new URL(P.rel + "native.js", location.href).href).then(function (m) {
-      if (m.isNative) setupNative(m.notifications);
+      if (m.isNative) setupNative(m.notifications, m);
     }).catch(function () {});
   }
 
-  function setupNative(LN) {
+  function setupNative(LN, mod) {
     document.documentElement.classList.add("in-app");
+    if (window.__aia) { window.__aia.native = mod || {}; document.dispatchEvent(new CustomEvent("aia:native")); }
     var root = new URL((P.rel || "./") + (P.lang === "es" ? "es/" : ""), location.href).href;
     var lessons = null;
     var timer;
@@ -353,6 +354,8 @@
         if (!p.on) return null;
         return loadLessons().then(function (list) {
           var next = list.find(function (l) { return !get("done:" + l.key); });
+          var hook = window.__aia && window.__aia.hooks && window.__aia.hooks.reminder;
+          var custom = hook ? hook({ next: next, root: root }) : null;
           var parts = String(p.time).split(":");
           var out = [];
           for (var d = 0; d < 21 && out.length < 10; d++) {
@@ -364,11 +367,11 @@
             if (d === 0 && studiedToday()) continue;
             out.push({
               id: 1001 + d,
-              title: next ? t("remind.title", { n: next.n, title: next.title }) : t("remind.allDone"),
-              body: next ? t("remind.body") : t("remind.allDone.body"),
+              title: custom && custom.title ? custom.title : next ? t("remind.title", { n: next.n, title: next.title }) : t("remind.allDone"),
+              body: custom && custom.body ? custom.body : next ? t("remind.body") : t("remind.allDone.body"),
               schedule: { at: at, allowWhileIdle: true },
               smallIcon: "ic_stat_aia",
-              extra: { url: root + (next ? next.url : "index.html#review") }
+              extra: { url: custom && custom.url ? custom.url : root + (next ? next.url : "index.html#review") }
             });
           }
           return out.length ? LN.schedule({ notifications: out }) : null;
@@ -1280,9 +1283,20 @@
     });
     body.appendChild(list);
   }
-  window.__aia = { get: get, set: set, onChange: onChange, t: t };
+  window.__aia = {
+    get: get,
+    set: set,
+    onChange: onChange,
+    t: t,
+    page: P,
+    items: function () { var out = {}; Object.keys(state.items).forEach(function (k) { out[k] = { v: state.items[k].v, t: state.items[k].t }; }); return out; },
+    lessonStatus: lessonStatus,
+    openSettings: function () { openAccount(); },
+    hooks: {}
+  };
 
   document.addEventListener("DOMContentLoaded", function () {
     initTheme(); initFontSize(); initKeyboard(); initLang(); initCopy(); initLesson(); initPredictions(); initCourse(); initHome(); paintIntuition(); onChange(function () { paintIntuition(); }); initToc(); initNav(); initVisuals(); initNative(); initOfflineSettings(); initMermaid(); initOffline(); initSync();
+    document.dispatchEvent(new CustomEvent("aia:ready"));
   });
 })();

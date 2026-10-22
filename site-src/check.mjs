@@ -6,8 +6,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "dist");
 const problems = [];
 
-const en = JSON.parse(readFileSync(join(root, "site-src/i18n/en.json"), "utf8"));
-const es = JSON.parse(readFileSync(join(root, "site-src/i18n/es.json"), "utf8"));
+function loadDict(l) {
+  const base = JSON.parse(readFileSync(join(root, "site-src/i18n", `${l}.json`), "utf8"));
+  const extra = join(root, "site-src/i18n/extra");
+  if (existsSync(extra)) for (const f of readdirSync(extra).filter((x) => x.endsWith(`.${l}.json`)).sort()) Object.assign(base, JSON.parse(readFileSync(join(extra, f), "utf8")));
+  return base;
+}
+const en = loadDict("en");
+const es = loadDict("es");
 for (const k of Object.keys(en)) if (!(k in es)) problems.push(`es.json missing key ${k}`);
 for (const k of Object.keys(es)) if (!(k in en)) problems.push(`es.json has extra key ${k}`);
 for (const k of Object.keys(en)) {

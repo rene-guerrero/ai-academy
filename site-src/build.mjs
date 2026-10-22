@@ -22,7 +22,16 @@ const VISUALS = { "01": "tokens", "02": "cloud", "03": "attention", "04": "layer
 const TRACK_VISUALS = { A: "attention", B: "cloud", C: "orbit", D: "layers", E: "quant", F: "cloud" };
 const visualSlot = (kind) => `<div class="visual" data-visual="${kind}" aria-hidden="true"></div>`;
 
-const dict = Object.fromEntries(LANGS.map((l) => [l, JSON.parse(readFileSync(join(src, "i18n", `${l}.json`), "utf8"))]));
+function loadDict(l) {
+  const base = JSON.parse(readFileSync(join(src, "i18n", `${l}.json`), "utf8"));
+  const extra = join(src, "i18n", "extra");
+  if (existsSync(extra)) for (const f of readdirSync(extra).filter((x) => x.endsWith(`.${l}.json`)).sort()) Object.assign(base, JSON.parse(readFileSync(join(extra, f), "utf8")));
+  return base;
+}
+const featureDir = join(src, "features");
+const featureScripts = existsSync(featureDir) ? readdirSync(featureDir).filter((f) => f.endsWith(".js")).sort() : [];
+const featureStyles = existsSync(featureDir) ? readdirSync(featureDir).filter((f) => f.endsWith(".css")).sort() : [];
+const dict = Object.fromEntries(LANGS.map((l) => [l, loadDict(l)]));
 const shell = readFileSync(join(src, "shell.html"), "utf8");
 
 function loadEnv() {
@@ -445,6 +454,7 @@ function page({ lang, name, title, desc, body, kind, slug = "", course = "", has
     .replace("{{DIALOGS}}", () => dialogs)
     .replace("{{FOOTER}}", () => t(L, "site.footer"))
     .replace("{{MERMAID}}", () => hasMermaid ? `<script src="${rel}vendor/mermaid.min.js" defer></script>` : "")
+    .replace("{{FEATURES}}", () => featureScripts.map((f) => `<script src="${rel}features/${f}" defer></script>`).join(""))
     .replace("{{RUNNER}}", () => extra.ask ? `${extra.runtime ? `<script src="${rel}pyclient.js" defer></script>` : ""}<script type="module" src="${rel}ask.js"></script>` : extra.lab ? `<script src="${rel}pyclient.js" defer></script><script src="${rel}labs/${extra.lab}.js" defer></script>` : extra.runtime ? `<script src="${rel}runner.js" defer></script>` : "")
     .replace("{{BODY}}", () => (kind === "redirect" ? body : `<div class="app has-nav">${courseNav(lang, name, slug)}<div class="app-content">${body}</div></div>`));
 }
@@ -604,6 +614,7 @@ ${visualSlot(d.visual || VISUALS[lesson.slug.slice(0, 2)] || TRACK_VISUALS[lesso
 <button type="button" class="act" id="done-btn" aria-pressed="false"><span class="box" aria-hidden="true"></span><span class="label">${t(L, "lesson.done")}</span></button>
 <button type="button" class="act" id="bookmark-btn" aria-pressed="false">${ICON.bookmark}<span class="label">${t(L, "lesson.bookmark")}</span></button>
 </div>
+<div class="slot" id="slot-lesson"></div>
 ${tocHtml(toc, L, true)}
 ${provenanceHtml(lesson, d, claims, L, lang, course)}
 ${prereqs.length ? `<p class="prereqs"><span class="muted">${t(L, "lesson.prereqs")}:</span> ${prereqs.map(lessonLink).join(", ")}</p>` : ""}
@@ -688,6 +699,7 @@ ${tpl}
 <div class="rail">
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h" class="sr">${t(L, "home.continue")}</h2>
 <div class="card continue-card"><p class="progress"><span id="progress-text">${t(L, "home.progress", { done: 0, total: lessonMeta.length })}</span><span class="bar" aria-hidden="true"><span id="progress-fill" style="width:0%"></span></span><span class="muted" id="progress-time">${t(L, "home.progress.time", { minutes: totalMinutes })}</span></p><div id="continue-body"></div></div></section>
+<div class="slot" id="slot-course-rail"></div>
 <section class="catalog-tools-wrap" aria-label="${attr(t(L, "home.search.label"))}"><div class="catalog-tools"><div class="search"><label for="search-input" class="sr">${t(L, "home.search.label")}</label>${ICON.search}<input id="search-input" type="search" placeholder="${attr(t(L, "home.search.placeholder"))}" autocomplete="off"></div>
 <div class="segmented filters" role="group" aria-label="${attr(t(L, "home.catalog"))}"><button type="button" data-filter="all" aria-pressed="true">${t(L, "home.filter.all")}</button><button type="button" data-filter="todo" aria-pressed="false">${t(L, "home.filter.todo")}</button><button type="button" data-filter="progress" aria-pressed="false">${t(L, "home.filter.progress")}</button><button type="button" data-filter="done" aria-pressed="false">${t(L, "home.filter.done")}</button><button type="button" data-filter="saved" aria-pressed="false">${t(L, "home.filter.saved")}</button></div></div>
 <div class="search-results card" id="search-results" hidden><h3>${t(L, "home.search.sections")}</h3><ul id="search-hits"></ul></div>
@@ -725,6 +737,7 @@ for (const lang of LANGS) {
 <figure class="visual-figure"><div class="visual visual-map" data-visual="cloud" data-map role="group" aria-label="${attr(t(L, "home.map.label"))}"><span class="visual-tip" hidden></span></div><figcaption class="hint">${t(L, "home.map")}</figcaption></figure></header>
 <div class="rail">
 <section class="continue" id="continue" aria-labelledby="continue-h"><h2 id="continue-h">${t(L, "home.continue")}</h2><div class="card continue-card"><div id="continue-body"></div></div></section>
+<div class="slot" id="slot-home-rail"></div>
 <section class="ask" id="ask" aria-labelledby="search-h"><span id="search" class="anchor-target"></span><h2 id="search-h">${t(L, "ask.title")}</h2><p class="hint">${t(L, "ask.hint")}</p>
 <form class="ask-form" role="search"><div class="search"><label for="ask-input" class="sr">${t(L, "ask.label")}</label>${ICON.search}<input id="ask-input" type="search" placeholder="${attr(t(L, "ask.placeholder"))}" autocomplete="off" enterkeyhint="search"></div></form>
 <div class="ask-tools"><div class="segmented" role="radiogroup" aria-label="${attr(t(L, "ask.mode"))}"><button type="button" role="radio" data-ask-mode="bm25" aria-checked="true">${t(L, "ask.mode.bm25")}</button><button type="button" role="radio" data-ask-mode="hybrid" aria-checked="false">${t(L, "ask.mode.hybrid")}</button></div></div>
@@ -736,6 +749,7 @@ for (const lang of LANGS) {
 <section class="review" id="review" aria-labelledby="review-h" hidden><h2 id="review-h">${t(L, "home.review")}</h2><p class="hint">${t(L, "home.review.hint")}</p><ul class="list" id="review-list"></ul></section>
 </div>
 
+<div class="slot" id="slot-home-main"></div>
 <section class="courses" id="courses" aria-labelledby="courses-h"><h2 id="courses-h">${t(L, "home.courses")}</h2><ul class="list">${courseRows}</ul></section>
 <section class="intuition" id="intuition" aria-labelledby="intuition-h"><h2 id="intuition-h">${t(L, "home.intuition")}</h2><p class="hint">${t(L, "home.intuition.hint")}</p><div class="card" id="intuition-body"></div></section>
 <section class="built" id="built" aria-labelledby="built-h"><h2 id="built-h">${t(L, "home.built")}</h2><p class="hint">${t(L, "home.built.hint")}</p><ul class="list"><li><a class="row" href="case-study.html"><span class="txt"><span class="row-title">${t(L, "home.built.cs")}</span><span class="row-sum">${t(L, "home.built.cs.sum")}</span></span>${ICON.chevron}</a></li><li class="get-app"><a class="row" href="${REPO}/releases/latest/download/ai-academy.apk" rel="noopener"><span class="txt"><span class="row-title">${t(L, "home.app")}</span><span class="row-sum">${t(L, "home.app.sum")}</span></span>${ICON.chevron}</a></li><li><a class="row" href="quality.html"><span class="txt"><span class="row-title">${t(L, "home.built.q")}</span><span class="row-sum">${t(L, "home.built.q.sum")}</span></span>${ICON.chevron}</a></li></ul></section>
@@ -896,6 +910,12 @@ rmSync(join(out, "vendor"), { recursive: true, force: true });
 for (const f of ["style.css", "app.js", "runner.js", "pyclient.js", "ask.js", "search-core.mjs", "manifest.webmanifest"]) {
   copyFileSync(join(src, f), join(out, f));
   files.push(f);
+}
+if (featureStyles.length) writeFileSync(join(out, "style.css"), readFileSync(join(src, "style.css"), "utf8") + featureStyles.map((f) => readFileSync(join(featureDir, f), "utf8")).join("\n"));
+mkdirSync(join(out, "features"), { recursive: true });
+for (const f of featureScripts) {
+  copyFileSync(join(featureDir, f), join(out, "features", f));
+  files.push("features/" + f);
 }
 mkdirSync(join(out, "labs"), { recursive: true });
 for (const f of readdirSync(join(src, "labs")).filter((x) => x.endsWith(".js"))) {

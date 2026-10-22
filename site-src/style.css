@@ -605,3 +605,4 @@ svg .marker { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .font-sample.font-m { font-size: 16px; }
 .font-sample.font-l { font-size: 19px; }
 .font-sample.font-xl { font-size: 22px; }
+.slot:empty { display: none; }
