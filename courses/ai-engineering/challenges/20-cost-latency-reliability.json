@@ -1,0 +1,38 @@
+[
+  {
+    "id": "request-cost",
+    "title": {
+      "en": "Token cost with a cached prefix",
+      "es": "Coste en tokens con un prefijo en caché"
+    },
+    "prompt": {
+      "en": "Write `request_cost(prompt_tokens, cached_tokens, output_tokens, prices)`. `prices` has `\"in\"`, `\"cached\"` and `\"out\"`, each per million tokens. The cached tokens are part of the prompt and are billed at the cached rate; the rest of the prompt is billed at the input rate.\n\nRaise `ValueError` if `cached_tokens` is larger than `prompt_tokens`.",
+      "es": "Escribe `request_cost(prompt_tokens, cached_tokens, output_tokens, prices)`. `prices` tiene `\"in\"`, `\"cached\"` y `\"out\"`, cada uno por millón de tokens. Los tokens en caché forman parte del prompt y se cobran a la tarifa de caché; el resto del prompt se cobra a la tarifa de entrada.\n\nLanza `ValueError` si `cached_tokens` es mayor que `prompt_tokens`."
+    },
+    "starter": "def request_cost(prompt_tokens, cached_tokens, output_tokens, prices):\n    raise NotImplementedError\n",
+    "tests": "prices = {\"in\": 2.0, \"cached\": 0.2, \"out\": 8.0}\nassert abs(request_cost(1000, 0, 0, prices) - 0.002) < 1e-12, \"1,000 input tokens at 2 per million cost 0.002\"\nassert abs(request_cost(1000, 0, 1000, prices) - 0.010) < 1e-12, \"output tokens use the output price\"\nassert abs(request_cost(5000, 4000, 200, prices) - (1000 * 2.0 + 4000 * 0.2 + 200 * 8.0) / 1e6) < 1e-12, \"only the uncached part of the prompt pays the full input price\"\nassert request_cost(5000, 4000, 200, prices) < request_cost(5000, 0, 200, prices), \"a cached prefix makes the same request cheaper\"\nraised = False\ntry:\n    request_cost(100, 200, 0, prices)\nexcept ValueError:\n    raised = True\nassert raised, \"more cached tokens than prompt tokens is impossible: raise ValueError\"\n",
+    "hint": {
+      "en": "`fresh = prompt_tokens - cached_tokens`; the cost is the three products added together, divided by 1,000,000.",
+      "es": "`fresh = prompt_tokens - cached_tokens`; el coste es la suma de los tres productos dividida por 1.000.000."
+    },
+    "solution": "def request_cost(prompt_tokens, cached_tokens, output_tokens, prices):\n    if cached_tokens > prompt_tokens:\n        raise ValueError(\"cached tokens exceed prompt tokens\")\n    fresh = prompt_tokens - cached_tokens\n    return (fresh * prices[\"in\"] + cached_tokens * prices[\"cached\"] + output_tokens * prices[\"out\"]) / 1_000_000\n"
+  },
+  {
+    "id": "backoff-jitter",
+    "title": {
+      "en": "Exponential backoff with jitter",
+      "es": "Espera exponencial con jitter"
+    },
+    "prompt": {
+      "en": "Write `backoff_delays(attempts, base, cap, rng)` that returns the waits before each retry, using \"full jitter\": retry `i` (counting from 0) waits a random time between 0 and `min(cap, base * 2 ** i)`.\n\nDraw the randomness only from `rng` (a `random.Random`), for example with `rng.uniform`, so a seeded run is reproducible.",
+      "es": "Escribe `backoff_delays(attempts, base, cap, rng)`, que devuelve las esperas antes de cada reintento con «full jitter»: el reintento `i` (contando desde 0) espera un tiempo aleatorio entre 0 y `min(cap, base * 2 ** i)`.\n\nSaca la aleatoriedad solo de `rng` (un `random.Random`), por ejemplo con `rng.uniform`, para que una ejecución con semilla sea reproducible."
+    },
+    "starter": "def backoff_delays(attempts, base, cap, rng):\n    raise NotImplementedError\n",
+    "tests": "import random\ndelays = backoff_delays(6, 0.5, 8.0, random.Random(1))\nassert len(delays) == 6, \"one delay per retry\"\nceilings = [0.5, 1.0, 2.0, 4.0, 8.0, 8.0]\nassert all(0 <= d <= c for d, c in zip(delays, ceilings)), \"retry i waits between 0 and min(cap, base * 2**i)\"\nassert backoff_delays(6, 0.5, 8.0, random.Random(1)) == delays, \"use only the rng you are given, so runs are reproducible\"\nfirst = [backoff_delays(1, 1.0, 8.0, random.Random(s))[0] for s in range(50)]\nassert len({round(d, 6) for d in first}) > 40, \"jitter: 50 clients that failed together must not retry at the same instant\"\nassert max(backoff_delays(20, 1.0, 30.0, random.Random(2))) <= 30.0, \"the cap bounds every wait\"\nlate = [backoff_delays(8, 0.1, 100.0, random.Random(s))[7] for s in range(200)]\nassert sum(late) / len(late) > 4, \"later retries wait longer on average: the ceiling grows exponentially\"\n",
+    "hint": {
+      "en": "A list comprehension over `range(attempts)` with `rng.uniform(0, min(cap, base * 2 ** i))` is the whole function.",
+      "es": "Una comprensión de lista sobre `range(attempts)` con `rng.uniform(0, min(cap, base * 2 ** i))` es toda la función."
+    },
+    "solution": "def backoff_delays(attempts, base, cap, rng):\n    return [rng.uniform(0, min(cap, base * 2 ** i)) for i in range(attempts)]\n"
+  }
+]

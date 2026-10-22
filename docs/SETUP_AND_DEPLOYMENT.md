@@ -7,6 +7,7 @@ Requirements: Node 22 (the version pinned in `.github/workflows/pages.yml`). Pyt
     npm install
     npm run build      # writes dist/
     npm run check      # validates front matter, translations, links, precache list
+    python3 tools/check_challenges.py   # every challenge solution passes its tests, every starter fails them
     npm run serve      # http://localhost:4173/
     npm test           # build + check + Playwright smoke test (skips if Playwright is not installed)
 
@@ -58,6 +59,7 @@ Body conventions:
       :::
 
   Readers lock an answer and a confidence before running, then check it. Results are stored as `predq:<lesson key>:<id>` and feed the calibration chart on the home page.
+- Coding challenges for a lesson live in `courses/<course>/challenges/<lesson-slug>.json`: a list of `{ "id", "title": {en, es}, "prompt": {en, es} (Markdown), "starter", "tests", "hint": {en, es}, "solution" }`. `starter` holds the function signature and `raise NotImplementedError`; `tests` holds top-level `assert` statements, each with a message that says what it checks (the learner sees the message of every assert, passed or failed); `solution` is a reference implementation. Python uses only the standard library and NumPy, carries no comments, and runs in well under a second. The build renders them as a Practice section after the exercise; the browser runs the learner's code and then each top-level statement of `tests` separately in the in-browser Python, and stores `chal:<lesson key>:<id>` = `{code, passed, attempts, t}`. The reference solution unlocks after two attempts or a pass. `python tools/check_challenges.py` (run in CI) checks the format, comments and imports, that every solution passes its tests and every starter fails them, and the time limit.
 - `visual:` (optional) picks the lesson's concept scene: `tokens`, `cloud`, `attention`, `layers`, `orbit` or `quant`. Without it the build picks one from the lesson number, then the track.
 - English front matter may carry provenance: `author`, `drafted` (date) and `reviewed` (date, empty until a person has reviewed the lesson).
 - Code blocks must be byte-identical between the English and Spanish versions; `npm run check` enforces this.

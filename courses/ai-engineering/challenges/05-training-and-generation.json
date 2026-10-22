@@ -1,0 +1,38 @@
+[
+  {
+    "id": "temperature",
+    "title": {
+      "en": "Softmax with temperature",
+      "es": "Softmax con temperatura"
+    },
+    "prompt": {
+      "en": "Write `softmax_t(logits, temperature)` that divides the logits by the temperature and applies a numerically stable softmax. Return a NumPy array of probabilities.\n\n- Temperatures below 1 sharpen the distribution, above 1 flatten it.\n- A temperature of 0 or less is invalid: raise `ValueError`.",
+      "es": "Escribe `softmax_t(logits, temperature)`, que divide los logits por la temperatura y aplica un softmax numéricamente estable. Devuelve un array de NumPy con las probabilidades.\n\n- Las temperaturas menores que 1 afilan la distribución y las mayores que 1 la aplanan.\n- Una temperatura de 0 o menos no es válida: lanza `ValueError`."
+    },
+    "starter": "import numpy as np\n\n\ndef softmax_t(logits, temperature):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nlogits = np.array([2.0, 1.0, 0.0])\np = softmax_t(logits, 1.0)\nassert np.allclose(p.sum(), 1.0), \"probabilities must sum to 1\"\nassert np.allclose(p, np.exp(logits) / np.exp(logits).sum()), \"temperature 1 is the plain softmax\"\nassert softmax_t(logits, 0.5)[0] > p[0], \"a temperature below 1 sharpens the distribution\"\nassert softmax_t(logits, 100.0).max() < 0.34, \"a very high temperature approaches uniform\"\nassert np.allclose(softmax_t(logits, 0.01), [1, 0, 0]), \"a temperature near 0 approaches greedy decoding\"\nassert np.all(np.isfinite(softmax_t(np.array([1000.0, 999.0]), 1.0))), \"subtract the maximum before exp to avoid overflow\"\nraised = False\ntry:\n    softmax_t(logits, 0)\nexcept ValueError:\n    raised = True\nassert raised, \"temperature 0 is not a valid divisor: raise ValueError\"\n",
+    "hint": {
+      "en": "Check the temperature first. Then `z = logits / temperature`, `z = z - z.max()`, `e = np.exp(z)`, `e / e.sum()`.",
+      "es": "Comprueba primero la temperatura. Después `z = logits / temperature`, `z = z - z.max()`, `e = np.exp(z)`, `e / e.sum()`."
+    },
+    "solution": "import numpy as np\n\n\ndef softmax_t(logits, temperature):\n    if temperature <= 0:\n        raise ValueError(\"temperature must be positive\")\n    z = np.asarray(logits, dtype=float) / temperature\n    z = z - z.max()\n    e = np.exp(z)\n    return e / e.sum()\n"
+  },
+  {
+    "id": "top-p",
+    "title": {
+      "en": "Nucleus (top-p) filtering",
+      "es": "Filtrado de núcleo (top-p)"
+    },
+    "prompt": {
+      "en": "Write `top_p(probs, p)` that keeps the smallest set of tokens whose cumulative probability reaches `p` (is `>= p`), sets every other probability to 0 and renormalizes the kept ones to sum to 1.\n\n- Add tokens from most to least likely. When two tokens have the same probability, take the lower index first.\n- Return a new array with the same length as `probs`; do not modify the input.",
+      "es": "Escribe `top_p(probs, p)`, que conserva el conjunto más pequeño de tokens cuya probabilidad acumulada alcanza `p` (es `>= p`), pone a 0 todas las demás probabilidades y renormaliza las conservadas para que sumen 1.\n\n- Añade tokens del más probable al menos probable. Si dos tokens tienen la misma probabilidad, toma primero el de índice menor.\n- Devuelve un array nuevo con la misma longitud que `probs`; no modifiques la entrada."
+    },
+    "starter": "import numpy as np\n\n\ndef top_p(probs, p):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nprobs = np.array([0.1, 0.5, 0.3, 0.1])\nassert np.allclose(top_p(probs, 0.8), [0, 0.625, 0.375, 0]), \"0.5 + 0.3 reaches 0.8: keep those two and renormalize\"\nassert np.allclose(top_p(probs, 0.5), [0, 1, 0, 0]), \"the top token alone already reaches 0.5\"\nassert np.allclose(top_p(probs, 0.85), [0.1 / 0.9, 0.5 / 0.9, 0.3 / 0.9, 0]), \"two tokens tie at 0.1: keep the one with the lower index\"\nassert np.allclose(top_p(probs, 0.85).sum(), 1.0), \"the kept probabilities must sum to 1\"\nassert np.allclose(probs, [0.1, 0.5, 0.3, 0.1]), \"do not modify the input\"\nconfident = top_p(np.array([0.9, 0.05, 0.05]), 0.9)\nassert np.count_nonzero(confident) == 1, \"when the model is confident the nucleus shrinks to one token\"\n",
+    "hint": {
+      "en": "`order = np.argsort(-probs, kind=\"stable\")`, then `np.cumsum(probs[order])`. The number of tokens to keep is the first position where the sum is `>= p`, plus one.",
+      "es": "`order = np.argsort(-probs, kind=\"stable\")` y después `np.cumsum(probs[order])`. El número de tokens a conservar es la primera posición en la que la suma es `>= p`, más uno."
+    },
+    "solution": "import numpy as np\n\n\ndef top_p(probs, p):\n    probs = np.asarray(probs, dtype=float)\n    order = np.argsort(-probs, kind=\"stable\")\n    cumulative = np.cumsum(probs[order])\n    keep = int(np.searchsorted(cumulative, p - 1e-12)) + 1\n    out = np.zeros_like(probs)\n    chosen = order[:keep]\n    out[chosen] = probs[chosen]\n    return out / out.sum()\n"
+  }
+]

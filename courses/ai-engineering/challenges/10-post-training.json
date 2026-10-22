@@ -1,0 +1,38 @@
+[
+  {
+    "id": "dpo-loss",
+    "title": {
+      "en": "The DPO loss for one pair",
+      "es": "La pérdida DPO de un par"
+    },
+    "prompt": {
+      "en": "Write `dpo_loss(policy_w, policy_l, ref_w, ref_l, beta=0.1)`. The arguments are the log-probabilities of the chosen answer (`w`) and the rejected one (`l`) under the policy and the frozen reference model.\n\n```\nmargin = beta * ((policy_w - ref_w) - (policy_l - ref_l))\nloss   = -log(sigmoid(margin))\n```\n\nCompute it stably: margins of thousands must not overflow or return `inf`.",
+      "es": "Escribe `dpo_loss(policy_w, policy_l, ref_w, ref_l, beta=0.1)`. Los argumentos son las log-probabilidades de la respuesta elegida (`w`) y la rechazada (`l`) bajo la política y bajo el modelo de referencia congelado.\n\n```\nmargin = beta * ((policy_w - ref_w) - (policy_l - ref_l))\nloss   = -log(sigmoid(margin))\n```\n\nCalcúlala de forma estable: márgenes de miles no deben desbordarse ni devolver `inf`."
+    },
+    "starter": "import math\n\n\ndef dpo_loss(policy_w, policy_l, ref_w, ref_l, beta=0.1):\n    raise NotImplementedError\n",
+    "tests": "import math\nassert abs(dpo_loss(-5.0, -5.0, -5.0, -5.0) - math.log(2)) < 1e-12, \"a policy equal to the reference has margin 0 and loss ln 2\"\nassert dpo_loss(-4.0, -6.0, -5.0, -5.0) < math.log(2), \"raising the chosen answer and lowering the rejected one lowers the loss\"\nassert abs(dpo_loss(-4.0, -6.0, -5.0, -5.0, beta=0.5) - math.log(1 + math.exp(-1.0))) < 1e-12, \"margin = 0.5 * (1 - (-1)) = 1\"\nassert abs(dpo_loss(-10.0, -12.0, -10.0, -12.0) - math.log(2)) < 1e-12, \"only the change relative to the reference counts, not the raw log-probabilities\"\nassert dpo_loss(-4.0, -6.0, -5.0, -5.0, beta=0.01) > dpo_loss(-4.0, -6.0, -5.0, -5.0, beta=0.5), \"a smaller beta needs a bigger change to reach the same margin\"\nassert abs(dpo_loss(-1000.0, 0.0, 0.0, -1000.0, beta=1.0) - 2000.0) < 1e-9, \"a margin of -2000 gives a loss of about 2000, without overflow\"\nassert dpo_loss(0.0, -1000.0, -1000.0, 0.0, beta=1.0) < 1e-12, \"a huge positive margin gives a loss near 0\"\n",
+    "hint": {
+      "en": "`-log(sigmoid(m))` equals `log(1 + exp(-m))`. For `m >= 0` use `math.log1p(math.exp(-m))`; for `m < 0` use `-m + math.log1p(math.exp(m))`.",
+      "es": "`-log(sigmoid(m))` es igual a `log(1 + exp(-m))`. Para `m >= 0` usa `math.log1p(math.exp(-m))`; para `m < 0` usa `-m + math.log1p(math.exp(m))`."
+    },
+    "solution": "import math\n\n\ndef dpo_loss(policy_w, policy_l, ref_w, ref_l, beta=0.1):\n    margin = beta * ((policy_w - ref_w) - (policy_l - ref_l))\n    if margin >= 0:\n        return math.log1p(math.exp(-margin))\n    return -margin + math.log1p(math.exp(margin))\n"
+  },
+  {
+    "id": "sft-mask",
+    "title": {
+      "en": "Masked SFT loss",
+      "es": "Pérdida SFT con máscara"
+    },
+    "prompt": {
+      "en": "In instruction tuning only the assistant's tokens are trained. Write `sft_loss(token_logprobs, roles)`: given the log-probability the model gave each true token and the role that token belongs to, return the mean of `-log p` over the positions whose role is `\"assistant\"`.\n\nRaise `ValueError` if there are no assistant tokens.",
+      "es": "En el ajuste por instrucciones solo se entrenan los tokens del asistente. Escribe `sft_loss(token_logprobs, roles)`: dada la log-probabilidad que el modelo dio a cada token verdadero y el rol al que pertenece ese token, devuelve la media de `-log p` sobre las posiciones cuyo rol es `\"assistant\"`.\n\nLanza `ValueError` si no hay tokens del asistente."
+    },
+    "starter": "def sft_loss(token_logprobs, roles):\n    raise NotImplementedError\n",
+    "tests": "import math\nlp = [math.log(0.5), math.log(0.1), math.log(0.25), math.log(0.5)]\nroles = [\"user\", \"user\", \"assistant\", \"assistant\"]\nassert abs(sft_loss(lp, roles) - (math.log(4) + math.log(2)) / 2) < 1e-12, \"average -log p over the two assistant tokens only\"\nassert abs(sft_loss(lp, [\"assistant\"] * 4) + sum(lp) / 4) < 1e-12, \"with every token from the assistant this is plain cross-entropy\"\nassert sft_loss([math.log(0.01), 0.0], [\"system\", \"assistant\"]) == 0.0, \"a certain assistant token costs 0, whatever the model thought of the system tokens\"\nraised = False\ntry:\n    sft_loss([math.log(0.5)], [\"user\"])\nexcept ValueError:\n    raised = True\nassert raised, \"with no assistant tokens there is nothing to train: raise ValueError\"\n",
+    "hint": {
+      "en": "Collect `-lp` for each `lp, role` in `zip(token_logprobs, roles)` where the role is `\"assistant\"`, then divide the sum by the count.",
+      "es": "Reúne `-lp` para cada `lp, role` de `zip(token_logprobs, roles)` cuyo rol sea `\"assistant\"` y divide la suma por la cantidad."
+    },
+    "solution": "def sft_loss(token_logprobs, roles):\n    losses = [-lp for lp, role in zip(token_logprobs, roles) if role == \"assistant\"]\n    if not losses:\n        raise ValueError(\"no assistant tokens\")\n    return sum(losses) / len(losses)\n"
+  }
+]

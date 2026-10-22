@@ -47,6 +47,8 @@ jobs:
           key: runtime-${{ hashFiles('package-lock.json', 'requirements.txt', 'tools/build_runtime.py') }}
       - name: Prepare the in-browser Python runtime and reference outputs
         run: npm run runtime
+      - name: Check the coding challenges
+        run: python tools/check_challenges.py
       - run: npm run build
       - name: Embed the course for Ask the course
         run: python tools/embed_search.py

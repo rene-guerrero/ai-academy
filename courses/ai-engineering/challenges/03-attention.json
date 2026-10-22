@@ -1,0 +1,38 @@
+[
+  {
+    "id": "causal-mask",
+    "title": {
+      "en": "Build the causal mask",
+      "es": "Construye la máscara causal"
+    },
+    "prompt": {
+      "en": "Write `causal_mask(n)` that returns an `n x n` NumPy float array to add to the attention scores before the softmax.\n\n- Cell `(i, j)` is `0` when token `i` may look at token `j` (itself and the past, `j <= i`).\n- Cell `(i, j)` is `-inf` for the future (`j > i`), so its weight after the softmax is exactly 0.",
+      "es": "Escribe `causal_mask(n)`, que devuelve un array float de NumPy de `n x n` para sumar a las puntuaciones de atención antes del softmax.\n\n- La celda `(i, j)` vale `0` cuando el token `i` puede mirar al token `j` (a sí mismo y al pasado, `j <= i`).\n- La celda `(i, j)` vale `-inf` para el futuro (`j > i`), de modo que su peso tras el softmax es exactamente 0."
+    },
+    "starter": "import numpy as np\n\n\ndef causal_mask(n):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nm = causal_mask(3)\nassert m.shape == (3, 3), \"the mask is n x n\"\nassert np.all(m[np.tril_indices(3)] == 0), \"positions on and below the diagonal (self and past) must be 0\"\nassert np.all(np.isneginf(m[np.triu_indices(3, 1)])), \"positions above the diagonal (the future) must be -inf\"\nassert np.allclose(np.exp(causal_mask(4))[0], [1, 0, 0, 0]), \"after exp, the first token keeps weight only on itself\"\nassert causal_mask(1).tolist() == [[0.0]], \"a single token sees only itself\"\n",
+    "hint": {
+      "en": "`np.triu(np.ones((n, n)), k=1)` marks the future with ones. `np.where` can turn those into `-np.inf` and the rest into `0.0`.",
+      "es": "`np.triu(np.ones((n, n)), k=1)` marca el futuro con unos. `np.where` puede convertirlos en `-np.inf` y el resto en `0.0`."
+    },
+    "solution": "import numpy as np\n\n\ndef causal_mask(n):\n    future = np.triu(np.ones((n, n), dtype=bool), k=1)\n    return np.where(future, -np.inf, 0.0)\n"
+  },
+  {
+    "id": "attention",
+    "title": {
+      "en": "Scaled dot-product attention",
+      "es": "Atención de producto escalar escalado"
+    },
+    "prompt": {
+      "en": "Write `attention(Q, K, V, causal=True)` for one head: `softmax(Q K^T / sqrt(d_head) + mask) V`, where `d_head` is the width of `Q` and the mask is the causal mask when `causal` is true.\n\n- The softmax runs over each row and must be numerically stable: subtract the row maximum before `exp`.\n- Return an array with one row per query and the width of `V`.",
+      "es": "Escribe `attention(Q, K, V, causal=True)` para una cabeza: `softmax(Q K^T / sqrt(d_head) + máscara) V`, donde `d_head` es el ancho de `Q` y la máscara es la causal cuando `causal` es verdadero.\n\n- El softmax se aplica a cada fila y debe ser numéricamente estable: resta el máximo de la fila antes de `exp`.\n- Devuelve un array con una fila por consulta y el ancho de `V`."
+    },
+    "starter": "import numpy as np\n\n\ndef attention(Q, K, V, causal=True):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nQ = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])\nK = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])\nV = np.array([[1.0, 0.0], [0.0, 1.0], [5.0, 5.0]])\nout = attention(Q, K, V, causal=True)\nassert out.shape == (3, 2), \"the output has one row per query and the width of V\"\nassert np.allclose(out[0], V[0]), \"with the causal mask the first token can only attend to itself\"\ns = np.exp(np.array([0.0, 1.0]) / np.sqrt(2))\nw = s / s.sum()\nassert np.allclose(out[1], w[0] * V[0] + w[1] * V[1]), \"row 2 must weight V[0] and V[1] by the softmax of scores divided by sqrt(d_head)\"\nfull = attention(Q, K, V, causal=False)\nassert full[0, 0] > 1.0, \"without the mask the first token also sees V[2] = [5, 5]\"\nbig = attention(np.array([[1000.0, 0.0]]), np.array([[1000.0, 0.0], [0.0, 0.0]]), np.array([[1.0], [2.0]]), causal=False)\nassert np.all(np.isfinite(big)), \"subtract the row maximum before exp so large scores do not overflow\"\n",
+    "hint": {
+      "en": "Compute `scores = Q @ K.T / np.sqrt(Q.shape[1])`, add `np.triu(np.full((n, m), -np.inf), k=1)` when causal, subtract `scores.max(axis=1, keepdims=True)`, exponentiate and divide by the row sums.",
+      "es": "Calcula `scores = Q @ K.T / np.sqrt(Q.shape[1])`, suma `np.triu(np.full((n, m), -np.inf), k=1)` si es causal, resta `scores.max(axis=1, keepdims=True)`, aplica la exponencial y divide por la suma de cada fila."
+    },
+    "solution": "import numpy as np\n\n\ndef attention(Q, K, V, causal=True):\n    Q = np.asarray(Q, dtype=float)\n    K = np.asarray(K, dtype=float)\n    V = np.asarray(V, dtype=float)\n    scores = Q @ K.T / np.sqrt(Q.shape[1])\n    if causal:\n        scores = scores + np.triu(np.full(scores.shape, -np.inf), k=1)\n    scores = scores - scores.max(axis=1, keepdims=True)\n    weights = np.exp(scores)\n    weights = weights / weights.sum(axis=1, keepdims=True)\n    return weights @ V\n"
+  }
+]

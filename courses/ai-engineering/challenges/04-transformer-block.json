@@ -1,0 +1,38 @@
+[
+  {
+    "id": "layer-norm",
+    "title": {
+      "en": "Layer normalization",
+      "es": "Normalización de capa"
+    },
+    "prompt": {
+      "en": "Write `layer_norm(x, eps=1e-5)` for a 2-D array with one token vector per row. Rescale each row to mean 0 and variance 1: subtract the row mean and divide by `sqrt(variance + eps)`. Leave out the learned scale and shift.\n\n- Use the population variance (divide by the number of dimensions, as `np.var` does).\n- A constant row must become zeros, not NaN.",
+      "es": "Escribe `layer_norm(x, eps=1e-5)` para un array 2-D con un vector de token por fila. Reescala cada fila a media 0 y varianza 1: resta la media de la fila y divide por `sqrt(varianza + eps)`. Omite la escala y el desplazamiento aprendidos.\n\n- Usa la varianza poblacional (divide por el número de dimensiones, como hace `np.var`).\n- Una fila constante debe quedar en ceros, no en NaN."
+    },
+    "starter": "import numpy as np\n\n\ndef layer_norm(x, eps=1e-5):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nx = np.array([[1.0, 2.0, 3.0, 4.0], [10.0, 10.0, 10.0, 10.0], [-50.0, 0.0, 50.0, 100.0]])\ny = layer_norm(x)\nassert y.shape == x.shape, \"layer norm keeps the shape\"\nassert np.allclose(y.mean(axis=1), 0, atol=1e-7), \"every row should have mean 0\"\nassert np.allclose(y[[0, 2]].std(axis=1), 1, atol=1e-3), \"every non-constant row should have a standard deviation close to 1\"\nassert np.allclose(y[1], 0), \"a constant row becomes all zeros (eps avoids dividing by zero)\"\nassert np.allclose(layer_norm(x * 1000)[0], y[0], atol=1e-4), \"scaling a row must not change its normalized output\"\nassert np.allclose(y[0], (x[0] - 2.5) / np.sqrt(1.25 + 1e-5)), \"use the population variance and put eps inside the square root\"\n",
+    "hint": {
+      "en": "`x.mean(axis=1, keepdims=True)` and `x.var(axis=1, keepdims=True)` keep the shapes broadcastable against `x`.",
+      "es": "`x.mean(axis=1, keepdims=True)` y `x.var(axis=1, keepdims=True)` mantienen formas que se difunden (broadcast) contra `x`."
+    },
+    "solution": "import numpy as np\n\n\ndef layer_norm(x, eps=1e-5):\n    x = np.asarray(x, dtype=float)\n    mean = x.mean(axis=1, keepdims=True)\n    var = x.var(axis=1, keepdims=True)\n    return (x - mean) / np.sqrt(var + eps)\n"
+  },
+  {
+    "id": "block-params",
+    "title": {
+      "en": "Count the weights in one block",
+      "es": "Cuenta los pesos de un bloque"
+    },
+    "prompt": {
+      "en": "Write `block_params(d_model, expansion=4)` that returns the number of weights in the matrices of one transformer block, ignoring biases and layer-norm parameters:\n\n- attention: four `d_model x d_model` projections (query, key, value and output);\n- MLP: one matrix that expands to `expansion * d_model` and one that projects back.\n\nWith the usual 4x expansion you should see why the MLP holds most of the parameters.",
+      "es": "Escribe `block_params(d_model, expansion=4)`, que devuelve el número de pesos de las matrices de un bloque transformer, sin contar sesgos ni parámetros de layer norm:\n\n- atención: cuatro proyecciones de `d_model x d_model` (consulta, clave, valor y salida);\n- MLP: una matriz que expande a `expansion * d_model` y otra que proyecta de vuelta.\n\nCon la expansión habitual de 4x deberías ver por qué el MLP concentra la mayoría de los parámetros."
+    },
+    "starter": "def block_params(d_model, expansion=4):\n    raise NotImplementedError\n",
+    "tests": "assert block_params(4) == 64 + 128, \"d_model 4: attention 4 * 4^2 = 64 weights, MLP 2 * 4 * 4^2 = 128\"\nassert block_params(768) == 7077888, \"GPT-2 small width: 12 * 768^2 weights per block\"\nassert block_params(512, expansion=2) == 4 * 512 ** 2 + 2 * 2 * 512 ** 2, \"the expansion factor changes only the MLP\"\nassert block_params(1024) == 3 * 4 * 1024 ** 2, \"with 4x expansion the block is 3 times the attention projections: the MLP is twice their size\"\nassert isinstance(block_params(8), int), \"return an int\"\n",
+    "hint": {
+      "en": "Attention is `4 * d^2`. The MLP is `d * (e * d) + (e * d) * d`.",
+      "es": "La atención son `4 * d^2`. El MLP son `d * (e * d) + (e * d) * d`."
+    },
+    "solution": "def block_params(d_model, expansion=4):\n    attention = 4 * d_model * d_model\n    mlp = 2 * d_model * expansion * d_model\n    return attention + mlp\n"
+  }
+]

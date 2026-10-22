@@ -1,0 +1,38 @@
+[
+  {
+    "id": "extract-answer",
+    "title": {
+      "en": "Extract the final answer",
+      "es": "Extrae la respuesta final"
+    },
+    "prompt": {
+      "en": "Voting needs comparable answers. Write `extract_answer(text)`:\n\n- If the text contains `Answer:` (any case), return what follows the **last** one, stripped of spaces and of a trailing period.\n- Otherwise return the last number in the text (optional minus sign, optional decimals), with thousands separators `,` removed.\n- Otherwise return `None`.",
+      "es": "Votar necesita respuestas comparables. Escribe `extract_answer(text)`:\n\n- Si el texto contiene `Answer:` (en mayúsculas o minúsculas), devuelve lo que sigue al **último**, sin espacios alrededor ni punto final.\n- Si no, devuelve el último número del texto (con signo menos y decimales opcionales), sin los separadores de miles `,`.\n- Si tampoco hay, devuelve `None`."
+    },
+    "starter": "import re\n\n\ndef extract_answer(text):\n    raise NotImplementedError\n",
+    "tests": "assert extract_answer(\"3 + 4 = 7, times 2 is 14. Answer: 14\") == \"14\", \"take what follows Answer:\"\nassert extract_answer(\"First guess Answer: 12. Wait, recheck. Answer: 14.\") == \"14\", \"use the last Answer:, after the model rechecked, and drop the trailing period\"\nassert extract_answer(\"so the total is 1,250 dollars\") == \"1250\", \"without an Answer: label, take the last number and drop thousands separators\"\nassert extract_answer(\"The result is -3.5\") == \"-3.5\", \"keep the sign and the decimals\"\nassert extract_answer(\"I am not sure.\") is None, \"no label and no number: None\"\nassert extract_answer(\"answer:  B \") == \"B\", \"the label is case-insensitive and spaces are removed\"\n",
+    "hint": {
+      "en": "`re.split(r\"answer:\", text, flags=re.IGNORECASE)` gives the pieces; the last one follows the last label. For numbers, `re.findall(r\"-?\\d[\\d,]*(?:\\.\\d+)?\", text)`.",
+      "es": "`re.split(r\"answer:\", text, flags=re.IGNORECASE)` da los trozos; el último sigue a la última etiqueta. Para los números, `re.findall(r\"-?\\d[\\d,]*(?:\\.\\d+)?\", text)`."
+    },
+    "solution": "import re\n\n\ndef extract_answer(text):\n    parts = re.split(r\"answer:\", text, flags=re.IGNORECASE)\n    if len(parts) > 1:\n        return parts[-1].strip().rstrip(\".\").strip()\n    numbers = re.findall(r\"-?\\d[\\d,]*(?:\\.\\d+)?\", text)\n    if numbers:\n        return numbers[-1].replace(\",\", \"\")\n    return None\n"
+  },
+  {
+    "id": "majority-vote",
+    "title": {
+      "en": "Self-consistency vote",
+      "es": "Voto por autoconsistencia"
+    },
+    "prompt": {
+      "en": "Write `majority_vote(answers)` for a list of extracted answers from several samples:\n\n- normalize each answer with `str(a).strip().lower()`, and ignore `None` and empty answers;\n- return the most frequent normalized answer;\n- on a tie, return the answer that appeared first;\n- return `None` when nothing is left.",
+      "es": "Escribe `majority_vote(answers)` para una lista de respuestas extraídas de varias muestras:\n\n- normaliza cada respuesta con `str(a).strip().lower()` e ignora `None` y las respuestas vacías;\n- devuelve la respuesta normalizada más frecuente;\n- si hay empate, devuelve la que apareció primero;\n- devuelve `None` si no queda ninguna."
+    },
+    "starter": "def majority_vote(answers):\n    raise NotImplementedError\n",
+    "tests": "assert majority_vote([\"42\", \"41\", \"42\", \"40\"]) == \"42\", \"42 has two votes\"\nassert majority_vote([\" 42\", \"42 \", \"41\"]) == \"42\", \"strip spaces before comparing\"\nassert majority_vote([\"B\", \"b\", \"a\"]) == \"b\", \"compare case-insensitively and return the normalized form\"\nassert majority_vote([\"7\", \"8\", \"8\", \"7\"]) == \"7\", \"on a tie, return the answer that appeared first\"\nassert majority_vote([None, \"\", \"5\", None]) == \"5\", \"ignore samples with no extractable answer\"\nassert majority_vote([]) is None and majority_vote([None]) is None, \"no answers, no vote\"\nassert majority_vote([3, \"3\", 4]) == \"3\", \"numbers and strings normalize to the same text\"\n",
+    "hint": {
+      "en": "Count in a `dict` while iterating in order; a `dict` keeps first-insertion order, and `max(counts, key=counts.get)` returns the first key with the highest count.",
+      "es": "Cuenta en un `dict` mientras recorres en orden; un `dict` conserva el orden de inserción y `max(counts, key=counts.get)` devuelve la primera clave con el conteo más alto."
+    },
+    "solution": "def majority_vote(answers):\n    counts = {}\n    for a in answers:\n        if a is None:\n            continue\n        key = str(a).strip().lower()\n        if key:\n            counts[key] = counts.get(key, 0) + 1\n    if not counts:\n        return None\n    return max(counts, key=counts.get)\n"
+  }
+]

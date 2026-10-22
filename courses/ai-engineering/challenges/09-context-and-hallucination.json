@@ -1,0 +1,38 @@
+[
+  {
+    "id": "trim-history",
+    "title": {
+      "en": "Fit the history into the window",
+      "es": "Ajusta el historial a la ventana"
+    },
+    "prompt": {
+      "en": "A chat API has no memory: you resend the history and must decide what to drop. Write `trim_history(messages, budget, count)` for the \"system prompt plus recent turns\" strategy. Each message is a dict with `role` and `content`; `count(text)` returns its tokens.\n\n- Always keep every `system` message, in place at the start.\n- Then keep the longest run of the **most recent** other messages that fits in `budget` total tokens. Stop at the first message that does not fit; never skip one to squeeze in an older one.\n- Return a new list in the original order. Raise `ValueError` if the system messages alone exceed the budget.",
+      "es": "Una API de chat no tiene memoria: reenvías el historial y tienes que decidir qué descartar. Escribe `trim_history(messages, budget, count)` para la estrategia «prompt de sistema más turnos recientes». Cada mensaje es un dict con `role` y `content`; `count(text)` devuelve sus tokens.\n\n- Conserva siempre todos los mensajes `system`, en su sitio al principio.\n- Después conserva la secuencia más larga de los otros mensajes **más recientes** que quepa en `budget` tokens en total. Para en el primer mensaje que no quepa; nunca saltes uno para meter otro más antiguo.\n- Devuelve una lista nueva en el orden original. Lanza `ValueError` si los mensajes de sistema por sí solos superan el presupuesto."
+    },
+    "starter": "def trim_history(messages, budget, count):\n    raise NotImplementedError\n",
+    "tests": "def count(text):\n    return len(text.split())\nsystem = {\"role\": \"system\", \"content\": \"You are a helpful assistant\"}\nhistory = [\n    system,\n    {\"role\": \"user\", \"content\": \"My name is Ana\"},\n    {\"role\": \"assistant\", \"content\": \"Hi Ana\"},\n    {\"role\": \"user\", \"content\": \"I like green tea a lot\"},\n    {\"role\": \"assistant\", \"content\": \"Noted\"},\n    {\"role\": \"user\", \"content\": \"What is my name\"},\n]\nassert trim_history(history, 100, count) == history, \"everything fits: keep everything\"\nassert trim_history(history, 10, count) == [system, history[4], history[5]], \"5 system tokens + 1 + 4 = 10: the name is lost, which is the point of the lesson\"\nassert trim_history(history, 12, count) == [system, history[4], history[5]], \"do not skip the long message to fit the older 'Hi Ana'; that would leave a hole in the conversation\"\nassert trim_history(history, 5, count) == [system], \"only the system prompt fits\"\nassert len(history) == 6, \"do not modify the input list\"\nraised = False\ntry:\n    trim_history(history, 4, count)\nexcept ValueError:\n    raised = True\nassert raised, \"if the system prompt alone does not fit, raise ValueError\"\n",
+    "hint": {
+      "en": "Split into system and other messages. Walk the others backwards with `reversed`, adding while `used + count(...) <= budget`, and `break` at the first that does not fit. Reverse the kept list before returning.",
+      "es": "Separa los mensajes de sistema del resto. Recorre los demás hacia atrás con `reversed`, añadiendo mientras `used + count(...) <= budget`, y haz `break` en el primero que no quepa. Invierte la lista conservada antes de devolverla."
+    },
+    "solution": "def trim_history(messages, budget, count):\n    system = [m for m in messages if m[\"role\"] == \"system\"]\n    rest = [m for m in messages if m[\"role\"] != \"system\"]\n    used = sum(count(m[\"content\"]) for m in system)\n    if used > budget:\n        raise ValueError(\"system prompt does not fit\")\n    kept = []\n    for m in reversed(rest):\n        cost = count(m[\"content\"])\n        if used + cost > budget:\n            break\n        kept.append(m)\n        used += cost\n    return system + kept[::-1]\n"
+  },
+  {
+    "id": "ece",
+    "title": {
+      "en": "Expected calibration error",
+      "es": "Error de calibración esperado"
+    },
+    "prompt": {
+      "en": "Write `ece(confidences, correct, n_bins=10)`. Split `[0, 1]` into `n_bins` equal-width bins; a confidence `c` goes to bin `min(int(c * n_bins), n_bins - 1)`, so 1.0 lands in the last bin. For each non-empty bin take `|accuracy - mean confidence|` and weight it by the share of predictions in the bin. Return the sum.\n\n`correct` holds 1 or 0 (or booleans) for each prediction.",
+      "es": "Escribe `ece(confidences, correct, n_bins=10)`. Divide `[0, 1]` en `n_bins` intervalos de igual anchura; una confianza `c` va al intervalo `min(int(c * n_bins), n_bins - 1)`, así que 1.0 cae en el último. Para cada intervalo no vacío toma `|exactitud - confianza media|` y pondéralo por la proporción de predicciones que contiene. Devuelve la suma.\n\n`correct` contiene 1 o 0 (o booleanos) para cada predicción."
+    },
+    "starter": "def ece(confidences, correct, n_bins=10):\n    raise NotImplementedError\n",
+    "tests": "assert abs(ece([0.9] * 4, [1, 1, 1, 0]) - 0.15) < 1e-9, \"one bin: |0.75 accuracy - 0.9 confidence| = 0.15\"\nassert abs(ece([0.8] * 5 + [0.3] * 10, [1, 1, 1, 1, 0] + [1, 1, 1] + [0] * 7)) < 1e-9, \"both bins are perfectly calibrated: ECE 0\"\nassert abs(ece([1.0, 1.0], [1, 0]) - 0.5) < 1e-9, \"confidence 1.0 belongs in the last bin\"\nassert abs(ece([0.95, 0.15], [0, 1]) - (0.5 * 0.95 + 0.5 * 0.85)) < 1e-9, \"each bin is weighted by its share of the predictions\"\nassert abs(ece([0.55, 0.65], [1, 0], n_bins=2) - 0.1) < 1e-9, \"with 2 bins, 0.55 and 0.65 share the upper bin: |0.5 - 0.6| = 0.1\"\nassert abs(ece([0.7, 0.7], [True, False]) - 0.2) < 1e-9, \"booleans work as 1 and 0\"\n",
+    "hint": {
+      "en": "Group the indices into a dict of bins. For each bin: `acc = sum(correct) / size`, `conf = sum(confidences) / size`, then add `size / n * abs(acc - conf)`.",
+      "es": "Agrupa los índices en un dict de intervalos. Para cada uno: `acc = sum(correct) / size`, `conf = sum(confidences) / size`, y suma `size / n * abs(acc - conf)`."
+    },
+    "solution": "def ece(confidences, correct, n_bins=10):\n    bins = {}\n    for c, ok in zip(confidences, correct):\n        b = min(int(c * n_bins), n_bins - 1)\n        bins.setdefault(b, []).append((c, 1 if ok else 0))\n    n = len(confidences)\n    total = 0.0\n    for items in bins.values():\n        size = len(items)\n        acc = sum(ok for _, ok in items) / size\n        conf = sum(c for c, _ in items) / size\n        total += size / n * abs(acc - conf)\n    return total\n"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "kappa",
+    "title": {
+      "en": "Cohen's kappa",
+      "es": "Kappa de Cohen"
+    },
+    "prompt": {
+      "en": "Raw agreement flatters a judge when most answers pass. Write `cohens_kappa(a, b)` for two equal-length lists of labels:\n\n- observed agreement: the share of positions where `a` and `b` match;\n- chance agreement: the sum over labels of `share of a with that label * share of b with that label`;\n- kappa: `(observed - chance) / (1 - chance)`.\n\nIf chance agreement is 1, kappa is undefined: return `0.0`. Raise `ValueError` if the lists have different lengths or are empty.",
+      "es": "El acuerdo bruto favorece a un juez cuando casi todas las respuestas aprueban. Escribe `cohens_kappa(a, b)` para dos listas de etiquetas de igual longitud:\n\n- acuerdo observado: la proporción de posiciones en que `a` y `b` coinciden;\n- acuerdo por azar: la suma sobre las etiquetas de `proporción de a con esa etiqueta * proporción de b con esa etiqueta`;\n- kappa: `(observado - azar) / (1 - azar)`.\n\nSi el acuerdo por azar es 1, kappa no está definido: devuelve `0.0`. Lanza `ValueError` si las listas tienen longitudes distintas o están vacías."
+    },
+    "starter": "def cohens_kappa(a, b):\n    raise NotImplementedError\n",
+    "tests": "human = [\"pass\"] * 8 + [\"fail\"] * 2\nassert abs(cohens_kappa(human, human) - 1.0) < 1e-12, \"identical labels give kappa 1\"\nassert abs(cohens_kappa(human, [\"pass\"] * 10)) < 1e-12, \"a judge that always says pass agrees 80% of the time and has kappa 0\"\njudge = [\"pass\"] * 7 + [\"fail\", \"pass\", \"fail\"]\nassert abs(cohens_kappa(human, judge) - 0.375) < 1e-12, \"observed 0.8, chance 0.8 * 0.8 + 0.2 * 0.2 = 0.68, kappa 0.12 / 0.32 = 0.375\"\nassert cohens_kappa([\"a\", \"b\", \"a\", \"b\"], [\"b\", \"a\", \"b\", \"a\"]) < 0, \"systematic disagreement gives a negative kappa\"\nassert abs(cohens_kappa([\"x\", \"y\", \"z\"], [\"x\", \"y\", \"z\"]) - 1.0) < 1e-12, \"works for more than two labels\"\nassert cohens_kappa([\"pass\"] * 5, [\"pass\"] * 5) == 0.0, \"when chance agreement is 1, return 0.0\"\nraised = False\ntry:\n    cohens_kappa([\"a\"], [\"a\", \"b\"])\nexcept ValueError:\n    raised = True\nassert raised, \"lists of different lengths: raise ValueError\"\n",
+    "hint": {
+      "en": "`collections.Counter` gives the label counts of each list. Loop over the union of their keys for the chance term.",
+      "es": "`collections.Counter` da el número de cada etiqueta en cada lista. Recorre la unión de sus claves para el término de azar."
+    },
+    "solution": "from collections import Counter\n\n\ndef cohens_kappa(a, b):\n    if len(a) != len(b) or not a:\n        raise ValueError(\"need two non-empty lists of equal length\")\n    n = len(a)\n    observed = sum(x == y for x, y in zip(a, b)) / n\n    ca = Counter(a)\n    cb = Counter(b)\n    chance = sum(ca[k] / n * cb[k] / n for k in set(ca) | set(cb))\n    if chance == 1:\n        return 0.0\n    return (observed - chance) / (1 - chance)\n"
+  },
+  {
+    "id": "sample-size",
+    "title": {
+      "en": "How many examples do you need?",
+      "es": "¿Cuántos ejemplos necesitas?"
+    },
+    "prompt": {
+      "en": "The standard error of an accuracy `p` on `n` examples is `sqrt(p * (1 - p) / n)`, and a 95% interval is about `z = 1.96` standard errors on each side. Write `examples_needed(p, margin, z=1.96)` that returns the smallest whole number of examples whose half-width `z * sqrt(p * (1 - p) / n)` is at most `margin`.\n\nAlways return at least 1.",
+      "es": "El error estándar de una exactitud `p` sobre `n` ejemplos es `sqrt(p * (1 - p) / n)`, y un intervalo del 95% abarca unos `z = 1.96` errores estándar a cada lado. Escribe `examples_needed(p, margin, z=1.96)`, que devuelve el menor número entero de ejemplos cuya semianchura `z * sqrt(p * (1 - p) / n)` es como mucho `margin`.\n\nDevuelve siempre al menos 1."
+    },
+    "starter": "import math\n\n\ndef examples_needed(p, margin, z=1.96):\n    raise NotImplementedError\n",
+    "tests": "assert examples_needed(0.8, 0.02) == 1537, \"plus or minus 2 points at 80% accuracy needs 1537 examples\"\nassert examples_needed(0.8, 0.11) == 51, \"the lesson's plus or minus 11 points comes from about 50 examples\"\nassert examples_needed(0.5, 0.05) == 385, \"the classic 385 for plus or minus 5 points at 50%\"\nassert abs(examples_needed(0.8, 0.01) - 4 * examples_needed(0.8, 0.02)) <= 4, \"halving the margin needs four times the examples\"\nassert examples_needed(1.0, 0.05) == 1, \"with no variance, one example is enough, and never return 0\"\nassert isinstance(examples_needed(0.8, 0.02), int), \"return an int\"\n",
+    "hint": {
+      "en": "Solve the inequality for `n`: `n >= z**2 * p * (1 - p) / margin**2`, then round up with `math.ceil`.",
+      "es": "Despeja `n` en la desigualdad: `n >= z**2 * p * (1 - p) / margin**2`, y redondea hacia arriba con `math.ceil`."
+    },
+    "solution": "import math\n\n\ndef examples_needed(p, margin, z=1.96):\n    return max(1, math.ceil(z * z * p * (1 - p) / (margin * margin)))\n"
+  }
+]

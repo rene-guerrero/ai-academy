@@ -1,0 +1,38 @@
+[
+  {
+    "id": "pass-k",
+    "title": {
+      "en": "pass@k versus pass^k",
+      "es": "pass@k frente a pass^k"
+    },
+    "prompt": {
+      "en": "With `c` successes in `n` trials of a task, write the two unbiased estimators:\n\n- `pass_at_k(n, c, k) = 1 - C(n - c, k) / C(n, k)`: at least one of `k` attempts succeeds;\n- `pass_hat_k(n, c, k) = C(c, k) / C(n, k)`: all `k` attempts succeed.\n\n`C` is the binomial coefficient, `math.comb`, which is 0 when you ask for more items than there are.",
+      "es": "Con `c` éxitos en `n` intentos de una tarea, escribe los dos estimadores insesgados:\n\n- `pass_at_k(n, c, k) = 1 - C(n - c, k) / C(n, k)`: al menos uno de `k` intentos tiene éxito;\n- `pass_hat_k(n, c, k) = C(c, k) / C(n, k)`: los `k` intentos tienen éxito.\n\n`C` es el coeficiente binomial, `math.comb`, que vale 0 cuando pides más elementos de los que hay."
+    },
+    "starter": "import math\n\n\ndef pass_at_k(n, c, k):\n    raise NotImplementedError\n\n\ndef pass_hat_k(n, c, k):\n    raise NotImplementedError\n",
+    "tests": "assert abs(pass_at_k(10, 5, 1) - 0.5) < 1e-12, \"with k = 1, pass@k is the success rate\"\nassert abs(pass_hat_k(10, 5, 1) - 0.5) < 1e-12, \"with k = 1, pass^k is the success rate too\"\nassert abs(pass_at_k(10, 5, 3) - 11 / 12) < 1e-12, \"1 - C(5, 3) / C(10, 3) = 1 - 10 / 120\"\nassert abs(pass_hat_k(10, 5, 3) - 1 / 12) < 1e-12, \"C(5, 3) / C(10, 3) = 10 / 120\"\nassert pass_at_k(10, 8, 3) == 1.0, \"with only 2 failures, any 3 attempts include a success\"\nassert pass_hat_k(10, 2, 3) == 0.0, \"with only 2 successes, 3 attempts cannot all succeed\"\nassert pass_at_k(10, 0, 5) == 0.0, \"no successes, no pass@k\"\nassert all(pass_at_k(20, 18, k) <= pass_at_k(20, 18, k + 1) for k in range(1, 8)), \"pass@k rises as k grows\"\nassert all(pass_hat_k(20, 18, k) > pass_hat_k(20, 18, k + 1) for k in range(1, 8)), \"pass^k falls as k grows: that gap is the reliability problem\"\n",
+    "hint": {
+      "en": "Each function is one line with `math.comb`. Python's `/` already returns a float.",
+      "es": "Cada función es una línea con `math.comb`. El `/` de Python ya devuelve un float."
+    },
+    "solution": "import math\n\n\ndef pass_at_k(n, c, k):\n    return 1 - math.comb(n - c, k) / math.comb(n, k)\n\n\ndef pass_hat_k(n, c, k):\n    return math.comb(c, k) / math.comb(n, k)\n"
+  },
+  {
+    "id": "dedupe-calls",
+    "title": {
+      "en": "Stop repeated tool calls",
+      "es": "Frena las llamadas repetidas"
+    },
+    "prompt": {
+      "en": "A signature check stops an agent from running the same call again and again. Write `run_deduplicated(calls, execute)`: `calls` is a list of `(tool, args)` pairs, `execute(tool, args)` runs one and returns its result.\n\n- Two calls have the same signature when the tool and the arguments are equal, whatever the order of the keys (nested lists and dicts included).\n- Execute each signature once; a repeated call gets the earlier result without executing.\n- Return the list of results, one per call, in order.",
+      "es": "Una comprobación de firma impide que un agente ejecute la misma llamada una y otra vez. Escribe `run_deduplicated(calls, execute)`: `calls` es una lista de pares `(tool, args)` y `execute(tool, args)` ejecuta uno y devuelve su resultado.\n\n- Dos llamadas tienen la misma firma cuando la herramienta y los argumentos son iguales, sea cual sea el orden de las claves (incluidos listas y dicts anidados).\n- Ejecuta cada firma una sola vez; una llamada repetida recibe el resultado anterior sin ejecutarse.\n- Devuelve la lista de resultados, uno por llamada, en orden."
+    },
+    "starter": "import json\n\n\ndef run_deduplicated(calls, execute):\n    raise NotImplementedError\n",
+    "tests": "import json\nlog = []\ndef execute(tool, args):\n    log.append(tool)\n    return tool + \":\" + json.dumps(args, sort_keys=True)\ncalls = [\n    (\"search\", {\"q\": \"refund\", \"limit\": 5}),\n    (\"search\", {\"limit\": 5, \"q\": \"refund\"}),\n    (\"get\", {\"id\": 7}),\n    (\"search\", {\"q\": \"refund\", \"limit\": 6}),\n    (\"tag\", {\"names\": [\"a\", \"b\"], \"meta\": {\"x\": 1, \"y\": 2}}),\n    (\"tag\", {\"meta\": {\"y\": 2, \"x\": 1}, \"names\": [\"a\", \"b\"]}),\n]\nresults = run_deduplicated(calls, execute)\nassert len(results) == len(calls), \"one result per call\"\nassert log.count(\"search\") == 2, \"the second search has the same signature (key order does not matter) and must not run again\"\nassert results[1] == results[0], \"a repeated call gets the earlier result\"\nassert results[3] != results[0], \"different arguments are a different signature\"\nassert log.count(\"tag\") == 1, \"nested dicts with reordered keys are the same signature too\"\nassert log == [\"search\", \"get\", \"search\", \"tag\"], \"each distinct call runs once, in order\"\n",
+    "hint": {
+      "en": "`json.dumps([tool, args], sort_keys=True)` is a canonical signature string. Keep a dict from signature to result.",
+      "es": "`json.dumps([tool, args], sort_keys=True)` es una firma canónica en forma de texto. Guarda un dict de firma a resultado."
+    },
+    "solution": "import json\n\n\ndef run_deduplicated(calls, execute):\n    seen = {}\n    results = []\n    for tool, args in calls:\n        signature = json.dumps([tool, args], sort_keys=True)\n        if signature not in seen:\n            seen[signature] = execute(tool, args)\n        results.append(seen[signature])\n    return results\n"
+  }
+]

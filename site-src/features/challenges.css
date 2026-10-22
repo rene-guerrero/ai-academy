@@ -1,0 +1,49 @@
+
+.practice h2 { font-family: var(--display); padding-top: 1.5rem; border-top: .5px solid var(--separator); }
+.chal-summary { margin: 0 0 .75rem; font-size: .875rem; font-weight: 600; color: var(--ok); }
+.chal-summary:empty { display: none; }
+.main .chal-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.chal { box-shadow: inset 0 0 0 1px transparent; min-width: 0; }
+.chal.is-passed { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ok) 55%, transparent); }
+.chal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.chal-head h3 { margin: 0; font-size: 1.0625rem; }
+.chal-badge { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 600; color: var(--ok); background: var(--ok-soft); border-radius: 999px; padding: 2px 10px 2px 8px; }
+.chal-badge::before { content: ""; width: 10px; height: 6px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(-45deg); }
+.chal-badge[hidden] { display: none; }
+.chal-prompt { color: var(--text); font-size: 1rem; }
+.chal-prompt p, .chal-prompt ul { margin: .6rem 0; }
+.chal-prompt .code { margin: .75rem 0; }
+.chal-runner { margin: .75rem 0 0; }
+.chal-editor { min-height: 9rem; }
+.chal-attempts { font-size: .8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.runner-bar .btn:disabled { opacity: .45; cursor: not-allowed; }
+.chal-results { list-style: none; margin: 0; padding: 0; background: var(--fill-2); border-radius: var(--r-m); overflow: hidden; }
+.chal-results[hidden] { display: none; }
+.chal-check { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; min-height: 44px; box-sizing: border-box; }
+.chal-check + .chal-check { border-top: .5px solid var(--separator); }
+.chal-icon { width: 20px; height: 20px; flex: none; margin-top: 1px; border-radius: 50%; padding: 3px; box-sizing: border-box; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.chal-check[data-status="pass"] .chal-icon { color: var(--ok); background: var(--ok-soft); }
+.chal-check[data-status="fail"] .chal-icon, .chal-check[data-status="error"] .chal-icon { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.chal-check[data-status="skip"] .chal-icon { color: var(--muted); background: var(--fill); }
+.chal-check-body { min-width: 0; flex: 1; }
+.chal-check-label { margin: 0; font-size: .9375rem; line-height: 1.4; overflow-wrap: anywhere; }
+.chal-check-state { font-weight: 600; }
+.chal-check[data-status="pass"] .chal-check-state { color: var(--ok); }
+.chal-check[data-status="fail"] .chal-check-state, .chal-check[data-status="error"] .chal-check-state { color: var(--danger); }
+.chal-check[data-status="skip"] .chal-check-state, .chal-check[data-status="skip"] .chal-check-label { color: var(--muted); }
+.chal-trace { margin: 6px 0 0; padding: 10px 12px; background: var(--code-bg); border-radius: var(--r-s); font: .8125rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--danger); max-height: 16rem; overflow: auto; }
+.chal-runner > .chal-trace { margin: 0; }
+.chal-trace[hidden] { display: none; }
+.chal-output pre { margin: 6px 0 0; padding: 10px 12px; background: var(--code-bg); border-radius: var(--r-s); font: .8125rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 12rem; overflow: auto; }
+.chal-output[hidden] { display: none; }
+.chal-output > summary, .chal-hint > summary, .chal-tests > summary { padding: 10px 0; font-weight: 600; color: var(--accent); min-height: 44px; display: flex; align-items: center; box-sizing: border-box; }
+.chal-hint p { margin: 0 0 .5rem; color: var(--text-2); }
+.chal-tests { margin-top: .25rem; }
+.chal-tests .code { margin: .25rem 0 0; }
+.chal-tests pre { max-height: 22rem; }
+.chal-solution { display: grid; gap: 6px; justify-items: start; }
+.chal-solution .code { margin: 0; width: 100%; box-sizing: border-box; }
+.chal-solution .code[hidden] { display: none; }
+.chal-lock { margin: 0; font-size: .8125rem; color: var(--muted); }
+.chal-lock[hidden] { display: none; }
+@media print { .chal-app { display: none; } }

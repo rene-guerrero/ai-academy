@@ -1,0 +1,38 @@
+[
+  {
+    "id": "kv-bytes",
+    "title": {
+      "en": "Size the KV cache",
+      "es": "Dimensiona la caché KV"
+    },
+    "prompt": {
+      "en": "Every layer stores a key and a value vector per token and per KV head. Write `kv_cache_bytes(layers, kv_heads, head_dim, bytes_per_value, tokens, sequences=1)` that returns the total bytes as an int:\n\n```\n2 * layers * kv_heads * head_dim * bytes_per_value * tokens * sequences\n```",
+      "es": "Cada capa guarda un vector de clave y otro de valor por token y por cabeza KV. Escribe `kv_cache_bytes(layers, kv_heads, head_dim, bytes_per_value, tokens, sequences=1)`, que devuelve el total de bytes como int:\n\n```\n2 * layers * kv_heads * head_dim * bytes_per_value * tokens * sequences\n```"
+    },
+    "starter": "def kv_cache_bytes(layers, kv_heads, head_dim, bytes_per_value, tokens, sequences=1):\n    raise NotImplementedError\n",
+    "tests": "per_token = kv_cache_bytes(32, 32, 128, 2, 1)\nassert per_token == 524288, \"a 7B-class model with 32 layers, width 4096 in fp16 holds 0.5 MiB per token\"\nassert kv_cache_bytes(32, 32, 128, 2, 2048) == 2 ** 30, \"a 2048-token conversation holds 1 GiB\"\nassert kv_cache_bytes(32, 8, 128, 2, 2048) == 2 ** 28, \"grouped-query attention with 8 KV heads needs a quarter of that\"\nassert kv_cache_bytes(32, 32, 128, 2, 2048, sequences=16) == 16 * 2 ** 30, \"16 concurrent sequences need 16 times the memory\"\nassert kv_cache_bytes(32, 32, 128, 1, 1) == per_token // 2, \"an 8-bit cache halves it\"\nassert isinstance(per_token, int), \"return an int\"\n",
+    "hint": {
+      "en": "Multiply everything. The 2 counts keys and values.",
+      "es": "Multiplícalo todo. El 2 cuenta claves y valores."
+    },
+    "solution": "def kv_cache_bytes(layers, kv_heads, head_dim, bytes_per_value, tokens, sequences=1):\n    return 2 * layers * kv_heads * head_dim * bytes_per_value * tokens * sequences\n"
+  },
+  {
+    "id": "paged-kv",
+    "title": {
+      "en": "Paged versus reserved KV memory",
+      "es": "Memoria KV paginada frente a reservada"
+    },
+    "prompt": {
+      "en": "Write `paged_kv(lengths, block_size, max_len)` for a batch of sequences with the given token counts. Return a tuple `(blocks, paged_waste, reserved_waste)`:\n\n- `blocks`: fixed-size blocks PagedAttention allocates, `ceil(length / block_size)` per sequence;\n- `paged_waste`: token slots allocated but unused in those blocks;\n- `reserved_waste`: token slots unused if each sequence had reserved `max_len` contiguous slots instead.",
+      "es": "Escribe `paged_kv(lengths, block_size, max_len)` para un lote de secuencias con los números de tokens dados. Devuelve una tupla `(blocks, paged_waste, reserved_waste)`:\n\n- `blocks`: los bloques de tamaño fijo que asigna PagedAttention, `ceil(longitud / block_size)` por secuencia;\n- `paged_waste`: las posiciones de token asignadas pero sin usar en esos bloques;\n- `reserved_waste`: las posiciones sin usar si cada secuencia hubiera reservado `max_len` posiciones contiguas."
+    },
+    "starter": "def paged_kv(lengths, block_size, max_len):\n    raise NotImplementedError\n",
+    "tests": "blocks, paged_waste, reserved_waste = paged_kv([100, 16, 1], 16, 2048)\nassert blocks == 9, \"ceil(100 / 16) = 7 blocks, plus one each for 16 tokens and 1 token\"\nassert paged_waste == 9 * 16 - 117, \"only the unfilled tail of each last block is wasted\"\nassert reserved_waste == 3 * 2048 - 117, \"reserving max_len per sequence wastes everything past the real length\"\nassert paged_kv([], 16, 2048) == (0, 0, 0), \"no sequences, no memory\"\nassert paged_kv([0, 32], 16, 64)[0] == 2, \"a sequence with no tokens yet holds no blocks\"\n",
+    "hint": {
+      "en": "`-(-length // block_size)` is an integer ceiling division. Sum the blocks, then subtract the real tokens from the allocated slots.",
+      "es": "`-(-length // block_size)` es una división entera redondeando hacia arriba. Suma los bloques y resta los tokens reales de las posiciones asignadas."
+    },
+    "solution": "def paged_kv(lengths, block_size, max_len):\n    used = sum(lengths)\n    blocks = sum(-(-n // block_size) for n in lengths)\n    return blocks, blocks * block_size - used, len(lengths) * max_len - used\n"
+  }
+]

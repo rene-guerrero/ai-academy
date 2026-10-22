@@ -1,0 +1,38 @@
+[
+  {
+    "id": "bm25-term",
+    "title": {
+      "en": "One BM25 term score",
+      "es": "La puntuación BM25 de un término"
+    },
+    "prompt": {
+      "en": "Write `bm25_term(tf, df, n_docs, doc_len, avg_len, k1=1.5, b=0.75)`: the BM25 contribution of one query word to one document, as in the exercise.\n\n```\nidf   = ln(1 + (n_docs - df + 0.5) / (df + 0.5))\nnorm  = tf + k1 * (1 - b + b * doc_len / avg_len)\nscore = idf * tf * (k1 + 1) / norm\n```\n\n`tf` is how often the word appears in the document and `df` how many documents contain it.",
+      "es": "Escribe `bm25_term(tf, df, n_docs, doc_len, avg_len, k1=1.5, b=0.75)`: la contribución BM25 de una palabra de la consulta a un documento, como en el ejercicio.\n\n```\nidf   = ln(1 + (n_docs - df + 0.5) / (df + 0.5))\nnorm  = tf + k1 * (1 - b + b * doc_len / avg_len)\nscore = idf * tf * (k1 + 1) / norm\n```\n\n`tf` es cuántas veces aparece la palabra en el documento y `df` cuántos documentos la contienen."
+    },
+    "starter": "import math\n\n\ndef bm25_term(tf, df, n_docs, doc_len, avg_len, k1=1.5, b=0.75):\n    raise NotImplementedError\n",
+    "tests": "import math\nassert bm25_term(0, 3, 10, 50, 50) == 0, \"a word that is not in the document contributes nothing\"\ns1 = bm25_term(1, 1, 10, 50, 50)\nassert abs(s1 - math.log(1 + 9.5 / 1.5)) < 1e-9, \"with tf 1 in a document of average length the score equals the IDF\"\nassert bm25_term(1, 1, 10, 50, 50) > bm25_term(1, 8, 10, 50, 50), \"rarer words (smaller df) must score higher\"\nassert bm25_term(10, 1, 10, 50, 50) < 2.5 * s1, \"term frequency saturates: with k1 = 1.5 the tf factor stays below k1 + 1 = 2.5\"\nassert bm25_term(2, 1, 10, 200, 50) < bm25_term(2, 1, 10, 50, 50), \"a longer document is penalized by length normalization\"\nassert abs(bm25_term(2, 1, 10, 200, 50, b=0) - bm25_term(2, 1, 10, 50, 50, b=0)) < 1e-12, \"b = 0 turns length normalization off\"\n",
+    "hint": {
+      "en": "Translate the three lines directly with `math.log`. Return 0 early when `tf` is 0 if you like; the formula already gives 0.",
+      "es": "Traduce las tres líneas directamente con `math.log`. Puedes devolver 0 enseguida cuando `tf` es 0; la fórmula ya da 0."
+    },
+    "solution": "import math\n\n\ndef bm25_term(tf, df, n_docs, doc_len, avg_len, k1=1.5, b=0.75):\n    idf = math.log(1 + (n_docs - df + 0.5) / (df + 0.5))\n    norm = tf + k1 * (1 - b + b * doc_len / avg_len)\n    return idf * tf * (k1 + 1) / norm\n"
+  },
+  {
+    "id": "rrf",
+    "title": {
+      "en": "Reciprocal rank fusion",
+      "es": "Fusión por rango recíproco"
+    },
+    "prompt": {
+      "en": "Write `rrf(rankings, k=60)`. `rankings` is a list of ranked lists of document ids (best first). Each document gets `sum over rankings of 1 / (k + rank)`, with `rank` starting at 1; a document absent from a list gets nothing from it.\n\nReturn a list of `(doc_id, score)` pairs sorted by score, highest first. On a tie, keep the order in which documents first appear when you read the rankings one after another.",
+      "es": "Escribe `rrf(rankings, k=60)`. `rankings` es una lista de listas ordenadas de ids de documento (el mejor primero). Cada documento recibe `suma sobre los rankings de 1 / (k + rango)`, con `rango` empezando en 1; un documento que no está en una lista no recibe nada de ella.\n\nDevuelve una lista de pares `(doc_id, score)` ordenada por puntuación, de mayor a menor. En caso de empate, conserva el orden en que los documentos aparecen por primera vez al leer los rankings uno tras otro."
+    },
+    "starter": "def rrf(rankings, k=60):\n    raise NotImplementedError\n",
+    "tests": "fused = rrf([[\"a\", \"b\", \"c\"], [\"b\", \"c\", \"a\"]])\nassert [d for d, _ in fused] == [\"b\", \"a\", \"c\"], \"b is 2nd and 1st, which beats a at 1st and 3rd\"\nassert abs(dict(fused)[\"b\"] - (1 / 62 + 1 / 61)) < 1e-12, \"rank starts at 1: first place adds 1 / 61 with k = 60\"\nassert rrf([[\"x\"], []]) == [(\"x\", 1 / 61)], \"an empty ranking (BM25 with no matching words) adds nothing\"\nassert [d for d, _ in rrf([[\"a\", \"b\"], [\"c\", \"d\"]])] == [\"a\", \"c\", \"b\", \"d\"], \"two first places tie; keep the order of first appearance\"\nassert [d for d, _ in rrf([[\"a\", \"b\", \"c\"], [\"c\"]])][0] == \"c\", \"a document found by both rankers can beat a first place in one\"\nassert rrf([[\"a\", \"b\"]], k=0)[1] == (\"b\", 0.5), \"the k parameter is used as given\"\n",
+    "hint": {
+      "en": "Accumulate scores in a `dict` while looping over `enumerate(ranking, start=1)`. Python's `sorted` is stable, so sorting the dict items by `-score` keeps first-appearance order for ties.",
+      "es": "Acumula las puntuaciones en un `dict` mientras recorres `enumerate(ranking, start=1)`. `sorted` de Python es estable, así que ordenar los elementos del dict por `-score` conserva el orden de aparición en los empates."
+    },
+    "solution": "def rrf(rankings, k=60):\n    scores = {}\n    for ranking in rankings:\n        for rank, doc in enumerate(ranking, start=1):\n            scores[doc] = scores.get(doc, 0.0) + 1 / (k + rank)\n    return sorted(scores.items(), key=lambda item: -item[1])\n"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "chunking",
+    "title": {
+      "en": "Chunking with overlap",
+      "es": "Fragmentación con solapamiento"
+    },
+    "prompt": {
+      "en": "Write `chunk_words(words, size, overlap)` that splits a list of words into chunks of at most `size` words, where consecutive chunks share `overlap` words.\n\n- Chunks start at 0, `size - overlap`, `2 * (size - overlap)`, and so on.\n- Stop after the first chunk that reaches the end of the list, so no chunk is made only of overlap.\n- An empty list gives no chunks. Raise `ValueError` unless `0 <= overlap < size`.",
+      "es": "Escribe `chunk_words(words, size, overlap)`, que divide una lista de palabras en fragmentos de como mucho `size` palabras, donde fragmentos consecutivos comparten `overlap` palabras.\n\n- Los fragmentos empiezan en 0, `size - overlap`, `2 * (size - overlap)`, etc.\n- Para después del primer fragmento que llega al final de la lista, para que ningún fragmento sea solo solapamiento.\n- Una lista vacía no da fragmentos. Lanza `ValueError` salvo que `0 <= overlap < size`."
+    },
+    "starter": "def chunk_words(words, size, overlap):\n    raise NotImplementedError\n",
+    "tests": "w = \"a b c d e f g\".split()\nassert chunk_words(w, 3, 1) == [[\"a\", \"b\", \"c\"], [\"c\", \"d\", \"e\"], [\"e\", \"f\", \"g\"]], \"step is size - overlap = 2; each chunk repeats the last word of the previous one\"\nassert chunk_words(w, 3, 0) == [[\"a\", \"b\", \"c\"], [\"d\", \"e\", \"f\"], [\"g\"]], \"without overlap the last chunk may be short\"\nassert chunk_words(w, 10, 2) == [w], \"a document shorter than one chunk is a single chunk\"\nassert chunk_words(list(\"abcdef\"), 4, 2) == [list(\"abcd\"), list(\"cdef\")], \"stop once a chunk reaches the end: no chunk made only of overlap\"\nassert chunk_words([], 3, 1) == [], \"no words, no chunks\"\nraised = False\ntry:\n    chunk_words(w, 3, 3)\nexcept ValueError:\n    raised = True\nassert raised, \"overlap >= size would never advance: raise ValueError\"\n",
+    "hint": {
+      "en": "Validate first, then loop: append `words[start:start + size]`, stop if `start + size >= len(words)`, otherwise add `size - overlap` to `start`.",
+      "es": "Valida primero y luego itera: añade `words[start:start + size]`, para si `start + size >= len(words)` y, si no, suma `size - overlap` a `start`."
+    },
+    "solution": "def chunk_words(words, size, overlap):\n    if not 0 <= overlap < size:\n        raise ValueError(\"need 0 <= overlap < size\")\n    chunks = []\n    start = 0\n    while words:\n        chunks.append(list(words[start:start + size]))\n        if start + size >= len(words):\n            break\n        start += size - overlap\n    return chunks\n"
+  },
+  {
+    "id": "citations",
+    "title": {
+      "en": "Check the citations",
+      "es": "Comprueba las citas"
+    },
+    "prompt": {
+      "en": "A citation is only useful if you check it. Write `check_citations(answer, n_sources)` that finds every `[n]` marker in the answer and returns a tuple `(cited, invalid)`:\n\n- `cited`: the sorted, unique source numbers that exist (from 1 to `n_sources`);\n- `invalid`: the sorted, unique numbers that point to no source.",
+      "es": "Una cita solo sirve si la compruebas. Escribe `check_citations(answer, n_sources)`, que encuentra cada marcador `[n]` en la respuesta y devuelve una tupla `(cited, invalid)`:\n\n- `cited`: los números de fuente ordenados y sin repetir que existen (de 1 a `n_sources`);\n- `invalid`: los números ordenados y sin repetir que no apuntan a ninguna fuente."
+    },
+    "starter": "import re\n\n\ndef check_citations(answer, n_sources):\n    raise NotImplementedError\n",
+    "tests": "assert check_citations(\"Deploys run Monday to Thursday [1]. Access needs approval [2].\", 3) == ([1, 2], []), \"both citations point to real sources\"\nassert check_citations(\"See [4] and [1] and [1].\", 3) == ([1], [4]), \"duplicates count once; [4] does not exist with 3 sources\"\nassert check_citations(\"not found\", 2) == ([], []), \"no markers, nothing cited\"\nassert check_citations(\"Bad [0] and good [12].\", 12) == ([12], [0]), \"sources are numbered from 1, and numbers can have two digits\"\nassert check_citations(\"Mixed [2][3] and [x].\", 2) == ([2], [3]), \"adjacent markers are separate citations; [x] is not a citation\"\n",
+    "hint": {
+      "en": "`re.findall(r\"\\[(\\d+)\\]\", answer)` returns the numbers as strings. Convert them with `int`, put them in a `set`, then split by range.",
+      "es": "`re.findall(r\"\\[(\\d+)\\]\", answer)` devuelve los números como texto. Conviértelos con `int`, ponlos en un `set` y sepáralos según el rango."
+    },
+    "solution": "import re\n\n\ndef check_citations(answer, n_sources):\n    numbers = {int(n) for n in re.findall(r\"\\[(\\d+)\\]\", answer)}\n    cited = sorted(n for n in numbers if 1 <= n <= n_sources)\n    invalid = sorted(n for n in numbers if not 1 <= n <= n_sources)\n    return cited, invalid\n"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "bpe-pair",
+    "title": {
+      "en": "Find the pair BPE merges next",
+      "es": "Encuentra el par que BPE fusiona a continuación"
+    },
+    "prompt": {
+      "en": "Training a BPE tokenizer is a counting game. Write `most_frequent_pair(tokens)` that takes a list of symbols and returns the adjacent pair that occurs most often, as a tuple.\n\n- Count every adjacent pair, including overlapping ones: `[\"a\", \"a\", \"a\"]` contains `(\"a\", \"a\")` twice.\n- On a tie, return the pair whose first occurrence comes earliest in the list.\n- Return `None` when there are fewer than two tokens.",
+      "es": "Entrenar un tokenizador BPE es un juego de conteo. Escribe `most_frequent_pair(tokens)`, que recibe una lista de símbolos y devuelve, como tupla, el par adyacente que aparece más veces.\n\n- Cuenta todos los pares adyacentes, también los que se solapan: `[\"a\", \"a\", \"a\"]` contiene `(\"a\", \"a\")` dos veces.\n- Si hay empate, devuelve el par cuya primera aparición está antes en la lista.\n- Devuelve `None` si hay menos de dos tokens."
+    },
+    "starter": "def most_frequent_pair(tokens):\n    raise NotImplementedError\n",
+    "tests": "assert most_frequent_pair([\"a\", \"b\", \"a\", \"b\", \"c\"]) == (\"a\", \"b\"), \"('a', 'b') appears twice and should win\"\nassert most_frequent_pair([\"x\", \"y\", \"y\", \"x\"]) == (\"x\", \"y\"), \"on a tie, return the pair that appears first\"\nassert most_frequent_pair(list(\"aaab\")) == (\"a\", \"a\"), \"overlapping pairs count: 'aaab' contains ('a', 'a') twice\"\nassert most_frequent_pair([\"a\"]) is None, \"a single token has no pairs: return None\"\nassert most_frequent_pair([]) is None, \"an empty list has no pairs: return None\"\nassert most_frequent_pair(list(\"lowlowlower\")) == (\"l\", \"o\"), \"'lowlowlower' has ('l', 'o') and ('o', 'w') three times each; ('l', 'o') comes first\"\n",
+    "hint": {
+      "en": "`zip(tokens, tokens[1:])` yields every adjacent pair. A plain `dict` keeps insertion order, so the first pair to reach the highest count is easy to find.",
+      "es": "`zip(tokens, tokens[1:])` produce todos los pares adyacentes. Un `dict` normal conserva el orden de inserción, así que es fácil encontrar el primer par con el conteo más alto."
+    },
+    "solution": "def most_frequent_pair(tokens):\n    counts = {}\n    for pair in zip(tokens, tokens[1:]):\n        counts[pair] = counts.get(pair, 0) + 1\n    if not counts:\n        return None\n    return max(counts, key=counts.get)\n"
+  },
+  {
+    "id": "bpe-merge",
+    "title": {
+      "en": "Apply one BPE merge",
+      "es": "Aplica una fusión de BPE"
+    },
+    "prompt": {
+      "en": "Encoding text replays the learned merges in order. Write `merge_pair(tokens, pair, new)` that returns a **new** list where every occurrence of the adjacent `pair` is replaced by the single symbol `new`.\n\n- Scan left to right; merges do not overlap, so `[\"a\", \"a\", \"a\"]` with `(\"a\", \"a\")` becomes `[\"aa\", \"a\"]`.\n- Do not modify the input list.",
+      "es": "Codificar texto consiste en volver a aplicar las fusiones aprendidas, en orden. Escribe `merge_pair(tokens, pair, new)`, que devuelve una lista **nueva** en la que cada aparición del par adyacente `pair` se sustituye por el símbolo único `new`.\n\n- Recorre de izquierda a derecha; las fusiones no se solapan, así que `[\"a\", \"a\", \"a\"]` con `(\"a\", \"a\")` queda `[\"aa\", \"a\"]`.\n- No modifiques la lista de entrada."
+    },
+    "starter": "def merge_pair(tokens, pair, new):\n    raise NotImplementedError\n",
+    "tests": "assert merge_pair([\"a\", \"b\", \"c\", \"a\", \"b\"], (\"a\", \"b\"), \"ab\") == [\"ab\", \"c\", \"ab\"], \"both occurrences of ('a', 'b') should merge\"\nassert merge_pair([\"a\", \"a\", \"a\"], (\"a\", \"a\"), \"aa\") == [\"aa\", \"a\"], \"merges are non-overlapping, left to right\"\nassert merge_pair([\"x\", \"y\"], (\"a\", \"b\"), \"ab\") == [\"x\", \"y\"], \"a pair that never occurs leaves the tokens unchanged\"\nassert merge_pair([], (\"a\", \"b\"), \"ab\") == [], \"an empty list stays empty\"\ntokens = [\"h\", \"e\", \"l\", \"l\", \"o\"]\nmerged = merge_pair(tokens, (\"l\", \"l\"), \"ll\")\nassert merged == [\"h\", \"e\", \"ll\", \"o\"], \"('l', 'l') in 'hello' becomes one symbol\"\nassert tokens == [\"h\", \"e\", \"l\", \"l\", \"o\"], \"do not modify the input list; return a new one\"\nassert merge_pair(merge_pair(list(\"lower lowest\"), (\"l\", \"o\"), \"lo\"), (\"lo\", \"w\"), \"low\") == [\"low\", \"e\", \"r\", \" \", \"low\", \"e\", \"s\", \"t\"], \"replaying merges in order builds longer tokens\"\n",
+    "hint": {
+      "en": "Use an index `i` and a `while` loop. If `tokens[i]` and `tokens[i + 1]` form the pair, append `new` and jump by 2; otherwise append `tokens[i]` and move by 1.",
+      "es": "Usa un índice `i` y un bucle `while`. Si `tokens[i]` y `tokens[i + 1]` forman el par, añade `new` y avanza 2; si no, añade `tokens[i]` y avanza 1."
+    },
+    "solution": "def merge_pair(tokens, pair, new):\n    out = []\n    i = 0\n    while i < len(tokens):\n        if i + 1 < len(tokens) and (tokens[i], tokens[i + 1]) == tuple(pair):\n            out.append(new)\n            i += 2\n        else:\n            out.append(tokens[i])\n            i += 1\n    return out\n"
+  }
+]

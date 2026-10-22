@@ -1,0 +1,38 @@
+[
+  {
+    "id": "absmax-int8",
+    "title": {
+      "en": "Absmax int8 quantization",
+      "es": "Cuantización int8 absmax"
+    },
+    "prompt": {
+      "en": "Write `quantize_int8(x)` that returns `(q, scale)` with `scale = max(|x|) / 127` and `q = round(x / scale)` stored as `np.int8`, and `dequantize(q, scale)` that returns `q * scale` as floats.\n\nIf every value is 0, use a scale of `1.0` so nothing divides by zero.",
+      "es": "Escribe `quantize_int8(x)`, que devuelve `(q, scale)` con `scale = max(|x|) / 127` y `q = round(x / scale)` guardado como `np.int8`, y `dequantize(q, scale)`, que devuelve `q * scale` como floats.\n\nSi todos los valores son 0, usa una escala de `1.0` para no dividir por cero."
+    },
+    "starter": "import numpy as np\n\n\ndef quantize_int8(x):\n    raise NotImplementedError\n\n\ndef dequantize(q, scale):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nx = np.array([0.0, 0.5, -1.27, 1.0, 0.004])\nq, scale = quantize_int8(x)\nassert q.dtype == np.int8, \"store the codes as int8\"\nassert abs(scale - 0.01) < 1e-12, \"scale = max(|x|) / 127 = 1.27 / 127 = 0.01\"\nassert q.tolist() == [0, 50, -127, 100, 0], \"q = round(x / scale); 0.004 rounds to 0\"\nassert np.allclose(dequantize(q, scale), [0.0, 0.5, -1.27, 1.0, 0.0]), \"dequantize multiplies the codes by the scale\"\ngrid = np.linspace(-3, 3, 101)\nassert np.max(np.abs(dequantize(*quantize_int8(grid)) - grid)) <= 3 / 127 / 2 + 1e-12, \"round-to-nearest error is at most half a step\"\nq0, s0 = quantize_int8(np.zeros(3))\nassert np.isfinite(s0) and np.all(dequantize(q0, s0) == 0), \"an all-zero tensor must not divide by zero\"\n",
+    "hint": {
+      "en": "`np.round(x / scale)` then `np.clip(..., -127, 127).astype(np.int8)`. The clip guards against values like -127.00000001 from floating-point rounding.",
+      "es": "`np.round(x / scale)` y después `np.clip(..., -127, 127).astype(np.int8)`. El clip protege frente a valores como -127.00000001 por el redondeo en coma flotante."
+    },
+    "solution": "import numpy as np\n\n\ndef quantize_int8(x):\n    x = np.asarray(x, dtype=float)\n    absmax = float(np.abs(x).max()) if x.size else 0.0\n    scale = absmax / 127 if absmax > 0 else 1.0\n    q = np.clip(np.round(x / scale), -127, 127).astype(np.int8)\n    return q, scale\n\n\ndef dequantize(q, scale):\n    return q.astype(float) * scale\n"
+  },
+  {
+    "id": "group-int4",
+    "title": {
+      "en": "Group-wise 4-bit weights",
+      "es": "Pesos de 4 bits por grupos"
+    },
+    "prompt": {
+      "en": "Write `quantize_groups(w, group_size)` for a 1-D weight array. Split it into consecutive groups of `group_size` values; for each group use symmetric int4 with `scale = max(|group|) / 7` and codes `round(value / scale)` clipped to `[-8, 7]`. Return the **reconstructed** weights (codes times scale), same shape as `w`.\n\nA group of zeros reconstructs to zeros. Raise `ValueError` if the length is not a multiple of `group_size`.",
+      "es": "Escribe `quantize_groups(w, group_size)` para un array 1-D de pesos. Divídelo en grupos consecutivos de `group_size` valores; para cada grupo usa int4 simétrico con `scale = max(|grupo|) / 7` y códigos `round(valor / scale)` recortados a `[-8, 7]`. Devuelve los pesos **reconstruidos** (códigos por escala), con la misma forma que `w`.\n\nUn grupo de ceros se reconstruye como ceros. Lanza `ValueError` si la longitud no es múltiplo de `group_size`."
+    },
+    "starter": "import numpy as np\n\n\ndef quantize_groups(w, group_size):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nw = np.array([0.1, -0.2, 0.3, 0.05, 8.0, 0.1, -0.1, 0.2])\nper_tensor = quantize_groups(w, 8)\ngrouped = quantize_groups(w, 4)\nassert per_tensor.shape == w.shape and grouped.shape == w.shape, \"return the reconstructed weights, same shape as w\"\nassert np.allclose(per_tensor[:4], 0), \"with one scale for all 8 values the outlier 8.0 sets the step to 8 / 7, so the small weights all round to 0\"\nassert np.abs(grouped[:4] - w[:4]).max() <= 0.3 / 7 / 2 + 1e-12, \"the first group gets its own scale 0.3 / 7, so its error is at most half that step\"\nassert abs(grouped[4] - 8.0) < 1e-9, \"the largest value of a group is reconstructed exactly\"\nassert np.allclose(quantize_groups(np.zeros(4), 2), 0), \"a group of zeros stays zeros without dividing by zero\"\nraised = False\ntry:\n    quantize_groups(np.ones(6), 4)\nexcept ValueError:\n    raised = True\nassert raised, \"a length that is not a multiple of the group size: raise ValueError\"\n",
+    "hint": {
+      "en": "`w.reshape(-1, group_size)` puts one group per row. Then `np.abs(blocks).max(axis=1, keepdims=True) / 7` is one scale per row; replace zero scales with 1 before dividing.",
+      "es": "`w.reshape(-1, group_size)` pone un grupo por fila. Así `np.abs(blocks).max(axis=1, keepdims=True) / 7` es una escala por fila; sustituye las escalas cero por 1 antes de dividir."
+    },
+    "solution": "import numpy as np\n\n\ndef quantize_groups(w, group_size):\n    w = np.asarray(w, dtype=float)\n    if w.size % group_size:\n        raise ValueError(\"length must be a multiple of group_size\")\n    blocks = w.reshape(-1, group_size)\n    scale = np.abs(blocks).max(axis=1, keepdims=True) / 7\n    scale = np.where(scale == 0, 1.0, scale)\n    codes = np.clip(np.round(blocks / scale), -8, 7)\n    return (codes * scale).reshape(w.shape)\n"
+  }
+]

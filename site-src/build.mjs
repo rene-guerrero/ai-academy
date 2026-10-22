@@ -213,6 +213,23 @@ function render(body, L) {
   return { html, toc };
 }
 
+function practiceHtml(course, lesson, L, toc) {
+  const file = join(course.dir, "challenges", `${lesson.slug}.json`);
+  if (!existsSync(file)) return "";
+  const items = JSON.parse(readFileSync(file, "utf8"));
+  if (!items.length) return "";
+  const renderer = new marked.Renderer();
+  renderer.code = (code, info) => codeBlock(code, (info || "").split(/\s+/)[0], null, L);
+  const md = (s) => marked.parse(s, { renderer, gfm: true });
+  toc.push({ level: 2, id: "practice", text: t(L, "challenges.title") });
+  const rows = items.map((c) => {
+    const id = `practice-${c.id}`;
+    const data = { starter: c.starter, tests: c.tests, hint: marked.parseInline(c.hint[L] || c.hint.en, { gfm: true }), solution: c.solution };
+    return `<li class="chal card" id="${attr(id)}" data-chal="${attr(c.id)}"><div class="chal-head"><h3 id="${attr(id)}-h">${esc(c.title[L] || c.title.en)}</h3><span class="chal-badge" hidden>${t(L, "challenges.passed")}</span></div><div class="chal-prompt">${md(c.prompt[L] || c.prompt.en)}</div><div class="chal-app"></div><noscript>${codeBlock(c.starter, "python", "starter.py", L)}</noscript><details class="chal-tests"><summary>${t(L, "challenges.showTests")}</summary>${codeBlock(c.tests, "python", "tests.py", L)}</details><script type="application/json" class="chal-data">${JSON.stringify(data).replace(/</g, "\\u003c")}</script></li>`;
+  }).join("");
+  return `<section class="practice" id="practice" aria-labelledby="practice-h"><h2 id="practice-h">${t(L, "challenges.title")}</h2><p class="hint">${t(L, "challenges.intro")}</p><p class="chal-summary" aria-live="polite"></p><ol class="chal-list">${rows}</ol></section>`;
+}
+
 function readDir(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith(".md")).sort().map((f) => {
@@ -597,6 +614,7 @@ ${local}
 <details class="source"><summary>${t(L, "lesson.exercise.show", { n: lines })}</summary>${codeBlock(code, "python", repoPath, L)}</details>${reference}</section>`;
         }
       }
+      const practice = practiceHtml(course, lesson, L, toc);
       toc.push({ level: 2, id: "my-notes", text: t(L, "lesson.notes") });
 
       const nextSteps = [];
@@ -623,6 +641,7 @@ ${notices.join("\n")}
 <div class="prose"${isTranslated(lesson, lang) ? "" : ' lang="en"'}>${html}</div>
 ${quiz}
 ${exercise}
+${practice}
 <section class="mine" id="my-notes" aria-labelledby="notes-h"><h2 id="notes-h">${t(L, "lesson.notes")}</h2>
 <p class="hint">${t(L, "lesson.notes.hint")}</p>
 <label class="sr" for="predictions">${t(L, "lesson.notes")}</label>

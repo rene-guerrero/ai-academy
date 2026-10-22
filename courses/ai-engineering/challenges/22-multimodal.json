@@ -1,0 +1,38 @@
+[
+  {
+    "id": "patchify",
+    "title": {
+      "en": "Cut an image into patch tokens",
+      "es": "Corta una imagen en tokens de parche"
+    },
+    "prompt": {
+      "en": "Write `patchify(image, p)` for an array of shape `(H, W, C)`. Cut it into `p x p` patches, ordered left to right and then top to bottom, and flatten each patch row by row (all channels of a pixel together). Return an array of shape `(number_of_patches, p * p * C)`.\n\nRaise `ValueError` if `H` or `W` is not a multiple of `p`.",
+      "es": "Escribe `patchify(image, p)` para un array de forma `(H, W, C)`. Córtalo en parches de `p x p`, ordenados de izquierda a derecha y luego de arriba abajo, y aplana cada parche fila a fila (todos los canales de un píxel juntos). Devuelve un array de forma `(número_de_parches, p * p * C)`.\n\nLanza `ValueError` si `H` o `W` no son múltiplos de `p`."
+    },
+    "starter": "import numpy as np\n\n\ndef patchify(image, p):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nimg = np.arange(4 * 6 * 3).reshape(4, 6, 3)\npatches = patchify(img, 2)\nassert patches.shape == (6, 12), \"a 4 x 6 image with 2 x 2 patches gives 2 * 3 = 6 patches of 2 * 2 * 3 = 12 numbers\"\nassert np.array_equal(patches[0], img[0:2, 0:2].reshape(-1)), \"patch 0 is the top-left square, flattened row by row\"\nassert np.array_equal(patches[1], img[0:2, 2:4].reshape(-1)), \"patches go left to right first\"\nassert np.array_equal(patches[3], img[2:4, 0:2].reshape(-1)), \"then top to bottom\"\nassert patchify(np.zeros((224, 224, 3)), 16).shape == (196, 768), \"ViT: a 224 x 224 RGB image with 16 x 16 patches is 196 tokens of 768 numbers\"\nraised = False\ntry:\n    patchify(np.zeros((5, 6, 3)), 2)\nexcept ValueError:\n    raised = True\nassert raised, \"a height that is not a multiple of p: raise ValueError\"\n",
+    "hint": {
+      "en": "Reshape to `(H // p, p, W // p, p, C)`, swap the two middle axes with `transpose(0, 2, 1, 3, 4)`, then reshape to `(-1, p * p * C)`. Two nested loops over the grid work too.",
+      "es": "Cambia la forma a `(H // p, p, W // p, p, C)`, intercambia los dos ejes centrales con `transpose(0, 2, 1, 3, 4)` y vuelve a cambiarla a `(-1, p * p * C)`. Dos bucles anidados sobre la cuadrícula también sirven."
+    },
+    "solution": "import numpy as np\n\n\ndef patchify(image, p):\n    h, w, c = image.shape\n    if h % p or w % p:\n        raise ValueError(\"image sides must be multiples of p\")\n    grid = image.reshape(h // p, p, w // p, p, c).transpose(0, 2, 1, 3, 4)\n    return grid.reshape(-1, p * p * c)\n"
+  },
+  {
+    "id": "patch-count",
+    "title": {
+      "en": "Image tokens grow with resolution",
+      "es": "Los tokens de imagen crecen con la resolución"
+    },
+    "prompt": {
+      "en": "Write `patch_count(height, width, p)` that returns how many patch tokens an image produces when sides that are not a multiple of `p` are padded up to the next multiple. Then look at what doubling the resolution does.",
+      "es": "Escribe `patch_count(height, width, p)`, que devuelve cuántos tokens de parche produce una imagen cuando los lados que no son múltiplos de `p` se rellenan hasta el siguiente múltiplo. Después observa qué ocurre al duplicar la resolución."
+    },
+    "starter": "def patch_count(height, width, p):\n    raise NotImplementedError\n",
+    "tests": "assert patch_count(224, 224, 16) == 196, \"224 / 16 = 14, and 14 x 14 = 196\"\nassert patch_count(1344, 1344, 16) == 36 * 196, \"six times the side gives 36 times the patches\"\nassert patch_count(448, 224, 16) == 392, \"a 2:1 image has twice the patches\"\nassert patch_count(230, 224, 16) == 15 * 14, \"230 pixels need 15 rows of patches once padded\"\nassert patch_count(1, 1, 14) == 1, \"even a tiny image is one patch\"\nassert patch_count(448, 448, 16) ** 2 == 16 * patch_count(224, 224, 16) ** 2, \"doubling the side quadruples the tokens and multiplies attention cost by 16\"\n",
+    "hint": {
+      "en": "Integer ceiling division: `-(-height // p)`. Multiply the rows by the columns.",
+      "es": "División entera redondeando hacia arriba: `-(-height // p)`. Multiplica filas por columnas."
+    },
+    "solution": "def patch_count(height, width, p):\n    return -(-height // p) * -(-width // p)\n"
+  }
+]

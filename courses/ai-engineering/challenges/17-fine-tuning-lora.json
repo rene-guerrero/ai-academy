@@ -1,0 +1,38 @@
+[
+  {
+    "id": "lora-count",
+    "title": {
+      "en": "Count LoRA parameters",
+      "es": "Cuenta los parámetros de LoRA"
+    },
+    "prompt": {
+      "en": "LoRA trains `B @ A` instead of a full update: for a `d_out x d_in` matrix at rank `r`, that is `r * (d_in + d_out)` parameters instead of `d_in * d_out`. Write `lora_trainable(shapes, r)` where `shapes` is a list of `(d_out, d_in)` pairs, one per adapted matrix. Return `(trainable, fraction)`: the total LoRA parameters and their share of the full matrices' weights.",
+      "es": "LoRA entrena `B @ A` en lugar de una actualización completa: para una matriz de `d_out x d_in` con rango `r`, son `r * (d_in + d_out)` parámetros en lugar de `d_in * d_out`. Escribe `lora_trainable(shapes, r)`, donde `shapes` es una lista de pares `(d_out, d_in)`, uno por matriz adaptada. Devuelve `(trainable, fraction)`: el total de parámetros de LoRA y su proporción respecto a los pesos de las matrices completas."
+    },
+    "starter": "def lora_trainable(shapes, r):\n    raise NotImplementedError\n",
+    "tests": "trainable, fraction = lora_trainable([(4096, 4096)], 8)\nassert trainable == 65536, \"one 4096 x 4096 projection at r = 8 has 8 * (4096 + 4096) = 65,536 trainable parameters\"\nassert abs(fraction - 0.00390625) < 1e-12, \"that is about 0.39% of the matrix's 16,777,216 weights\"\nassert lora_trainable([(4096, 4096)] * 64, 8)[0] == 4194304, \"query and value projections of 32 layers: 64 matrices\"\nassert lora_trainable([(11008, 4096)], 16)[0] == 16 * (4096 + 11008), \"rectangular MLP matrices use d_in + d_out\"\nassert lora_trainable([(4096, 4096)], 16)[0] == 2 * trainable, \"parameters grow linearly with the rank\"\n",
+    "hint": {
+      "en": "Sum `r * (d_in + d_out)` and `d_in * d_out` over the shapes, then divide.",
+      "es": "Suma `r * (d_in + d_out)` y `d_in * d_out` sobre todas las formas y divide."
+    },
+    "solution": "def lora_trainable(shapes, r):\n    trainable = sum(r * (d_in + d_out) for d_out, d_in in shapes)\n    full = sum(d_in * d_out for d_out, d_in in shapes)\n    return trainable, trainable / full\n"
+  },
+  {
+    "id": "lora-merge",
+    "title": {
+      "en": "Merge a LoRA adapter",
+      "es": "Fusiona un adaptador LoRA"
+    },
+    "prompt": {
+      "en": "Write `lora_merge(W, A, B, alpha, r)` that returns the merged weight matrix `W + (alpha / r) * B @ A`, with `W` of shape `d_out x d_in`, `A` of shape `r x d_in` and `B` of shape `d_out x r`. Do not modify `W`: it is the frozen base model.",
+      "es": "Escribe `lora_merge(W, A, B, alpha, r)`, que devuelve la matriz de pesos fusionada `W + (alpha / r) * B @ A`, con `W` de forma `d_out x d_in`, `A` de forma `r x d_in` y `B` de forma `d_out x r`. No modifiques `W`: es el modelo base congelado."
+    },
+    "starter": "import numpy as np\n\n\ndef lora_merge(W, A, B, alpha, r):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nrng = np.random.default_rng(1)\nW = rng.normal(size=(6, 5))\nA = rng.normal(size=(2, 5))\nassert np.allclose(lora_merge(W, A, np.zeros((6, 2)), alpha=4, r=2), W), \"B starts at zero, so step 0 is exactly the pretrained model\"\nB = rng.normal(size=(6, 2))\nmerged = lora_merge(W, A, B, alpha=4, r=2)\nx = rng.normal(size=5)\nassert merged.shape == W.shape, \"merging keeps the shape of W, so serving costs nothing extra\"\nassert np.allclose(merged @ x, W @ x + 2.0 * (B @ (A @ x))), \"the merged matrix must give the base output plus the adapter scaled by alpha / r = 2\"\nW_before = W.copy()\nlora_merge(W, A, B, alpha=4, r=2)\nassert np.array_equal(W, W_before), \"do not modify the frozen base weights in place\"\nassert np.linalg.matrix_rank(merged - W) <= 2, \"the update B @ A has rank at most r\"\n",
+    "hint": {
+      "en": "`W + (alpha / r) * (B @ A)` builds a new array; `W += ...` would change the caller's matrix.",
+      "es": "`W + (alpha / r) * (B @ A)` crea un array nuevo; `W += ...` cambiaría la matriz de quien llama."
+    },
+    "solution": "import numpy as np\n\n\ndef lora_merge(W, A, B, alpha, r):\n    return W + (alpha / r) * (B @ A)\n"
+  }
+]

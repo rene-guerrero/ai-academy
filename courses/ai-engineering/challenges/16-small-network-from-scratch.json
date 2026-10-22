@@ -1,0 +1,38 @@
+[
+  {
+    "id": "numerical-grad",
+    "title": {
+      "en": "A numerical gradient",
+      "es": "Un gradiente numérico"
+    },
+    "prompt": {
+      "en": "Write `numerical_grad(f, x, eps=1e-5)` where `f` takes a NumPy float array and returns a number. Return an array with the shape of `x` holding the central difference for each entry:\n\n```\n(f(x with x[i] + eps) - f(x with x[i] - eps)) / (2 * eps)\n```\n\nNudge entries in place, but restore each one before moving on, so `x` is unchanged at the end. It must work for any shape.",
+      "es": "Escribe `numerical_grad(f, x, eps=1e-5)`, donde `f` recibe un array float de NumPy y devuelve un número. Devuelve un array con la forma de `x` que contenga la diferencia central de cada entrada:\n\n```\n(f(x con x[i] + eps) - f(x con x[i] - eps)) / (2 * eps)\n```\n\nEmpuja las entradas en el sitio, pero restaura cada una antes de pasar a la siguiente, para que `x` quede igual al final. Debe funcionar con cualquier forma."
+    },
+    "starter": "import numpy as np\n\n\ndef numerical_grad(f, x, eps=1e-5):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nx = np.array([1.0, -2.0, 3.0])\ng = numerical_grad(lambda v: float((v ** 2).sum()), x)\nassert np.allclose(g, 2 * x, atol=1e-6), \"the gradient of sum(x^2) is 2x\"\nassert np.array_equal(x, [1.0, -2.0, 3.0]), \"restore every entry after nudging it\"\nW = np.array([[0.5, -1.0], [2.0, 0.0]])\ng2 = numerical_grad(lambda m: float(np.tanh(m).sum()), W)\nassert g2.shape == (2, 2), \"works for matrices: same shape as the input\"\nassert np.allclose(g2, 1 - np.tanh(W) ** 2, atol=1e-6), \"the derivative of tanh is 1 - tanh^2\"\n",
+    "hint": {
+      "en": "`for i in np.ndindex(x.shape):` visits every index of any shape. Save `old = x[i]`, set `x[i] = old + eps`, evaluate, set `old - eps`, evaluate, then put `old` back.",
+      "es": "`for i in np.ndindex(x.shape):` recorre todos los índices de cualquier forma. Guarda `old = x[i]`, pon `x[i] = old + eps`, evalúa, pon `old - eps`, evalúa y devuelve `old` a su sitio."
+    },
+    "solution": "import numpy as np\n\n\ndef numerical_grad(f, x, eps=1e-5):\n    grad = np.zeros_like(x, dtype=float)\n    for i in np.ndindex(x.shape):\n        old = x[i]\n        x[i] = old + eps\n        hi = f(x)\n        x[i] = old - eps\n        lo = f(x)\n        x[i] = old\n        grad[i] = (hi - lo) / (2 * eps)\n    return grad\n"
+  },
+  {
+    "id": "tanh-backward",
+    "title": {
+      "en": "Backpropagate through a tanh layer",
+      "es": "Retropropaga a través de una capa tanh"
+    },
+    "prompt": {
+      "en": "The forward pass of one layer is `h = tanh(x @ W + b)`, with `x` of shape `(n, d_in)`, `W` of shape `(d_in, d_out)` and `b` of shape `(d_out,)`. Given `upstream`, the gradient of the loss with respect to `h` (shape `(n, d_out)`), write `dense_tanh_backward(x, W, b, upstream)` that returns `(dW, db, dx)`.\n\nEach gradient has the shape of the thing it is the gradient of. The tests compare your result with a numerical gradient.",
+      "es": "La pasada hacia delante de una capa es `h = tanh(x @ W + b)`, con `x` de forma `(n, d_in)`, `W` de forma `(d_in, d_out)` y `b` de forma `(d_out,)`. Dado `upstream`, el gradiente de la pérdida respecto a `h` (forma `(n, d_out)`), escribe `dense_tanh_backward(x, W, b, upstream)`, que devuelve `(dW, db, dx)`.\n\nCada gradiente tiene la forma de aquello de lo que es gradiente. Los tests comparan tu resultado con un gradiente numérico."
+    },
+    "starter": "import numpy as np\n\n\ndef dense_tanh_backward(x, W, b, upstream):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\nrng = np.random.default_rng(0)\nx = rng.normal(size=(4, 3))\nW = rng.normal(size=(3, 2))\nb = rng.normal(size=2)\nup = rng.normal(size=(4, 2))\ndW, db, dx = dense_tanh_backward(x, W, b, up)\nassert dW.shape == W.shape and db.shape == b.shape and dx.shape == x.shape, \"each gradient has the shape of what it is the gradient of\"\ndef numeric(a, eps=1e-6):\n    g = np.zeros_like(a)\n    for i in np.ndindex(a.shape):\n        old = a[i]\n        a[i] = old + eps\n        hi = float((np.tanh(x @ W + b) * up).sum())\n        a[i] = old - eps\n        lo = float((np.tanh(x @ W + b) * up).sum())\n        a[i] = old\n        g[i] = (hi - lo) / (2 * eps)\n    return g\nassert np.allclose(dW, numeric(W), atol=1e-6), \"dW does not match the numerical gradient: multiply upstream by the tanh derivative first, then use x.T\"\nassert np.allclose(db, numeric(b), atol=1e-6), \"db does not match: sum the local gradient over the batch rows\"\nassert np.allclose(dx, numeric(x), atol=1e-6), \"dx does not match: multiply the local gradient by W.T\"\n",
+    "hint": {
+      "en": "Recompute `h`, then `dz = upstream * (1 - h ** 2)`. For a product `x @ W`, the gradient for `W` is `x.T @ dz` and the gradient passed back to `x` is `dz @ W.T`.",
+      "es": "Vuelve a calcular `h` y después `dz = upstream * (1 - h ** 2)`. Para un producto `x @ W`, el gradiente de `W` es `x.T @ dz` y el que vuelve hacia `x` es `dz @ W.T`."
+    },
+    "solution": "import numpy as np\n\n\ndef dense_tanh_backward(x, W, b, upstream):\n    h = np.tanh(x @ W + b)\n    dz = upstream * (1 - h ** 2)\n    return x.T @ dz, dz.sum(axis=0), dz @ W.T\n"
+  }
+]

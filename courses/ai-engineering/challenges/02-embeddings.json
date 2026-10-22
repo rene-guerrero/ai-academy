@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cosine",
+    "title": {
+      "en": "Cosine similarity",
+      "es": "Similitud coseno"
+    },
+    "prompt": {
+      "en": "Write `cosine(a, b)` that returns the cosine similarity of two vectors (lists or NumPy arrays) as a float: the dot product divided by the product of the lengths.\n\n- It is 1 for the same direction, 0 for perpendicular vectors and -1 for opposite ones, whatever the lengths.\n- If either vector has zero length, return `0.0` instead of dividing by zero.",
+      "es": "Escribe `cosine(a, b)`, que devuelve como float la similitud coseno de dos vectores (listas o arrays de NumPy): el producto escalar dividido por el producto de las longitudes.\n\n- Vale 1 para la misma dirección, 0 para vectores perpendiculares y -1 para opuestos, sea cual sea la longitud.\n- Si alguno de los vectores tiene longitud cero, devuelve `0.0` en lugar de dividir por cero."
+    },
+    "starter": "import numpy as np\n\n\ndef cosine(a, b):\n    raise NotImplementedError\n",
+    "tests": "assert abs(cosine([1, 0], [0, 1])) < 1e-9, \"perpendicular vectors have cosine 0\"\nassert abs(cosine([1, 2, 3], [2, 4, 6]) - 1) < 1e-9, \"the same direction gives 1, whatever the length\"\nassert abs(cosine([1, 1], [-1, -1]) + 1) < 1e-9, \"opposite directions give -1\"\nassert abs(cosine([3, 4], [4, 3]) - 0.96) < 1e-9, \"cosine([3, 4], [4, 3]) is 24 / (5 * 5) = 0.96\"\nassert cosine([0, 0], [1, 2]) == 0.0, \"return 0.0 when a vector has zero length\"\nassert isinstance(cosine([1, 2], [3, 4]), float), \"return a float, not an array\"\n",
+    "hint": {
+      "en": "Convert both inputs with `np.asarray(..., dtype=float)`, then use `a @ b` and `np.linalg.norm`.",
+      "es": "Convierte ambas entradas con `np.asarray(..., dtype=float)` y usa `a @ b` y `np.linalg.norm`."
+    },
+    "solution": "import numpy as np\n\n\ndef cosine(a, b):\n    a = np.asarray(a, dtype=float)\n    b = np.asarray(b, dtype=float)\n    na = np.linalg.norm(a)\n    nb = np.linalg.norm(b)\n    if na == 0 or nb == 0:\n        return 0.0\n    return float(a @ b / (na * nb))\n"
+  },
+  {
+    "id": "top-k",
+    "title": {
+      "en": "Brute-force semantic search",
+      "es": "Búsqueda semántica por fuerza bruta"
+    },
+    "prompt": {
+      "en": "For a few thousand documents, a dot product over a NumPy array is all the vector search you need. Write `top_k(query, docs, k)` where `docs` is a 2-D array with one document vector per row. Return the indices of the `k` rows most similar to `query` by cosine similarity, best first, as a list of ints.\n\n- Only direction matters, not length: normalize before comparing.\n- On a tie, the lower index comes first.\n- If `k` is larger than the number of documents, return all of them.",
+      "es": "Para unos pocos miles de documentos, un producto escalar sobre un array de NumPy es toda la búsqueda vectorial que necesitas. Escribe `top_k(query, docs, k)`, donde `docs` es un array 2-D con un vector de documento por fila. Devuelve, como lista de ints, los índices de las `k` filas más parecidas a `query` por similitud coseno, de mejor a peor.\n\n- Solo importa la dirección, no la longitud: normaliza antes de comparar.\n- En caso de empate, va primero el índice menor.\n- Si `k` es mayor que el número de documentos, devuélvelos todos."
+    },
+    "starter": "import numpy as np\n\n\ndef top_k(query, docs, k):\n    raise NotImplementedError\n",
+    "tests": "import numpy as np\ndocs = np.array([[1.0, 0.0], [0.0, 1.0], [10.0, 1.0], [-1.0, 0.0]])\nassert list(top_k([1, 0], docs, 2)) == [0, 2], \"row 0 points the same way as the query and row 2 almost does\"\nassert list(top_k([1, 0], docs, 4))[-1] == 3, \"the opposite vector should come last\"\nassert list(top_k([0, 5], docs, 1)) == [1], \"length must not matter, only direction\"\nassert list(top_k([0, 1], np.array([[0.0, 1.0], [1.0, 0.0], [0.0, 3.0]]), 2)) == [0, 2], \"on a tie, the lower index comes first\"\nassert len(top_k([1, 0], docs, 10)) == 4, \"k larger than the number of documents returns every document\"\nassert all(isinstance(i, int) for i in top_k([1, 0], docs, 2)), \"return plain Python ints\"\n",
+    "hint": {
+      "en": "Divide each row by its norm (`np.linalg.norm(docs, axis=1, keepdims=True)`), do the same for the query, compute `docs_n @ q_n`, then `np.argsort(-scores, kind=\"stable\")`.",
+      "es": "Divide cada fila por su norma (`np.linalg.norm(docs, axis=1, keepdims=True)`), haz lo mismo con la consulta, calcula `docs_n @ q_n` y después `np.argsort(-scores, kind=\"stable\")`."
+    },
+    "solution": "import numpy as np\n\n\ndef top_k(query, docs, k):\n    q = np.asarray(query, dtype=float)\n    d = np.asarray(docs, dtype=float)\n    q = q / np.linalg.norm(q)\n    d = d / np.linalg.norm(d, axis=1, keepdims=True)\n    scores = d @ q\n    order = np.argsort(-scores, kind=\"stable\")\n    return [int(i) for i in order[:k]]\n"
+  }
+]
